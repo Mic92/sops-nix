@@ -1,11 +1,7 @@
-{ buildGoModule ? (import <nixpkgs> {}).buildGoModule }:
+{ buildGoModule }:
 buildGoModule {
   pname = "sops-install-secrets";
   version = "0.0.1";
-
-  nativeBuildInputs = with import <nixpkgs> {}; [
-    delve
-  ];
 
   hardeningDisable = [ "all" ];
 
