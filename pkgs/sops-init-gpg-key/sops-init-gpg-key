@@ -1,0 +1,75 @@
+#!/usr/bin/env bash
+
+set -o errexit -o pipefail -o noclobber -o nounset
+
+OPTIONS=h
+LONGOPTS=help,gpghome:,hostname:
+
+! PARSED=$(getopt --options=$OPTIONS --longoptions=$LONGOPTS --name "$0" -- "$@")
+
+if [[ ${PIPESTATUS[0]} -ne 0 ]]; then
+  # e.g. return value is 1
+  #  then getopt has complained about wrong arguments to stdout
+  exit 2
+fi
+
+eval set -- "$PARSED"
+
+FINAL_GNUPGHOME=/root/.gnupg
+HOSTNAME=$(hostname)
+
+usage() {
+    echo "$0: [--hostname hostname] [--gpghome home]"
+}
+
+while true; do
+  case "$1" in
+    -h|--help)
+      usage
+      exit 0
+      ;;
+    --gpghome)
+      FINAL_GNUPGHOME=$2
+      shift 2
+      ;;
+    --hostname)
+      HOSTNAME=$2
+      shift 2
+      ;;
+    --)
+      shift
+      break
+      ;;
+    *)
+      echo "unknown option: $1"
+      usage
+      exit 3
+      ;;
+  esac
+done
+
+if [[ -e "$FINAL_GNUPGHOME" ]]; then
+  echo "secret path ${FINAL_GNUPGHOME} already exists"
+  exit 1
+fi
+
+export GNUPGHOME=$(mktemp -d)
+trap "rm -rf $GNUPGHOME" EXIT
+
+cat > "$GNUPGHOME/key-template" <<EOF
+%no-protection
+Key-Type: 1
+Key-Length: 2048
+Name-Real: $HOSTNAME
+Name-Email: root@$HOSTNAME
+Expire-Date: 0
+EOF
+
+gpg --quiet --batch --gen-key "${GNUPGHOME}/key-template"
+echo "You can use the following command to save it to a file:"
+echo "cat > $HOSTNAME.asc <<EOF"
+gpg --export --armor
+echo 'EOF'
+
+rm "${GNUPGHOME}/key-template"
+mv "$GNUPGHOME" "$FINAL_GNUPGHOME"

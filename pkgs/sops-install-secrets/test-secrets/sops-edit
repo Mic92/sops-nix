@@ -1,0 +1,18 @@
+#!/usr/bin/env nix-shell
+#! nix-shell -p gnupg -p bash -p sops -i bash
+
+if [ "$#" -lt 1 ]; then
+    echo "USAGE: $0 file"
+    exit 1
+fi
+
+set -x
+export GNUPGHOME=$(mktemp -d)
+trap "gpgconf --kill gpg-agent && rm -rf $GNUPGHOME" EXIT
+
+DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
+gpg --import "$DIR/key.asc"
+gpg --fingerprint --list-keys
+fpr=$(gpg --with-fingerprint --with-colons --show-key ./key.asc | awk -F: '$1 == "fpr" { print $10;}')
+
+sops --pgp "$fpr" "$@"
