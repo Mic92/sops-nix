@@ -1,6 +1,7 @@
 { makeTest ? import <nixpkgs/nixos/tests/make-test-python.nix>, pkgs ? import <nixpkgs> }:
 {
  ssh-keys = makeTest {
+  name = "sops-ssh-keys";
   nodes.server = { ... }: {
     imports = [ ../../modules/sops ];
     services.openssh.enable = true;
@@ -21,7 +22,8 @@
    inherit pkgs;
  };
 
- gpg-keys = makeTest {
+ pgp-keys = makeTest {
+   name = "sops-pgp-keys";
    nodes.server = { pkgs, lib, ... }: {
      imports = [ ../../modules/sops ];
       sops.gnupgHome = "/run/gpghome";

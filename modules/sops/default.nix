@@ -5,7 +5,7 @@ with lib;
 let
   cfg = config.sops;
   users = config.users.users;
-  sops-install-secrets = pkgs.callPackage ../../pkgs/sops-install-secrets {};
+  sops-install-secrets = (pkgs.callPackage ../.. {}).sops-install-secrets;
   secretType = types.submodule ({ config, ... }: {
     options = {
       name = mkOption {

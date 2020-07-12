@@ -20,9 +20,13 @@ jobs:
     - name: Setup cachix
       uses: cachix/cachix-action@v6
       with:
-        name: ${{ matrix.cachixName }}
+        name: mic92
         signingKey: '${{ secrets.CACHIX_SIGNING_KEY }}'
     - name: Show nixpkgs version
       run: nix-instantiate --eval -E '(import <nixpkgs> {}).lib.version'
     - name: Build nix packages
       run: nix run nixpkgs.nix-build-uncached -c nix-build-uncached default.nix
+    - name: Add keys group (needed for go tests)
+      run: sudo groupadd keys
+    - name: Run go tests
+      run: nix-shell --run "sudo unshare --mount --fork go test ./pkgs/sops-install-secrets"
