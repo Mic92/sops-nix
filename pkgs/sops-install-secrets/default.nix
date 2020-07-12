@@ -1,4 +1,4 @@
-{ buildGoModule, path, pkgs, vendorSha256 }:
+{ stdenv, buildGoModule, path, pkgs, vendorSha256 }:
 buildGoModule {
   pname = "sops-install-secrets";
   version = "0.0.1";

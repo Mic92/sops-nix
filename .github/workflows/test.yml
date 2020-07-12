@@ -1,0 +1,28 @@
+name: "Test"
+on:
+  pull_request:
+  push:
+  schedule:
+    - cron:  '51 2 * * *'
+jobs:
+  tests:
+    strategy:
+      matrix:
+        nixPath:
+          - nixpkgs=channel:nixos-20.03
+          - nixpkgs=channel:nixpkgs-unstable
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - uses: cachix/install-nix-action@v10
+      with:
+        nix_path: "${{ matrix.nixPath }}"
+    - name: Setup cachix
+      uses: cachix/cachix-action@v6
+      with:
+        name: mic92
+        signingKey: '${{ secrets.CACHIX_SIGNING_KEY }}'
+    - name: Show nixpkgs version
+      run: nix-instantiate --eval -E '(import <nixpkgs> {}).lib.version'
+    - name: Build nix packages
+      run: nix run nixpkgs.nix-build-uncached -c nix-build-uncached default.nix
