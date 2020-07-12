@@ -3,8 +3,6 @@ buildGoModule {
   pname = "sops-install-secrets";
   version = "0.0.1";
 
-  hardeningDisable = [ "all" ];
-
   src = ../..;
 
   subPackages = [ "pkgs/sops-install-secrets" ];
