@@ -21,7 +21,7 @@
    inherit pkgs;
  };
 
- gpg-keys = makeTest {
+ pgp-keys = makeTest {
    nodes.server = { pkgs, lib, ... }: {
      imports = [ ../../modules/sops ];
       sops.gnupgHome = "/run/gpghome";
