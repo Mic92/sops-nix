@@ -1,6 +1,5 @@
-let
-  makeTest = import <nixpkgs/nixos/tests/make-test-python.nix>;
-in {
+{ makeTest ? import <nixpkgs/nixos/tests/make-test-python.nix>, pkgs ? import <nixpkgs> }:
+{
  ssh-keys = makeTest {
   nodes.server = { ... }: {
     imports = [ ../../modules/sops ];
@@ -18,6 +17,8 @@ in {
     start_all()
     server.succeed("cat /run/secrets/test_key | grep -q test_value")
   '';
+ } {
+   inherit pkgs;
  };
 
  gpg-keys = makeTest {
@@ -43,5 +44,7 @@ in {
      start_all()
      server.succeed("cat /run/secrets/test_key | grep -q test_value")
    '';
+ } {
+   inherit pkgs;
  };
 }
