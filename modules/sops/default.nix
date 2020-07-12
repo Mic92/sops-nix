@@ -78,6 +78,7 @@ let
     # Does this need to be configurable?
     secretsMountPoint = "/run/secrets.d";
     symlinkPath = "/run/secrets";
+    inherit (cfg) gnupgHome sshKeyPaths;
   });
 in {
   options.sops = {
@@ -97,17 +98,38 @@ in {
     };
 
     gnupgHome = mkOption {
-      type = types.str;
-      default = "/root/.gnupg";
+      type = types.nullOr types.str;
+      default = null;
+      example = "/root/.gnupg";
       description = ''
-        Path to gnupg database directory containing the key for decrypting sops file
+        Path to gnupg database directory containing the key for decrypting sops file.
+      '';
+    };
+
+    sshKeyPaths = mkOption {
+      type = types.listOf types.path;
+      default = if config.services.openssh.enable then
+                  map (e: e.path) (lib.filter (e: e.type == "rsa") config.services.openssh.hostKeys)
+                else [];
+      description = ''
+        Path to ssh keys added as GPG keys during sops description.
+        This option must be explicitly unset if <literal>config.sops.sshKeyPaths</literal>.
       '';
     };
   };
   config = mkIf (cfg.secrets != {}) {
+
+    assertions = [{
+      assertion = cfg.gnupgHome != null -> cfg.sshKeyPaths == [];
+      message = "config.sops.gnupgHome and config.sops.sshKeyPaths are mutual exclusive";
+    } {
+      assertion = cfg.gnupgHome == null -> cfg.sshKeyPaths != [];
+      message = "Either config.sops.sshKeyPaths and config.sops.gnupgHome must be set";
+    }];
+
     system.activationScripts.setup-secrets = stringAfter [ "users" "groups" ] ''
       echo setting up secrets...
-      SOPS_GPG_EXEC=${pkgs.gnupg}/bin/gpg GNUPGHOME=${cfg.gnupgHome} ${sops-install-secrets}/bin/sops-install-secrets ${manifest}
+      ${optionalString (cfg.gnupgHome != null) "SOPS_GPG_EXEC=${pkgs.gnupg}/bin/gpg"} ${sops-install-secrets}/bin/sops-install-secrets ${manifest}
     '';
   };
 }

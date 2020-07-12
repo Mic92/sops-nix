@@ -5,10 +5,9 @@ buildGoModule {
 
   hardeningDisable = [ "all" ];
 
-  src = ./.;
+  src = ../..;
 
-  vendorSha256 = "1ky7xzsx12d8m4kvqkayqzybkf3s0w21d6m8qlhvrm00fmyidkxj";
-  shellHook = ''
-    unset GOFLAGS
-  '';
+  subPackages = [ "pkgs/sops-install-secrets" ];
+
+  vendorSha256 = "sha256-O0z+oEffOOZa/bn2gV9onLVbPBHsNDH2yq1CZPi8w58=";
 }

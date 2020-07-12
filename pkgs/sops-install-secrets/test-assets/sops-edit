@@ -11,8 +11,9 @@ export GNUPGHOME=$(mktemp -d)
 trap "gpgconf --kill gpg-agent && rm -rf $GNUPGHOME" EXIT
 
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
-gpg --import "$DIR/key.asc"
+gpg --import "$DIR/key.asc" "$DIR/ssh-key.asc"
 gpg --fingerprint --list-keys
-fpr=$(gpg --with-fingerprint --with-colons --show-key ./key.asc | awk -F: '$1 == "fpr" { print $10;}')
+
+fpr=$(gpg --with-fingerprint --with-colons --show-key "$DIR/key.asc" "$DIR/ssh-key.asc" | awk -F: '$1 == "fpr" { print $10;}' | xargs | sed -e 's/ /,/g')
 
 sops --pgp "$fpr" "$@"

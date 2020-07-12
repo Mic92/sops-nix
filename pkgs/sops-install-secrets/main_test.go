@@ -43,24 +43,48 @@ func writeManifest(t *testing.T, dir string, m *manifest) string {
 	return filename
 }
 
-func TestCliArgs(t *testing.T) {
+func testAssetPath() string {
 	_, filename, _, _ := runtime.Caller(0)
-	var testSecrets = path.Join(path.Dir(filename), "test-secrets")
+	return path.Join(path.Dir(filename), "test-assets")
+}
 
+type testDir struct {
+	path, secretsPath, symlinkPath string
+}
+
+func (dir testDir) Remove() {
+	os.RemoveAll(dir.path)
+}
+
+func newTestDir(t *testing.T) testDir {
 	tempdir, err := ioutil.TempDir("", "symlinkDir")
 	ok(t, err)
-	defer os.RemoveAll(tempdir)
-	secretsPath := path.Join(tempdir, "secrets.d")
-	symlinkPath := path.Join(tempdir, "secrets")
-	gpgHome := path.Join(tempdir, "gpg-home")
+	return testDir{tempdir, path.Join(tempdir, "secrets.d"), path.Join(tempdir, "secrets")}
+}
+
+func testInstallSecret(t *testing.T, testdir testDir, m *manifest) {
+	path := writeManifest(t, testdir.path, m)
+	ok(t, installSecrets([]string{"sops-install-secrets", path}))
+}
+
+func testGPG(t *testing.T) {
+	assets := testAssetPath()
+
+	testdir := newTestDir(t)
+	defer testdir.Remove()
+	gpgHome := path.Join(testdir.path, "gpg-home")
+	gpgEnv := append(os.Environ(), fmt.Sprintf("GNUPGHOME=%s", gpgHome))
 
 	ok(t, os.Mkdir(gpgHome, os.FileMode(0700)))
-	os.Setenv("GNUPGHOME", gpgHome)
-	cmd := exec.Command("gpg", "--import", path.Join(testSecrets, "key.asc"))
+	cmd := exec.Command("gpg", "--import", path.Join(assets, "key.asc"))
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
+	cmd.Env = gpgEnv
 	ok(t, cmd.Run())
 	stopGpgCmd := exec.Command("gpgconf", "--kill", "gpg-agent")
+	stopGpgCmd.Stdout = os.Stdout
+	stopGpgCmd.Stderr = os.Stderr
+	stopGpgCmd.Env = gpgEnv
 	defer func() {
 		if err := stopGpgCmd.Run(); err != nil {
 			fmt.Printf("failed to stop gpg-agent: %s\n", err)
@@ -73,43 +97,40 @@ func TestCliArgs(t *testing.T) {
 		Key:             "test_key",
 		Owner:           "nobody",
 		Group:           "nogroup",
-		SourceFile:      path.Join(testSecrets, "secrets.yaml"),
-		Path:            path.Join(tempdir, "test-target"),
+		SopsFile:        path.Join(assets, "secrets.yaml"),
+		Path:            path.Join(testdir.path, "test-target"),
 		Mode:            "0400",
 		RestartServices: []string{"affected-service"},
 		ReloadServices:  make([]string, 0),
 	}
 
-	var jsonSecret secret
+	var jsonSecret, binarySecret secret
 	// should not create a symlink
 	jsonSecret = yamlSecret
 	jsonSecret.Name = "test2"
 	jsonSecret.Owner = "root"
 	jsonSecret.Format = "json"
 	jsonSecret.Group = "root"
-	jsonSecret.SourceFile = path.Join(testSecrets, "secrets.json")
-	jsonSecret.Path = path.Join(symlinkPath, "test2")
+	jsonSecret.SopsFile = path.Join(assets, "secrets.json")
+	jsonSecret.Path = path.Join(testdir.secretsPath, "test2")
 	jsonSecret.Mode = "0700"
 
-	var binarySecret secret
 	binarySecret = yamlSecret
 	binarySecret.Name = "test3"
 	binarySecret.Format = "binary"
-	binarySecret.SourceFile = path.Join(testSecrets, "secrets.bin")
-	binarySecret.Path = path.Join(symlinkPath, "test3")
+	binarySecret.SopsFile = path.Join(assets, "secrets.bin")
+	binarySecret.Path = path.Join(testdir.secretsPath, "test3")
 
 	manifest := manifest{
 		Secrets:           []secret{yamlSecret, jsonSecret, binarySecret},
-		SecretsMountPoint: secretsPath,
-		SymlinkPath:       symlinkPath,
+		SecretsMountPoint: testdir.secretsPath,
+		SymlinkPath:       testdir.symlinkPath,
+		GnupgHome:         gpgHome,
 	}
 
-	manifestPath := writeManifest(t, tempdir, &manifest)
+	testInstallSecret(t, testdir, &manifest)
 
-	err = installSecrets([]string{"sops-install-secrets", manifestPath})
-	ok(t, err)
-
-	_, err = os.Stat(manifest.SecretsMountPoint)
+	_, err := os.Stat(manifest.SecretsMountPoint)
 	ok(t, err)
 
 	_, err = os.Stat(manifest.SymlinkPath)
@@ -150,13 +171,44 @@ func TestCliArgs(t *testing.T) {
 
 	content, err = ioutil.ReadFile(binarySecret.Path)
 	ok(t, err)
-	equals(t, "binary_value\n", string(content))
 
-	manifestPath = writeManifest(t, symlinkPath, &manifest)
+	testInstallSecret(t, testdir, &manifest)
 
-	err = installSecrets([]string{"sops-install-secrets", manifestPath})
+	target, err := os.Readlink(testdir.symlinkPath)
 	ok(t, err)
+	equals(t, path.Join(testdir.secretsPath, "2"), target)
+}
 
-	target, err := os.Readlink(symlinkPath)
-	equals(t, path.Join(secretsPath, "2"), target)
+func testSSHKey(t *testing.T) {
+	assets := testAssetPath()
+
+	testdir := newTestDir(t)
+	defer testdir.Remove()
+
+	s := secret{
+		Name:            "test",
+		Key:             "test_key",
+		Owner:           "nobody",
+		Group:           "nogroup",
+		SopsFile:        path.Join(assets, "secrets.yaml"),
+		Path:            path.Join(testdir.path, "test-target"),
+		Mode:            "0400",
+		RestartServices: []string{"affected-service"},
+		ReloadServices:  make([]string, 0),
+	}
+
+	m := manifest{
+		Secrets:           []secret{s},
+		SecretsMountPoint: testdir.secretsPath,
+		SymlinkPath:       testdir.symlinkPath,
+		SSHKeyPaths:       []string{path.Join(assets, "ssh-key")},
+	}
+
+	testInstallSecret(t, testdir, &m)
+}
+
+func TestAll(t *testing.T) {
+	// we can't test in parallel because we rely on GNUPGHOME environment variable
+	testGPG(t)
+	testSSHKey(t)
 }

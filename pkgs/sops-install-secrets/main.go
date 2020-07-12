@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -9,6 +10,8 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+
+	"github.com/Mic92/sops-nix/pkgs/sshkeys"
 
 	"github.com/mozilla-services/yaml"
 	"go.mozilla.org/sops/v3/decrypt"
@@ -36,6 +39,8 @@ type manifest struct {
 	Secrets           []secret `json:"secrets"`
 	SecretsMountPoint string   `json:"secretsMountpoint"`
 	SymlinkPath       string   `json:"symlinkPath"`
+	SSHKeyPaths       []string `json:"sshKeyPaths"`
+	GnupgHome         string   `json:"gnupgHome`
 }
 
 func readManifest(path string) (*manifest, error) {
@@ -52,7 +57,26 @@ func readManifest(path string) (*manifest, error) {
 	return &m, nil
 }
 
-func prepareSymlinks(targetDir string, secrets []secret) error {
+func symlinkSecret(targetFile string, secret *secret) error {
+	for {
+		currentLinkTarget, err := os.Readlink(secret.Path)
+		if os.IsNotExist(err) {
+			if err := os.Symlink(targetFile, secret.Path); err != nil {
+				return fmt.Errorf("Cannot create symlink '%s': %s", secret.Path, err)
+			}
+			return nil
+		} else if err != nil {
+			return fmt.Errorf("Cannot read symlink: '%s'", err)
+		} else if currentLinkTarget == targetFile {
+			return nil
+		}
+		if err := os.Remove(secret.Path); err != nil {
+			return fmt.Errorf("Cannot override %s", secret.Path)
+		}
+	}
+}
+
+func symlinkSecrets(targetDir string, secrets []secret) error {
 	for _, secret := range secrets {
 		targetFile := filepath.Join(targetDir, secret.Name)
 		if targetFile == secret.Path {
@@ -62,21 +86,8 @@ func prepareSymlinks(targetDir string, secrets []secret) error {
 		if err := os.MkdirAll(parent, os.ModePerm); err != nil {
 			return fmt.Errorf("Cannot create parent directory of '%s': %s", secret.Path, err)
 		}
-		for {
-			currentLinkTarget, err := os.Readlink(secret.Path)
-			if os.IsNotExist(err) {
-				if err := os.Symlink(targetFile, secret.Path); err != nil {
-					return fmt.Errorf("Cannot create symlink '%s': %s", secret.Path, err)
-				}
-				return nil
-			} else if err != nil {
-				return fmt.Errorf("Cannot read symlink: '%s'", err)
-			} else if currentLinkTarget == targetFile {
-				return nil
-			}
-			if err := os.Remove(secret.Path); err != nil {
-				return fmt.Errorf("Cannot override %s", secret.Path)
-			}
+		if err := symlinkSecret(targetFile, &secret); err != nil {
+			return err
 		}
 	}
 	return nil
@@ -131,7 +142,7 @@ func decryptSecrets(secrets []secret) error {
 	return nil
 }
 
-func prepareSecretFs(mountpoint string, keysGid int) error {
+func mountSecretFs(mountpoint string, keysGid int) error {
 	if err := os.MkdirAll(mountpoint, 0750); err != nil {
 		return fmt.Errorf("Cannot create directory '%s': %s", mountpoint, err)
 	}
@@ -247,6 +258,10 @@ func validateManifest(m *manifest) error {
 	if m.SymlinkPath == "" {
 		m.SymlinkPath = "/run/secrets"
 	}
+	if len(m.SSHKeyPaths) > 0 && m.GnupgHome != "" {
+		return errors.New("gnupgHome and sshKeyPaths were specified in the manifest. " +
+			"Both options are mutual exclusive.")
+	}
 	for i := range m.Secrets {
 		if err := validateSecret(&m.Secrets[i]); err != nil {
 			return err
@@ -288,13 +303,61 @@ func atomicSymlink(oldname, newname string) error {
 	return os.RemoveAll(d)
 }
 
+func importSSHKeys(keyPaths []string, gpgHome string) error {
+	secringPath := filepath.Join(gpgHome, "secring.gpg")
+	secring, err := os.Create(secringPath)
+	if err != nil {
+		return fmt.Errorf("Cannot create %s: %s", secringPath, err)
+	}
+	for _, path := range keyPaths {
+		sshKey, err := ioutil.ReadFile(path)
+		if err != nil {
+			return fmt.Errorf("Cannot read ssh key '%s': %s", path, err)
+		}
+		gpgKey, err := sshkeys.SSHPrivateKeyToPGP(sshKey)
+		if err != nil {
+			return err
+		}
+		if err := gpgKey.SerializePrivate(secring, nil); err != nil {
+			return fmt.Errorf("Cannot write secring: %s", err)
+		}
+	}
+
+	return nil
+}
+
+type keyring struct {
+	path string
+}
+
+func (k *keyring) Remove() {
+	os.RemoveAll(k.path)
+	os.Unsetenv("GNUPGHOME")
+}
+
+func setupGPGKeyring(sshKeys []string, parentDir string) (*keyring, error) {
+	dir, err := ioutil.TempDir(parentDir, "gpg")
+	if err != nil {
+		return nil, fmt.Errorf("Cannot create gpg home in '%s': %s", parentDir, err)
+	}
+	k := keyring{dir}
+
+	if err := importSSHKeys(sshKeys, dir); err != nil {
+		os.RemoveAll(dir)
+		return nil, err
+	}
+	os.Setenv("GNUPGHOME", dir)
+
+	return &k, nil
+}
+
 func installSecrets(args []string) error {
 	if len(args) <= 1 {
 		return fmt.Errorf("USAGE: %s manifest.json", args)
 	}
 	manifest, err := readManifest(args[1])
 	if err != nil {
-		return fmt.Errorf("%s", err)
+		return err
 	}
 
 	if err := validateManifest(manifest); err != nil {
@@ -306,22 +369,33 @@ func installSecrets(args []string) error {
 		return err
 	}
 
+	if err := mountSecretFs(manifest.SecretsMountPoint, keysGid); err != nil {
+		return fmt.Errorf("Failed to mount filesystem for secrets: %s", err)
+	}
+
+	if len(manifest.SSHKeyPaths) != 0 {
+		keyring, err := setupGPGKeyring(manifest.SSHKeyPaths, manifest.SecretsMountPoint)
+		if err != nil {
+			return fmt.Errorf("Error setting up gpg keyring: %s", err)
+		}
+		defer keyring.Remove()
+	} else if manifest.GnupgHome != "" {
+		os.Setenv("GNUPGHOME", manifest.GnupgHome)
+	}
+
 	if err := decryptSecrets(manifest.Secrets); err != nil {
 		return err
 	}
 
-	if err := prepareSecretFs(manifest.SecretsMountPoint, keysGid); err != nil {
-		return fmt.Errorf("Failed to mount filesystem for secrets: %s", err)
-	}
-	if err := prepareSymlinks(manifest.SymlinkPath, manifest.Secrets); err != nil {
-		return fmt.Errorf("Failed to prepare symlinks to secret store: %s", err)
-	}
 	secretDir, err := prepareSecretsDir(manifest.SecretsMountPoint, manifest.SymlinkPath, keysGid)
 	if err != nil {
 		return fmt.Errorf("Failed to prepare new secrets directory: %s", err)
 	}
 	if err := writeSecrets(*secretDir, manifest.Secrets); err != nil {
 		return fmt.Errorf("Cannot write secrets: %s", err)
+	}
+	if err := symlinkSecrets(manifest.SymlinkPath, manifest.Secrets); err != nil {
+		return fmt.Errorf("Failed to prepare symlinks to secret store: %s", err)
 	}
 	if err := atomicSymlink(*secretDir, manifest.SymlinkPath); err != nil {
 		return fmt.Errorf("Cannot update secrets symlink: %s", err)

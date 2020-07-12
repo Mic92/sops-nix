@@ -72,4 +72,6 @@ gpg --export --armor
 echo 'EOF'
 
 rm "${GNUPGHOME}/key-template"
+parent=$(dirname "$FINAL_GNUPGHOME")
+mkdir -p "$parent"
 mv "$GNUPGHOME" "$FINAL_GNUPGHOME"

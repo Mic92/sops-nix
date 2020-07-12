@@ -17,3 +17,4 @@
 # vendor/
 
 /pkgs/sops-install-secrets/sops-install-secrets
+/pkgs/ssh-to-pgp/ssh-to-pgp
