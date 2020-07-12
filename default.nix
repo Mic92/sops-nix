@@ -9,7 +9,4 @@ in rec {
   ssh-to-pgp = pkgs.callPackage ./pkgs/ssh-to-pgp {
     inherit vendorSha256;
   };
-
-  nixos-tests-ssh-keys = sops-install-secrets.tests.ssh-keys;
-  nixos-tests-pgp-keys = sops-install-secrets.tests.pgp-keys;
 }
