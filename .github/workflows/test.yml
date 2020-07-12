@@ -26,3 +26,5 @@ jobs:
       run: nix-instantiate --eval -E '(import <nixpkgs> {}).lib.version'
     - name: Build nix packages
       run: nix run nixpkgs.nix-build-uncached -c nix-build-uncached default.nix
+    - name: Run go tests
+      run: sudo unshare --mount --fork go test ./pkgs/sops-install-secrets
