@@ -66,10 +66,13 @@ Expire-Date: 0
 EOF
 
 gpg --quiet --batch --gen-key "${GNUPGHOME}/key-template"
-echo "You can use the following command to save it to a file:"
-echo "cat > $HOSTNAME.asc <<EOF"
-gpg --export --armor
-echo 'EOF'
+echo >&2 "You can use the following command to save it to a file:"
+echo >&2 "cat > $HOSTNAME.asc <<EOF"
+gpg --export --armor >&2
+echo >&2 'EOF'
+
+fpr=$(gpg --quiet --list-keys --with-colons --fingerprint | awk -F: '$1 == "fpr" { print $10;}')
+echo >&2 "fingerprint: $fpr"
 
 rm "${GNUPGHOME}/key-template"
 parent=$(dirname "$FINAL_GNUPGHOME")
