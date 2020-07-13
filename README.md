@@ -154,19 +154,19 @@ This will start your configured editor
 In our example we put the following content in it:
 
 ```
-example_key: example_value
+example-key: example-value
 ```
 
 As a result when saving the file the following content will be in it:
 
 ```
-example_key: ENC[AES256_GCM,data:0RbzO7DsLrZEbizS9g==,iv:EXibFLLBOlE/y1IC0PUptu3baZnto1ViktLILcmXgXc=,tag:kVDnmoY2R/pMIluaLPLO5w==,type:str]
+example-key: ENC[AES256_GCM,data:7QIOMLd2kZkeVVpH0Q==,iv:ROh+J59ZM6BtjZLhRj1Ylk6ROEvsiX6/UR8obHX8YcQ=,tag:QOiFoHKyGFBkhr9lcWBB3Q==,type:str]
 sops:
     kms: []
     gcp_kms: []
     azure_kv: []
-    lastmodified: '2020-07-13T08:34:41Z'
-    mac: ENC[AES256_GCM,data:LW9AhF1faZyn2+tVYGU4PAlNOW32tD0lU6dk1F/CYehZ3XMR+1CxCwPkMP9JBVpXVX9THnASEvBGL9pLsyFybMtluqesKjhJSxrqNLLQednRldZOFwh5hkLJvNg47jsK1aGrb87FvbGF3LGqldHu843Q++Kb2X4dqFJKbLd/ff4=,iv:t73ameVfR55LZI3OxCskBpGRk2mEgHCV2XRyc8rPavg=,tag:oF4M+S8yhFpV7LvcA0biyA==,type:str]
+    lastmodified: '2020-07-13T09:09:14Z'
+    mac: ENC[AES256_GCM,data:BCwTBxaW6qINVfixC32EEYrlqPvGz47wF+o/vNPqcwed1HPwZezlNy7Z4NFLbRcCLAELyeMqkJ+fi9XCWvnT3UvfwB45COpz/xZphURt3gyCVOyd9mT/s9cJ1O9vNy5iKblqCae2X0CTKee/GxJ0G725LDOL4r+oHM1+WWEInWo=,iv:S43qegidSqcaUaDjvQpEQj/qvF/OZcW32Yo05CfyTUs=,tag:npj5auJXZrg7jQwYSjC6Vg==,type:str]
     pgp:
     -   created_at: '2020-07-13T08:34:30Z'
         enc: |
@@ -238,16 +238,16 @@ If you derived your server public key from ssh, all you need in your configurati
   # You can avoid this by adding a string to the full path instead, i.e.
   # sops.defaultSopsFile = "/root/.sops/secrets.yaml";
   sops.defaultSopsFile = ./secrets.yaml;
-  sops.secrets.test_key = {};
+  sops.secrets.example-key = {};
 }
 ```
 
 On `nixos-rebuild switch` this will make the key accessible 
-via `/run/secret/test_key`:
+via `/run/secret/example-key`:
 
 ```console
-$ cat /run/secret/test_key
-test_value
+$ cat /run/secret/example-key
+example-value
 ```
 
 `/run/secret` is a symlink to `/etc/secret.d/1`:
