@@ -33,14 +33,6 @@ func parsePublicKey(publicKey []byte) (*rsa.PublicKey, error) {
 	return rsaKey, nil
 }
 
-func SSHPublicKeyToPGP(sshPublicKey []byte) (*packet.PublicKey, error) {
-	rsaKey, err := parsePublicKey(sshPublicKey)
-	if err != nil {
-		return nil, err
-	}
-	return packet.NewRSAPublicKey(time.Unix(0, 0), rsaKey), nil
-}
-
 func parsePrivateKey(sshPrivateKey []byte) (*rsa.PrivateKey, error) {
 	privateKey, err := ssh.ParseRawPrivateKey(sshPrivateKey)
 	if err != nil {
@@ -70,7 +62,7 @@ func SSHPrivateKeyToPGP(sshPrivateKey []byte) (*openpgp.Entity, error) {
 		PrivateKey: packet.NewRSAPrivateKey(timeNull, key),
 		Identities: make(map[string]*openpgp.Identity),
 	}
-	uid := packet.NewUserId("root", "", "root@localhost")
+	uid := packet.NewUserId("root", "Imported from SSH", "root@localhost")
 	isPrimaryID := true
 	gpgKey.Identities[uid.Id] = &openpgp.Identity{
 		Name:   uid.Id,
@@ -88,6 +80,10 @@ func SSHPrivateKeyToPGP(sshPrivateKey []byte) (*openpgp.Entity, error) {
 			FlagEncryptCommunications: true,
 			IssuerKeyId:               &gpgKey.PrimaryKey.KeyId,
 		},
+	}
+	err = gpgKey.Identities[uid.Id].SelfSignature.SignUserId(uid.Id, gpgKey.PrimaryKey, gpgKey.PrivateKey, nil)
+	if err != nil {
+		return nil, err
 	}
 
 	return gpgKey, nil

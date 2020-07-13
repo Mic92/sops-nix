@@ -33,7 +33,10 @@ conversion tool to convert an existing ssh key (we only support RSA keys right n
 
 ```
 $ nix-shell -p ssh-to-pgp
-$ ssh-to-pgp -privkey $HOME/.ssh/id_rsa | gpg --import --quiet
+$ ssh-to-pgp -private-key -i $HOME/.ssh/id_rsa | gpg --import --quiet
+2504791468b153b8a3963cc97ba53d1919c5dfd4
+# This exports the public key
+$ ssh-to-pgp -i $HOME/.ssh/id_rsa -o $USER.asc
 2504791468b153b8a3963cc97ba53d1919c5dfd4
 ```
 
@@ -48,7 +51,7 @@ then your ssh key is encrypted with your password and you need to create a encry
 ```
 $ cp $HOME/.ssh/id_rsa /tmp/id_rsa
 $ ssh-keygen -p -N "" -f /tmp/id_rsa
-$ ssh-to-pgp -privkey /tmp/id_rsa | gpg --import --quiet
+$ ssh-to-pgp -private-key -i /tmp/id_rsa | gpg --import --quiet
 ```
 
 The hex string printed here is your GPG fingerprint that can be exported to `SOPS_PGP_FP`.
@@ -71,23 +74,20 @@ uid           [ unknown] root <root@localhost>
 The fingerprint here is `9F89 C5F6 9A10 281A 8350 14B0 9C3D C61F 7520 87EF`, you
 need to remove the space in-between manually.
 
-### 3. Get a GPG key for your machine
+### 3. Get a PGP Public key for your machine
 
 The easiest way to add new hosts is using ssh host keys (requires openssh to be enabled).
 Since sops does not natively supports ssh keys yet, nix-sops supports a conversion tool
 to store them as gpg keys.
 
 ```
-$ nix-shell -p ssh-to-gpg
-# One can use ssh-keyscan over the network
-$ ssh-keyscan -t rsa server01 | ssh-to-pgp -pubkey - > server01.asc
-# server01:22 SSH-2.0-OpenSSH_8.2
-0fd60c8c3b664aceb1796ce02b318df330331003
-# via ssh command:
-$ ssh server01 "cat /etc/ssh/ssh_host_rsa_key.pub" | ssh-to-gpg -pubkey - > hosts/server01.asc
+$ nix-shell -p ssh-to-pgp
+$ ssh root@server01 "cat /etc/ssh/ssh_host_rsa_key" | ssh-to-pgp -o server01.asc
+# or with sudo
+$ ssh youruser@server01 "sudo cat /etc/ssh/ssh_host_rsa_key" | ssh-to-pgp -o server01.asc
 0fd60c8c3b664aceb1796ce02b318df330331003
 # Or just read them locally (or in a ssh session)
-$ ssh-to-pgp -pubkey /etc/ssh/ssh_host_rsa_key.pub > server01.asc
+$ ssh-to-pgp -i /etc/ssh/ssh_host_rsa_key -o server01.asc
 0fd60c8c3b664aceb1796ce02b318df330331003
 ```
 

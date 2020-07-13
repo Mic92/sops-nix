@@ -28,13 +28,12 @@ func TestCli(t *testing.T) {
 	defer os.RemoveAll(tempdir)
 
 	out := path.Join(tempdir, "out")
-	pubKey := path.Join(assets, "id_rsa.pub")
 	privKey := path.Join(assets, "id_rsa")
 	cmds := [][]string{
-		{"ssh-to-pgp", "-pubkey", pubKey, "-o", out},
-		{"ssh-to-pgp", "-format=armor", "-pubkey", pubKey, "-o", out},
-		{"ssh-to-pgp", "-privkey", privKey, "-o", out},
-		{"ssh-to-pgp", "-format=armor", "-privkey", privKey, "-o", out},
+		{"ssh-to-pgp", "-i", privKey, "-o", out},
+		{"ssh-to-pgp", "-format=binary", "-i", privKey, "-o", out},
+		{"ssh-to-pgp", "-private-key", "-i", privKey, "-o", out},
+		{"ssh-to-pgp", "-format=binary", "-private-key", "-i", privKey, "-o", out},
 	}
 	for _, cmd := range cmds {
 		err = convertKeys(cmd)
