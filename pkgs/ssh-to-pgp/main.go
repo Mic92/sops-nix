@@ -7,12 +7,10 @@ import (
 	"io"
 	"io/ioutil"
 	"os"
-	"syscall"
 
 	"github.com/Mic92/sops-nix/pkgs/sshkeys"
 	"golang.org/x/crypto/openpgp"
 	"golang.org/x/crypto/openpgp/armor"
-	"golang.org/x/crypto/ssh/terminal"
 )
 
 type options struct {
@@ -24,17 +22,10 @@ func parseFlags(args []string) options {
 	f := flag.NewFlagSet(args[0], flag.ExitOnError)
 	f.StringVar(&opts.publicKey, "pubkey", "", "Path to public key. Reads from standard input if equal to '-'")
 	f.StringVar(&opts.privateKey, "privkey", "", "Path to private key. Reads from standard input if equal to '-'")
-	f.StringVar(&opts.format, "format", "auto", "GPG format encoding (auto|binary|armor)")
+	f.StringVar(&opts.format, "format", "armor", "GPG format encoding (binary|armor)")
 	f.StringVar(&opts.out, "o", "-", "Output path. Prints by default to standard output")
 	f.Parse(args[1:])
 
-	if opts.format == "auto" {
-		if opts.out == "-" && terminal.IsTerminal(syscall.Stdout) {
-			opts.format = "armor"
-		} else {
-			opts.format = "binary"
-		}
-	}
 	if opts.publicKey != "" && opts.privateKey != "" {
 		fmt.Fprintln(os.Stderr, "-pubkey and -privkey are mutual exclusive")
 		os.Exit(1)
