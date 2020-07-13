@@ -44,7 +44,7 @@ func SSHPublicKeyToPGP(sshPublicKey []byte) (*packet.PublicKey, error) {
 func parsePrivateKey(sshPrivateKey []byte) (*rsa.PrivateKey, error) {
 	privateKey, err := ssh.ParseRawPrivateKey(sshPrivateKey)
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
 
 	rsaKey, ok := privateKey.(*rsa.PrivateKey)
