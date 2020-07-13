@@ -135,13 +135,13 @@ mkShell {
 Our directory structure looks like this:
 
 ```console
-$ exa -T
- ./
-├──  keys/
-│  ├──  hosts/
-│  │  └──  server01.asc
-│  └──  users/
-│     └──  mic92.asc
+$ tree .
+.
+├── keys
+│   ├── hosts
+│   │   └── server01.asc
+│   └── users
+│       └── mic92.asc
 ```
 
 After that you can open a new file with sops
