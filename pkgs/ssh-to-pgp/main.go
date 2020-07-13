@@ -85,7 +85,6 @@ func convertKeys(args []string) error {
 		if err != nil {
 			return fmt.Errorf("failed to encode armor writer")
 		}
-		defer writer.Close()
 	}
 
 	if opts.publicKey != "" {
@@ -93,13 +92,16 @@ func convertKeys(args []string) error {
 		if err != nil {
 			return err
 		}
-		gpgKey.Serialize(writer)
+		err = gpgKey.Serialize(writer)
 	} else {
 		gpgKey, err := sshkeys.SSHPrivateKeyToPGP(sshKey)
 		if err != nil {
 			return err
 		}
-		gpgKey.SerializePrivate(writer, nil)
+		err = gpgKey.SerializePrivate(writer, nil)
+	}
+	if err == nil && opts.format == "armor" {
+		writer.Close()
 	}
 	return err
 }
