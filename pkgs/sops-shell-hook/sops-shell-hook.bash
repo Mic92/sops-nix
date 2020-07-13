@@ -14,7 +14,7 @@ sopsShellHook() {
   for dir in $sopsGPGKeyDirs; do
     while IFS= read -r -d '' key; do
       _sopsAddKey "$key"
-    done < <(find "$dir" -type f -name '*.asc' -print0)
+    done < <(find "$dir" -type f -name '*.gpg' -o -name '*.asc' -print0)
   done
 }
 
