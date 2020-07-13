@@ -98,6 +98,175 @@ append to `SOPS_PGP_FP`:
 export SOPS_PGP_FP=${SOPS_PGP_FP}:2504791468b153b8a3963cc97ba53d1919c5dfd4
 ```
 
+If you prefer having a separate gnupg key, see [Use with gnupg instead of ssh keys](#use-with-gnupg-instead-of-ssh-keys).
+
+### 4. Create a sops file
+
+To create a sops file you need to set export `SOPS_PGP_FP` to include both the fingerprint 
+of your personal gpg key (and your colleagues) and your servers:
+
+```
+export SOPS_PGP_FP="2504791468b153b8a3963cc97ba53d1919c5dfd4,2504791468b153b8a3963cc97ba53d1919c5dfd4"
+```
+
+sops-nix automates that with a hook for nix-shell and also takes care of importing all keys, allowing
+public keys to be stored in git:
+
+```
+# shell.nix
+with import <nixpkgs> {};
+mkShell {
+  # imports all files ending in .asc/.gpg and sets $SOPS_PGP_FP.
+  sopsPGPKeyDirs = [ 
+    "./keys/hosts"
+    "./keys/users"
+  ];
+  # Also single files can be imported.
+  #sopsPGPKeys = [ 
+  #  "./keys/users/mic92.asc"
+  #  "./keys/hosts/server01.asc"
+  #];
+  nativeBuildInputs = [
+    (pkgs.callPackage <sops-nix> {}).sops-pgp-hook
+  ];
+}
+```
+
+Our directory structure looks like this:
+
+```console
+$ exa -T
+ ./
+├──  keys/
+│  ├──  hosts/
+│  │  └──  server01.asc
+│  └──  users/
+│     └──  mic92.asc
+```
+
+After that you can open a new file with sops
+
+```
+nix-shell --run "sops secrets.yaml"
+```
+
+This will start your configured editor
+In our example we put the following content in it:
+
+```
+example_key: example_value
+```
+
+As a result when saving the file the following content will be in it:
+
+```
+example_key: ENC[AES256_GCM,data:0RbzO7DsLrZEbizS9g==,iv:EXibFLLBOlE/y1IC0PUptu3baZnto1ViktLILcmXgXc=,tag:kVDnmoY2R/pMIluaLPLO5w==,type:str]
+sops:
+    kms: []
+    gcp_kms: []
+    azure_kv: []
+    lastmodified: '2020-07-13T08:34:41Z'
+    mac: ENC[AES256_GCM,data:LW9AhF1faZyn2+tVYGU4PAlNOW32tD0lU6dk1F/CYehZ3XMR+1CxCwPkMP9JBVpXVX9THnASEvBGL9pLsyFybMtluqesKjhJSxrqNLLQednRldZOFwh5hkLJvNg47jsK1aGrb87FvbGF3LGqldHu843Q++Kb2X4dqFJKbLd/ff4=,iv:t73ameVfR55LZI3OxCskBpGRk2mEgHCV2XRyc8rPavg=,tag:oF4M+S8yhFpV7LvcA0biyA==,type:str]
+    pgp:
+    -   created_at: '2020-07-13T08:34:30Z'
+        enc: |
+            -----BEGIN PGP MESSAGE-----
+
+            hQIMAysxjfMwMxADAQ//SyBLvbpyuoTGCZCtoJyaFzZ+vCKWZaD7dCZEURRyNKFV
+            87wZyNO/rwtA1jP64Smqy0q2R8iZfoN0v5oVvtj2y5wFECs8Q5nONCVP4rs9nTRK
+            n46w0v2UE2GqIWStFE7Mpv11qdZaMDoNGXq+n6s/uA2mwSYIVvzcWwhKvyKrMNrd
+            iOlfCKl4QTaGgGupZqmT2S00AEMJzY5lohvtzAC1TlnXGXhetDyCHtkoN/NKZDU7
+            m7j1/pvlIwxTQKeA3FKuxDJDYk+p3+W/EgwEchYDzjo+5A529J/tuIfXWBOF7BAV
+            ZiVVWISTahky/ioOMatNBAttu0lBGlSkovkbqIVsbTG7nF1wzGdToCxZmwQveEj7
+            0N8ZzocDkOXqS71LW+X2HYSeywxNUbg/S6MrHrZN8MOp5qnGztm8yrKW2gDDe+Nl
+            nqJJ4lGg5CbODoDmhbPPof9tmWkykFmQSqmkjs4pcomcNthmcQvPVy75pnXEN9Wo
+            0cDRnHtgROCJLqfv1AsXWkSxtmZRMMQ1yKJIPVFUHSPodgAoTyA81sHi66RypDOV
+            KezX6sW8UuTZ7q1oPcJFpaaHrpIHDn+bqPGMfhu4NVXFusdb7MPxtxlKflhTdc8B
+            xzlrB6+LdnCaeN+KqB6DOvmiPP3nC91zflO1SpMY3yUOnTFDKZG7wnVjidyIuMvS
+            UAHk6rhsBEJleAn5f4AuBVWtWLuvS4t1g9Lhci3833f7XNp+GFNy05UOsmUo9upr
+            cgqaa2teuy2cbUtzS6gLBbcMA7SEs5MDYHjq6le/pwKv
+            =ZYPM
+            -----END PGP MESSAGE-----
+        fp: 0FD60C8C3B664ACEB1796CE02B318DF330331003
+    -   created_at: '2020-07-13T08:34:30Z'
+        enc: |
+            -----BEGIN PGP MESSAGE-----
+
+            hQIMAysxjfMwMxADARAAqbkG7+WZIDDHNjFp4mcabdGcKaTenJmAQKJjk4vnAWZD
+            5Y6yInTldxldsFNvPcVmjZp/nM1otyH0MEHrurl5LX+BuUj8hRIE0ZFnNU0hNmyd
+            toiwTE4GF1/otYFOPb9WnhDt+g6Y0ORuV/ZMSvP8PIu5/UnTeCkbZR/VudOvUq/m
+            qF013M3q7UKssW4aReO2goFEhLjm8GfWksCuiGYKoHdJKzFAPYNhoxnxU3n43Oxp
+            wz7QYFI0aA7RLZph70WjUNBun5+y4UyEJ8uNZ+cgVBeHQLqVdFUuejdzWK0d79Mr
+            5D9fxgSsPMz7yUMMdPl0T4rrAsZ977pftI9+JofqMN+u9UzUJwfTjnbCxlob39/t
+            bfORkanzU8BNUCxpHyyqau921AUtfcqV9Y9Hf+qwxgVRVKgfETOqN376A1nhrYsf
+            Mhvmcsk/rDssiRSIu11/mZwifcpALnS8WgO5tK+e/454ANqsiEdSRVogWBTzcIIs
+            trm/6kwsTl7COzK0ThUKIb6aOfb910JQKaYq93qWqF1fceIf49Ubz9NVZc80J0an
+            OiAaVGS0IOGI1ua8zciY7m+rr1BlrqJFtUm7hd8C9fMaF8YdB2SXgW8/HPGL8uTd
+            f9ASg9TMSxhr7wjdqWp4EXXxdB6p4FXai9XBbgAJ2tKcS6AV6QmRVMoITZ7uZpvS
+            UAG4nIgey9A57C8DSnt5zVPtxAsjDNiMubLUnHzTEJEJyQH5j2E41teujycOOAye
+            I/UHMfpxSgrFfS8JJHYrJO0JQq/maBZi/VzZCl/G3IMn
+            =Xls9
+            -----END PGP MESSAGE-----
+        fp: 0FD60C8C3B664ACEB1796CE02B318DF330331003
+    -   created_at: '2020-07-13T08:34:30Z'
+        enc: |
+            -----BEGIN PGP MESSAGE-----
+
+            hQEMA5w9xh91IIfvAQf+I1FDo7rglcA6EF7jmQ0pq9FwYR/Dd9+4pu4mxUofQawj
+            YsXPToVvyOKFrs1BZzW3Idyn5U/oXnkPN0qNK30DKir/wCt9OBqHHuhlo80OR2nS
+            G2ZvHOJKEW3W5Hs2yT1e1MQxznI1lGFrsj6xgZAnKtK3Y6iy48XZ9pTw4Fxjkixw
+            NppHtYrMj30mwV9XFAer0EfGlV2AIi70xBZ2inYAzPU2SpLEEoGyztjIeSS4VfhQ
+            fnKSx3UjlVIix65s2ky0JqbL1wI+FPKNt2hWupW+M7en8BJ5VfAcbU7n0ZuQnaFx
+            YPErw3agfhw1bNnqXh0y5aZ9sswt/Jy+IRkMJHLcqNJQAREdKgGmkW8wO2dngYYL
+            IwLyChHJfcSnixboVcW5CIbfmIbOdgfEk2tdSiX1tJIA6qeeJz+D8UbR47nIdIw2
+            ZoID5dEUiDgikopjdqWk+zk=
+            =43hf
+            -----END PGP MESSAGE-----
+        fp: 9F89C5F69A10281A835014B09C3DC61F752087EF
+    unencrypted_suffix: _unencrypted
+    version: 3.5.0
+```
+
+### 5. Deploy 
+
+If you derived your server public key from ssh, all you need in your configuration.nix is:
+
+```nix
+{
+  imports = [ <sops-nix/modules/sops> ];
+  # This will add secrets.yml to the nix store
+  # You can avoid this by adding a string to the full path instead, i.e.
+  # sops.defaultSopsFile = "/root/.sops/secrets.yaml";
+  sops.defaultSopsFile = ./secrets.yaml;
+  sops.secrets.test_key = {};
+}
+```
+
+On `nixos-rebuild switch` this will make the key accessible 
+via `/run/secret/test_key`:
+
+```console
+$ cat /run/secret/test_key
+test_value
+```
+
+`/run/secret` is a symlink to `/etc/secret.d/1`:
+
+```console
+$ ls -la /run/secrets
+lrwxrwxrwx 16 root 12 Jul  6:23  /run/secrets -> /run/secrets.d/1
+```
+
+## Permissions & Owner
+
+TODO
+
+## Symlinks to other directories
+
+TODO
+
+## Use with gnupg instead of ssh keys
+
 If you prefer having a separate gnupg key, sops-nix also comes with a helper tool:
 
 ```
@@ -128,44 +297,3 @@ fingerprint: E4CA86768F176AEB6C01554153AF8D7F149613B1
 ```
 
 In this case you need to make upload the gpg key directory `/tmp/newkey` to your server.
-
-### 4. Create a sops file
-
-To create a sops file you need to set export `SOPS_PGP_FP` to include both the fingerprint 
-of your personal gpg key (and your colleagues) and your servers:
-
-```
-export SOPS_PGP_FP="2504791468b153b8a3963cc97ba53d1919c5dfd4,2504791468b153b8a3963cc97ba53d1919c5dfd4"
-```
-
-sops-nix automates that with a hook for nix-shell and also takes care of importing all keys, allowing
-public keys to be stored in git:
-
-```
-# shell.nix
-with import <nixpkgs> {};
-mkShell {
-  # imports all files ending in .asc/.gpg and sets $SOPS_PGP_FP.
-  sopsGPGKeyDirs = [ 
-    "./keys/hosts"
-    "./keys/users"
-  ];
-  # Also single files can be imported.
-  #sopsGPGKeys = [ 
-  #  "./keys/users/mic92.asc"
-  #  "./keys/hosts/server01.asc"
-  #];
-  nativeBuildInputs = [
-    (pkgs.callPackage <sops-nix> {}).sops-shell-hook
-    sops
-    ## you may also need gnupg
-    # gnupg
-  ];
-}
-```
-
-After that you can create a new file with sops
-
-```
-sops secrets.yaml
-```
