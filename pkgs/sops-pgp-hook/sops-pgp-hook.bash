@@ -6,12 +6,12 @@ _sopsAddKey() {
   export SOPS_PGP_FP=''${SOPS_PGP_FP}''${SOPS_PGP_FP:+','}$fpr
 }
 
-sopsShellHook() {
+sopsPGPHook() {
   local key dir
-  for key in $sopsGPGKeys; do
+  for key in $sopsPGPKeys; do
     _sopsAddKey "$key"
   done
-  for dir in $sopsGPGKeyDirs; do
+  for dir in $sopsPGPKeyDirs; do
     while IFS= read -r -d '' key; do
       _sopsAddKey "$key"
     done < <(find "$dir" -type f -name '*.gpg' -o -name '*.asc' -print0)
@@ -19,5 +19,5 @@ sopsShellHook() {
 }
 
 if [ -z "${shellHook-}" ]; then
-  shellHook=sopsShellHook
+  shellHook=sopsPGPHook
 fi
