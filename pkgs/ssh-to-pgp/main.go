@@ -14,27 +14,18 @@ import (
 )
 
 type options struct {
-	publicKey, privateKey, format, out string
+	format, out, in string
+	privateKey      bool
 }
 
 func parseFlags(args []string) options {
 	var opts options
 	f := flag.NewFlagSet(args[0], flag.ExitOnError)
-	f.StringVar(&opts.publicKey, "pubkey", "", "Path to public key. Reads from standard input if equal to '-'")
-	f.StringVar(&opts.privateKey, "privkey", "", "Path to private key. Reads from standard input if equal to '-'")
+	f.BoolVar(&opts.privateKey, "private-key", false, "Export private key instead of public key")
 	f.StringVar(&opts.format, "format", "armor", "GPG format encoding (binary|armor)")
+	f.StringVar(&opts.in, "i", "-", "Input path. Reads by default from standard output")
 	f.StringVar(&opts.out, "o", "-", "Output path. Prints by default to standard output")
 	f.Parse(args[1:])
-
-	if opts.publicKey != "" && opts.privateKey != "" {
-		fmt.Fprintln(os.Stderr, "-pubkey and -privkey are mutual exclusive")
-		os.Exit(1)
-	}
-
-	if opts.publicKey == "" && opts.privateKey == "" {
-		fmt.Fprintln(os.Stderr, "Either -pubkey and -privkey must be specified")
-		os.Exit(1)
-	}
 
 	return opts
 }
@@ -43,19 +34,15 @@ func convertKeys(args []string) error {
 	opts := parseFlags(args)
 	var err error
 	var sshKey []byte
-	keyPath := opts.privateKey
-	if opts.publicKey != "" {
-		keyPath = opts.publicKey
-	}
-	if keyPath == "-" {
+	if opts.in == "-" {
 		sshKey, _ = ioutil.ReadAll(os.Stdin)
 		if err != nil {
 			return fmt.Errorf("error reading stdin: %s", err)
 		}
 	} else {
-		sshKey, err = ioutil.ReadFile(keyPath)
+		sshKey, err = ioutil.ReadFile(opts.in)
 		if err != nil {
-			return fmt.Errorf("error reading %s: %s", opts.privateKey, err)
+			return fmt.Errorf("error reading %s: %s", opts.in, err)
 		}
 	}
 
@@ -69,9 +56,9 @@ func convertKeys(args []string) error {
 	}
 
 	if opts.format == "armor" {
-		keyType := openpgp.PrivateKeyType
-		if opts.publicKey != "" {
-			keyType = openpgp.PublicKeyType
+		keyType := openpgp.PublicKeyType
+		if opts.privateKey {
+			keyType = openpgp.PrivateKeyType
 		}
 		writer, err = armor.Encode(writer, keyType, make(map[string]string))
 		if err != nil {
@@ -79,28 +66,21 @@ func convertKeys(args []string) error {
 		}
 	}
 
-	var fingerprint [20]byte
+	gpgKey, err := sshkeys.SSHPrivateKeyToPGP(sshKey)
+	if err != nil {
+		return err
+	}
 
-	if opts.publicKey != "" {
-		gpgKey, err := sshkeys.SSHPublicKeyToPGP(sshKey)
-		if err != nil {
-			return err
-		}
-		err = gpgKey.Serialize(writer)
-		fingerprint = gpgKey.Fingerprint
-	} else {
-		gpgKey, err := sshkeys.SSHPrivateKeyToPGP(sshKey)
-		if err != nil {
-			return err
-		}
+	if opts.privateKey {
 		err = gpgKey.SerializePrivate(writer, nil)
-		fingerprint = gpgKey.PrimaryKey.Fingerprint
+	} else {
+		err = gpgKey.Serialize(writer)
 	}
 	if err == nil {
 		if opts.format == "armor" {
 			writer.Close()
 		}
-		fmt.Fprintf(os.Stderr, "%s\n", hex.EncodeToString(fingerprint[:]))
+		fmt.Fprintf(os.Stderr, "%s\n", hex.EncodeToString(gpgKey.PrimaryKey.Fingerprint[:]))
 	}
 	return err
 }
