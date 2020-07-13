@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/hex"
 	"flag"
 	"fmt"
 	"io"
@@ -87,28 +88,35 @@ func convertKeys(args []string) error {
 		}
 	}
 
+	var fingerprint [20]byte
+
 	if opts.publicKey != "" {
 		gpgKey, err := sshkeys.SSHPublicKeyToPGP(sshKey)
 		if err != nil {
 			return err
 		}
 		err = gpgKey.Serialize(writer)
+		fingerprint = gpgKey.Fingerprint
 	} else {
 		gpgKey, err := sshkeys.SSHPrivateKeyToPGP(sshKey)
 		if err != nil {
 			return err
 		}
 		err = gpgKey.SerializePrivate(writer, nil)
+		fingerprint = gpgKey.PrimaryKey.Fingerprint
 	}
-	if err == nil && opts.format == "armor" {
-		writer.Close()
+	if err == nil {
+		if opts.format == "armor" {
+			writer.Close()
+		}
+		fmt.Fprintf(os.Stderr, "%s\n", hex.EncodeToString(fingerprint[:]))
 	}
 	return err
 }
 
 func main() {
 	if err := convertKeys(os.Args); err != nil {
-		fmt.Fprintf(os.Stderr, "%s: %s", os.Args[0], err)
+		fmt.Fprintf(os.Stderr, "%s: %s\n", os.Args[0], err)
 		os.Exit(1)
 	}
 }
