@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -320,9 +321,12 @@ func importSSHKeys(keyPaths []string, gpgHome string) error {
 		if err != nil {
 			return err
 		}
+
 		if err := gpgKey.SerializePrivate(secring, nil); err != nil {
 			return fmt.Errorf("Cannot write secring: %s", err)
 		}
+
+		fmt.Printf("Imported %s with fingerprint %s", path, hex.EncodeToString(gpgKey.PrimaryKey.Fingerprint[:]))
 	}
 
 	return nil
