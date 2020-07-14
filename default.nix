@@ -6,6 +6,7 @@ in rec {
     inherit vendorSha256;
   };
   sops-pgp-hook = pkgs.callPackage ./pkgs/sops-pgp-hook {};
+
   ssh-to-pgp = pkgs.callPackage ./pkgs/ssh-to-pgp {
     inherit vendorSha256;
   };

@@ -3,18 +3,24 @@ _sopsAddKey() {
   local fpr
   fpr=$(@gpg@ --with-fingerprint --with-colons --show-key "$key" \
          | awk -F: '$1 == "fpr" { print $10;}')
-  export SOPS_PGP_FP=''${SOPS_PGP_FP}''${SOPS_PGP_FP:+','}$fpr
+  if [[ $fpr != "" ]]; then
+      export SOPS_PGP_FP=''${SOPS_PGP_FP}''${SOPS_PGP_FP:+','}$fpr
+  fi
 }
 
 sopsPGPHook() {
   local key dir
   for key in $sopsPGPKeys; do
-    _sopsAddKey "$key"
+    if [[ -f "$key" ]]; then
+        _sopsAddKey "$key"
+    else
+        echo "$key does not exists" >&2
+    fi
   done
   for dir in $sopsPGPKeyDirs; do
     while IFS= read -r -d '' key; do
       _sopsAddKey "$key"
-    done < <(find "$dir" -type f -name '*.gpg' -o -name '*.asc' -print0)
+    done < <(find -L "$dir" -type f \( -name '*.gpg' -o -name '*.asc' \) -print0)
   done
 }
 

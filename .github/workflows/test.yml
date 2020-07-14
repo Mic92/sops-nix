@@ -28,5 +28,7 @@ jobs:
       run: nix run nixpkgs.nix-build-uncached -c nix-build-uncached default.nix
     - name: Add keys group (needed for go tests)
       run: sudo groupadd keys
-    - name: Run go tests
-      run: nix-shell --run "sudo unshare --mount --fork go test ./pkgs/sops-install-secrets"
+    - name: Run sops-install-secrets tests
+      run: nix-shell --pure --run "$(command -v sudo) unshare --mount --fork go test ./pkgs/sops-install-secrets"
+    - name: Run sops-pgp-hook tests
+      run: nix-shell --pure --run "NIX_PATH=nixpkgs=$(nix-instantiate --find-file nixpkgs) go test ./pkgs/sops-pgp-hook"
