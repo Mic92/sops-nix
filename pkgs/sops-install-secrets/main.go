@@ -306,7 +306,8 @@ func atomicSymlink(oldname, newname string) error {
 
 func importSSHKeys(keyPaths []string, gpgHome string) error {
 	secringPath := filepath.Join(gpgHome, "secring.gpg")
-	secring, err := os.Create(secringPath)
+
+	secring, err := os.OpenFile(secringPath, os.O_WRONLY|os.O_CREATE, 0600)
 	if err != nil {
 		return fmt.Errorf("Cannot create %s: %s", secringPath, err)
 	}
