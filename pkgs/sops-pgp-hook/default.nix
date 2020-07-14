@@ -1,8 +1,8 @@
-{ makeSetupHook, gnupg, sops }:
+{ stdenv, makeSetupHook, gnupg, sops, go, nix }:
 
-makeSetupHook {
+(makeSetupHook {
   substitutions = {
     gpg = "${gnupg}/bin/gpg";
   };
   deps = [ sops gnupg ];
-} ./sops-pgp-hook.bash
+} ./sops-pgp-hook.bash)

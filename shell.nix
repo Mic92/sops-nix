@@ -6,6 +6,7 @@ pkgs.mkShell {
     delve
     gnupg
     utillinux
+    nix
   ];
   # delve does not compile with hardening enabled
   hardeningDisable = [ "all" ];
