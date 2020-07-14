@@ -28,7 +28,7 @@
      imports = [ ../../modules/sops ];
       sops.gnupgHome = "/run/gpghome";
       sops.defaultSopsFile = ./test-assets/secrets.yaml;
-      sops.secrets.test_key = {};
+      sops.secrets.test_key.owner = "nobody";
       # must run before sops
       system.activationScripts.gnupghome = lib.stringAfter [ "etc" ] ''
         cp -r ${./test-assets/gnupghome} /run/gpghome
@@ -45,6 +45,9 @@
    testScript = ''
      start_all()
      server.succeed("cat /run/secrets/test_key | grep -q test_value")
+     server.succeed("runuser -u nobody -G keys -- cat /run/secrets/test_key >&2")
+     # should have no permission to read the file
+     server.fail("runuser -u nobody -- cat /run/secrets/test_key >&2")
    '';
  } {
    inherit pkgs;
