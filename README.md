@@ -11,7 +11,7 @@ Sops-nix decrypts secrets [sops files](https://github.com/mozilla/sops#2usage)
 on the target machine to files specified in the NixOS configuration at
 activation time. It also adjusts file permissions/owner/group. It uses either
 host ssh keys or GPG keys for decryption. In future we will also support cloud
-key management APIs such as AWS KMS, GCP KMS, Azure Key Vault.
+key management APIs such as AWS KMS, GCP KMS, Azure Key Vault or Hashicorp's vault.
 
 ## Features
 
