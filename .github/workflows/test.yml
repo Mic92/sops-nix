@@ -24,6 +24,9 @@ jobs:
         signingKey: '${{ secrets.CACHIX_SIGNING_KEY }}'
     - name: Show nixpkgs version
       run: nix-instantiate --eval -E '(import <nixpkgs> {}).lib.version'
+    - name: Run golangci-lint
+      run: nix-shell --pure --run "golangci-lint run"
+      if: matrix.nixPath == 'nixpkgs=channel:nixpkgs-unstable'
     - name: Build nix packages
       run: nix run nixpkgs.nix-build-uncached -c nix-build-uncached default.nix
     - name: Add keys group (needed for go tests)
