@@ -171,6 +171,7 @@ func testGPG(t *testing.T) {
 
 	content, err = ioutil.ReadFile(binarySecret.Path)
 	ok(t, err)
+	equals(t, 13, len(content))
 
 	testInstallSecret(t, testdir, &manifest)
 
