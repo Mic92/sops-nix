@@ -80,6 +80,13 @@ let
     symlinkPath = "/run/secrets";
     inherit (cfg) gnupgHome sshKeyPaths;
   });
+
+  checkedManifest = pkgs.runCommandNoCC "checked-manifest.json" {
+    nativeBuildInputs = [ sops-install-secrets ];
+  } ''
+    sops-install-secrets -check-mode=${if cfg.validateSopsFiles then "sopsfile" else "manifest"} ${manifest}
+    cp ${manifest} $out
+  '';
 in {
   options.sops = {
     secrets = mkOption {
@@ -94,6 +101,15 @@ in {
       type = types.either types.str types.path;
       description = ''
         Default sops file used for all secrets.
+      '';
+    };
+
+    validateSopsFiles = mkOption {
+      type = types.bool;
+      default = true;
+      description = ''
+        Check all sops files at evaluation time.
+        This requires sops files to be added to the nix store.
       '';
     };
 
@@ -118,18 +134,22 @@ in {
     };
   };
   config = mkIf (cfg.secrets != {}) {
-
     assertions = [{
       assertion = cfg.gnupgHome != null -> cfg.sshKeyPaths == [];
-      message = "config.sops.gnupgHome and config.sops.sshKeyPaths are mutual exclusive";
+      message = "Configuration options sops.gnupgHome and sops.sshKeyPaths cannot be set both at the same time";
     } {
       assertion = cfg.gnupgHome == null -> cfg.sshKeyPaths != [];
-      message = "Either config.sops.sshKeyPaths and config.sops.gnupgHome must be set";
-    }];
+      message = "Either sops.sshKeyPaths and sops.gnupgHome must be set";
+    }] ++ map (name: let
+      inherit (cfg.secrets.${name}) sopsFile;
+    in {
+      assertion = cfg.validateSopsFiles -> builtins.isPath sopsFile;
+      message = "${sopsFile} is not in the nix store. Either add it to the nix store or set `sops.validateSopsFiles` to false";
+    }) (builtins.attrNames cfg.secrets);
 
     system.activationScripts.setup-secrets = stringAfter [ "users" "groups" ] ''
       echo setting up secrets...
-      ${optionalString (cfg.gnupgHome != null) "SOPS_GPG_EXEC=${pkgs.gnupg}/bin/gpg"} ${sops-install-secrets}/bin/sops-install-secrets ${manifest}
+      ${optionalString (cfg.gnupgHome != null) "SOPS_GPG_EXEC=${pkgs.gnupg}/bin/gpg"} ${sops-install-secrets}/bin/sops-install-secrets ${checkedManifest}
     '';
   };
 }

@@ -17,11 +17,12 @@ key management APIs such as AWS KMS, GCP KMS, Azure Key Vault or Hashicorp's vau
 
 - Compatible with all NixOS deployment frameworks: [NixOps](https://github.com/NixOS/nixops), nixos-rebuild, [krops](https://github.com/krebs/krops/), [morph](https://github.com/DBCDK/morph), [nixus](https://github.com/Infinisil/nixus)
 - Version-control friendly: Since all files are encrypted they can directly committed to version control. The format is readable in diffs and there are also ways of showing [git diffs in cleartext](https://github.com/mozilla/sops#showing-diffs-in-cleartext-in-git)
-- CI friendly: Since nixops files can be added to the nix store as well without leaking secrets, machine definition can be build as a whole.
+- CI friendly: Since sops files can be added to the nix store as well without leaking secrets, machine definition can be build as a whole.
 - Atomic upgrades: New secrets are written to a new directory which replaces the old directory in an atomic step.
 - Rollback support: If sops files are added to Nix store, old secrets can be rolled back. This is optional.
 - Fast: Unlike solutions implemented by NixOps, krops and morph there is no extra step required to upload secrets
 - Different storage formats: Secrets can be stored in Yaml, JSON or binary.
+- Minimize configuration errors: sops files are checked against the configuration at evluation time.
 
 ## Usage example
 

@@ -213,3 +213,34 @@ func TestAll(t *testing.T) {
 	testGPG(t)
 	testSSHKey(t)
 }
+
+func TestValidateManifest(t *testing.T) {
+	assets := testAssetPath()
+
+	testdir := newTestDir(t)
+	defer testdir.Remove()
+
+	s := secret{
+		Name:            "test",
+		Key:             "test_key",
+		Owner:           "nobody",
+		Group:           "nogroup",
+		SopsFile:        path.Join(assets, "secrets.yaml"),
+		Path:            path.Join(testdir.path, "test-target"),
+		Mode:            "0400",
+		RestartServices: []string{},
+		ReloadServices:  make([]string, 0),
+	}
+
+	m := manifest{
+		Secrets:           []secret{s},
+		SecretsMountPoint: testdir.secretsPath,
+		SymlinkPath:       testdir.symlinkPath,
+		SSHKeyPaths:       []string{"non-existing-key"},
+	}
+
+	path := writeManifest(t, testdir.path, &m)
+
+	ok(t, installSecrets([]string{"sops-install-secrets", "-check-mode=manifest", path}))
+	ok(t, installSecrets([]string{"sops-install-secrets", "-check-mode=sopsfile", path}))
+}
