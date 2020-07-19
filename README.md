@@ -28,7 +28,12 @@ key management APIs such as AWS KMS, GCP KMS, Azure Key Vault or Hashicorp's vau
 
 ### 1. Install nix-sops
 
-TODO
+- Install via niv
+- Install via nix-channel
+- Install via fetchTarball
+- Install via krops
+
+Than add <sops-nix/modules/sops>
 
 ### 2. Generate a GPG key for yourself
 
@@ -261,7 +266,7 @@ $ ls -la /run/secrets
 lrwxrwxrwx 16 root 12 Jul  6:23  /run/secrets -> /run/secrets.d/1
 ```
 
-## Permissions & Owner
+## Permissions & Owner & services
 
 TODO
 

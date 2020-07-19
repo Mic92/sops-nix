@@ -34,10 +34,16 @@
      sops.gnupgHome = "/run/gpghome";
      sops.defaultSopsFile = ./test-assets/secrets.yaml;
      sops.secrets.test_key.owner = config.users.users.someuser.name;
+     sops.secrets.existing-file = {
+       key = "test_key";
+       path = "/run/existing-file";
+     };
      # must run before sops
      system.activationScripts.gnupghome = lib.stringAfter [ "etc" ] ''
        cp -r ${./test-assets/gnupghome} /run/gpghome
        chmod -R 700 /run/gpghome
+
+       touch /run/existing-file
      '';
      # Useful for debugging
      #environment.systemPackages = [ pkgs.gnupg pkgs.sops ];
@@ -48,11 +54,22 @@
      #};
   };
   testScript = ''
+    def assertEqual(exp: str, act: str) -> None:
+        if exp != act:
+            raise Exception(f"'{exp}' != '{act}'")
+
+
     start_all()
-    server.succeed("cat /run/secrets/test_key | grep -q test_value")
+
+    value = server.succeed("cat /run/secrets/test_key")
+    assertEqual("test_value", value)
+
     server.succeed("runuser -u someuser -G keys -- cat /run/secrets/test_key >&2")
     # should have no permission to read the file
     server.fail("runuser -u someuser -- cat /run/secrets/test_key >&2")
+
+    target = server.succeed("readlink -f /run/existing-file")
+    assertEqual("/run/secrets.d/1/existing-file", target.strip())
   '';
  } {
    inherit pkgs;

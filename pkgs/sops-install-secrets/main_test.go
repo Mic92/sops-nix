@@ -186,13 +186,18 @@ func testSSHKey(t *testing.T) {
 	testdir := newTestDir(t)
 	defer testdir.Remove()
 
+	target := path.Join(testdir.path, "existing-target")
+	file, err := os.Create(target)
+	ok(t, err)
+	file.Close()
+
 	s := secret{
 		Name:            "test",
 		Key:             "test_key",
 		Owner:           "nobody",
 		Group:           "nogroup",
 		SopsFile:        path.Join(assets, "secrets.yaml"),
-		Path:            path.Join(testdir.path, "test-target"),
+		Path:            target,
 		Mode:            "0400",
 		RestartServices: []string{"affected-service"},
 		ReloadServices:  make([]string, 0),
