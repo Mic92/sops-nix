@@ -115,16 +115,24 @@ func readManifest(path string) (*manifest, error) {
 
 func symlinkSecret(targetFile string, secret *secret) error {
 	for {
-		currentLinkTarget, err := os.Readlink(secret.Path)
+		stat, err := os.Lstat(secret.Path)
 		if os.IsNotExist(err) {
 			if err := os.Symlink(targetFile, secret.Path); err != nil {
 				return fmt.Errorf("Cannot create symlink '%s': %s", secret.Path, err)
 			}
 			return nil
 		} else if err != nil {
-			return fmt.Errorf("Cannot read symlink: '%s'", err)
-		} else if currentLinkTarget == targetFile {
-			return nil
+			return fmt.Errorf("Cannot stat '%s'", err)
+		}
+		if stat.Mode()&os.ModeSymlink == os.ModeSymlink {
+			linkTarget, err := os.Readlink(secret.Path)
+			if os.IsNotExist(err) {
+				continue
+			} else if err != nil {
+				return fmt.Errorf("Cannot read symlink: '%s'", err)
+			} else if linkTarget == targetFile {
+				return nil
+			}
 		}
 		if err := os.Remove(secret.Path); err != nil {
 			return fmt.Errorf("Cannot override %s", secret.Path)
