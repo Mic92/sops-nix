@@ -24,31 +24,36 @@
 
  pgp-keys = makeTest {
    name = "sops-pgp-keys";
-   nodes.server = { pkgs, lib, ... }: {
-     imports = [ ../../modules/sops ];
-      sops.gnupgHome = "/run/gpghome";
-      sops.defaultSopsFile = ./test-assets/secrets.yaml;
-      sops.secrets.test_key.owner = "nobody";
-      # must run before sops
-      system.activationScripts.gnupghome = lib.stringAfter [ "etc" ] ''
-        cp -r ${./test-assets/gnupghome} /run/gpghome
-        chmod -R 700 /run/gpghome
-      '';
-      # Useful for debugging
-      #environment.systemPackages = [ pkgs.gnupg pkgs.sops ];
-      #environment.variables = {
-      #  GNUPGHOME = "/run/gpghome";
-      #  SOPS_GPG_EXEC="${pkgs.gnupg}/bin/gpg";
-      #  SOPSFILE = "${./test-assets/secrets.yaml}";
-      #};
-   };
-   testScript = ''
-     start_all()
-     server.succeed("cat /run/secrets/test_key | grep -q test_value")
-     server.succeed("runuser -u nobody -G keys -- cat /run/secrets/test_key >&2")
-     # should have no permission to read the file
-     server.fail("runuser -u nobody -- cat /run/secrets/test_key >&2")
-   '';
+   nodes.server = { pkgs, lib, config, ... }: {
+     imports = [
+       ../../modules/sops
+     ];
+
+     users.users.someuser.isSystemUser = true;
+
+     sops.gnupgHome = "/run/gpghome";
+     sops.defaultSopsFile = ./test-assets/secrets.yaml;
+     sops.secrets.test_key.owner = config.users.users.someuser.name;
+     # must run before sops
+     system.activationScripts.gnupghome = lib.stringAfter [ "etc" ] ''
+       cp -r ${./test-assets/gnupghome} /run/gpghome
+       chmod -R 700 /run/gpghome
+     '';
+     # Useful for debugging
+     #environment.systemPackages = [ pkgs.gnupg pkgs.sops ];
+     #environment.variables = {
+     #  GNUPGHOME = "/run/gpghome";
+     #  SOPS_GPG_EXEC="${pkgs.gnupg}/bin/gpg";
+     #  SOPSFILE = "${./test-assets/secrets.yaml}";
+     #};
+  };
+  testScript = ''
+    start_all()
+    server.succeed("cat /run/secrets/test_key | grep -q test_value")
+    server.succeed("runuser -u someuser -G keys -- cat /run/secrets/test_key >&2")
+    # should have no permission to read the file
+    server.fail("runuser -u someuser -- cat /run/secrets/test_key >&2")
+  '';
  } {
    inherit pkgs;
  };
