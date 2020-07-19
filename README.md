@@ -21,8 +21,8 @@ key management APIs such as AWS KMS, GCP KMS, Azure Key Vault or Hashicorp's vau
 - Atomic upgrades: New secrets are written to a new directory which replaces the old directory in an atomic step.
 - Rollback support: If sops files are added to Nix store, old secrets can be rolled back. This is optional.
 - Fast: Unlike solutions implemented by NixOps, krops and morph there is no extra step required to upload secrets
-- Different storage formats: Secrets can be stored in Yaml, JSON or binary.
-- Minimize configuration errors: sops files are checked against the configuration at evluation time.
+- Different storage formats: Secrets can be stored in YAML, JSON or binary.
+- Minimize configuration errors: sops files are checked against the configuration at evaluation time.
 
 ## Usage example
 
@@ -64,7 +64,7 @@ The hex string printed here is your GPG fingerprint that can be exported to `SOP
 export SOPS_PGP_FP=2504791468b153b8a3963cc97ba53d1919c5dfd4
 ```
 
-If you have generated a gnupg key directly you can get your fingerprint like this:
+If you have generated a GnuPG key directly you can get your fingerprint like this:
 
 ```
 gpg --list-secret-keys --fingerprint
@@ -102,7 +102,7 @@ append to `SOPS_PGP_FP`:
 export SOPS_PGP_FP=${SOPS_PGP_FP}:2504791468b153b8a3963cc97ba53d1919c5dfd4
 ```
 
-If you prefer having a separate gnupg key, see [Use with gnupg instead of ssh keys](#use-with-gnupg-instead-of-ssh-keys).
+If you prefer having a separate GnuPG key, see [Use with GnuPG instead of ssh keys](#use-with-gnupg-instead-of-ssh-keys).
 
 ### 4. Create a sops file
 
@@ -269,9 +269,9 @@ TODO
 
 TODO
 
-## Use with gnupg instead of ssh keys
+## Use with GnuPG instead of ssh keys
 
-If you prefer having a separate gnupg key, sops-nix also comes with a helper tool:
+If you prefer having a separate GnuPG key, sops-nix also comes with a helper tool:
 
 ```
 $ nix-shell -p sops-init-gpg-key
@@ -305,7 +305,7 @@ In this case you need to make upload the gpg key directory `/tmp/newkey` to your
 ## Migrate from pass/krops
 
 If you have used [pass](https://www.passwordstore.org) before i.e. in [krops](https://github.com/krebs/krops) than you can use
-the following oneliner to convert all your (plaintext) keys to a yaml structure:
+the following one-liner to convert all your (plaintext) keys to a yaml structure:
 
 ``` console
 $ for i in *.gpg; do echo "$(basename $i .gpg): |\n$(pass $(dirname $i)/$(basename $i .gpg)| sed 's/^/  /')"; done
