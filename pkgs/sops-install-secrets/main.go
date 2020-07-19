@@ -21,16 +21,16 @@ import (
 )
 
 type secret struct {
-	Name            string   `json:"name"`
-	Key             string   `json:"key"`
-	Path            string   `json:"path"`
-	Owner           string   `json:"owner"`
-	Group           string   `json:"group"`
-	SopsFile        string   `json:"sopsFile"`
-	Format          string   `json:"format"`
-	Mode            string   `json:"mode"`
-	RestartServices []string `json:"restartServices"`
-	ReloadServices  []string `json:"reloadServices"`
+	Name            string     `json:"name"`
+	Key             string     `json:"key"`
+	Path            string     `json:"path"`
+	Owner           string     `json:"owner"`
+	Group           string     `json:"group"`
+	SopsFile        string     `json:"sopsFile"`
+	Format          FormatType `json:"format"`
+	Mode            string     `json:"mode"`
+	RestartServices []string   `json:"restartServices"`
+	ReloadServices  []string   `json:"reloadServices"`
 	value           []byte
 	mode            os.FileMode
 	owner           int
@@ -43,6 +43,60 @@ type manifest struct {
 	SymlinkPath       string   `json:"symlinkPath"`
 	SSHKeyPaths       []string `json:"sshKeyPaths"`
 	GnupgHome         string   `json:"gnupgHome"`
+}
+
+type secretFile struct {							  
+	cipherText []byte
+	keys       map[string]interface{}
+	/// First secret that defined this secretFile, used for error messages
+	firstSecret *secret
+}
+
+type FormatType string
+
+const (
+	Yaml   FormatType = "yaml"
+	Json   FormatType = "json"
+	Binary FormatType = "binary"
+)
+
+func (f *FormatType) UnmarshalJSON(b []byte) error {
+	var s string
+	if err := json.Unmarshal(b, &s); err != nil {
+		return err
+	}
+	var t = FormatType(s)
+	switch t {
+	case "":
+		*f = Yaml
+	case Yaml, Json, Binary:
+		*f = t
+	}
+
+	return nil
+}
+
+func (f FormatType) MarshalJSON() ([]byte, error) {
+	return json.Marshal(string(f))
+}
+
+type CheckMode string
+
+const (
+	Manifest CheckMode = "manifest"
+	SopsFile CheckMode = "sopsfile"
+	Off      CheckMode = "off"
+)
+
+type options struct {
+	checkMode CheckMode
+	manifest  string
+}
+
+type appContext struct {
+	manifest    manifest
+	secretFiles map[string]secretFile
+	checkMode   CheckMode
 }
 
 func readManifest(path string) (*manifest, error) {
@@ -103,14 +157,14 @@ type plainData struct {
 func decryptSecret(s *secret, sourceFiles map[string]plainData) error {
 	sourceFile := sourceFiles[s.SopsFile]
 	if sourceFile.data == nil || sourceFile.binary == nil {
-		plain, err := decrypt.File(s.SopsFile, s.Format)
+		plain, err := decrypt.File(s.SopsFile, string(s.Format))
 		if err != nil {
 			return fmt.Errorf("Failed to decrypt '%s': %s", s.SopsFile, err)
 		}
-		if s.Format == "binary" {
+		if s.Format == Binary {
 			sourceFile.binary = plain
 		} else {
-			if s.Format == "yaml" {
+			if s.Format == Yaml {
 				if err := yaml.Unmarshal(plain, &sourceFile.data); err != nil {
 					return fmt.Errorf("Cannot parse yaml of '%s': %s", s.SopsFile, err)
 				}
@@ -121,7 +175,7 @@ func decryptSecret(s *secret, sourceFiles map[string]plainData) error {
 			}
 		}
 	}
-	if s.Format == "binary" {
+	if s.Format == Binary {
 		s.value = sourceFile.binary
 	} else {
 		val, ok := sourceFile.data[s.Key]
@@ -215,7 +269,55 @@ func lookupKeysGroup() (int, error) {
 	return int(gid), nil
 }
 
-func validateSecret(secret *secret) error {
+func (app *appContext) loadSopsFile(s *secret) (*secretFile, error) {
+	if app.checkMode == Manifest {
+		return &secretFile{firstSecret: s}, nil
+	}
+
+	cipherText, err := ioutil.ReadFile(s.SopsFile)
+	if err != nil {
+		return nil, fmt.Errorf("Failed reading %s: %s", s.SopsFile, err)
+	}
+
+	var keys map[string]interface{}
+	if s.Format == Binary {
+		if err := json.Unmarshal(cipherText, &keys); err != nil {
+			return nil, fmt.Errorf("Cannot parse json of '%s': %s", s.SopsFile, err)
+		}
+		return &secretFile{cipherText: cipherText, firstSecret: s}, nil
+	}
+
+	if s.Format == Yaml {
+		if err := yaml.Unmarshal(cipherText, &keys); err != nil {
+			return nil, fmt.Errorf("Cannot parse yaml of '%s': %s", s.SopsFile, err)
+		}
+	} else if err := json.Unmarshal(cipherText, &keys); err != nil {
+		return nil, fmt.Errorf("Cannot parse json of '%s': %s", s.SopsFile, err)
+	}
+
+	return &secretFile{
+		cipherText:  cipherText,
+		keys:        keys,
+		firstSecret: s,
+	}, nil
+
+}
+
+func (app *appContext) validateSopsFile(s *secret, file *secretFile) error {
+	if file.firstSecret.Format != s.Format {
+		return fmt.Errorf("secret %s defined the format of %s as %s, but it was specified as %s in %s before",
+			s.Name, s.SopsFile, s.Format,
+			file.firstSecret.Format, file.firstSecret.Name)
+	}
+	if app.checkMode != Manifest && s.Format != Binary {
+		if _, ok := file.keys[s.Key]; !ok {
+			return fmt.Errorf("secret %s with the key %s not found in %s", s.Name, s.Key, s.SopsFile)
+		}
+	}
+	return nil
+}
+
+func (app *appContext) validateSecret(secret *secret) error {
 	mode, err := strconv.ParseUint(secret.Mode, 8, 16)
 	if err != nil {
 		return fmt.Errorf("Invalid number in mode: %d: %s", mode, err)
@@ -247,14 +349,24 @@ func validateSecret(secret *secret) error {
 	}
 
 	if secret.Format != "yaml" && secret.Format != "json" && secret.Format != "binary" {
-		return fmt.Errorf("Unsupported format %s for secret %s",
-			secret.Format, secret.Name)
+		return fmt.Errorf("Unsupported format %s for secret %s", secret.Format, secret.Name)
 	}
 
-	return nil
+	file, ok := app.secretFiles[secret.SopsFile]
+	if !ok {
+		maybeFile, err := app.loadSopsFile(secret)
+		if err != nil {
+			return err
+		}
+		app.secretFiles[secret.SopsFile] = *maybeFile
+		file = *maybeFile
+	}
+
+	return app.validateSopsFile(secret, &file)
 }
 
-func validateManifest(m *manifest) error {
+func (app *appContext) validateManifest() error {
+	m := &app.manifest
 	if m.SecretsMountPoint == "" {
 		m.SecretsMountPoint = "/run/secrets.d"
 	}
@@ -266,7 +378,7 @@ func validateManifest(m *manifest) error {
 			"Both options are mutual exclusive.")
 	}
 	for i := range m.Secrets {
-		if err := validateSecret(&m.Secrets[i]); err != nil {
+		if err := app.validateSecret(&m.Secrets[i]); err != nil {
 			return err
 		}
 	}
@@ -358,11 +470,6 @@ func setupGPGKeyring(sshKeys []string, parentDir string) (*keyring, error) {
 	return &k, nil
 }
 
-type options struct {
-	check    bool
-	manifest string
-}
-
 func parseFlags(args []string) (*options, error) {
 	var opts options
 	fs := flag.NewFlagSet(args[0], flag.ContinueOnError)
@@ -370,9 +477,17 @@ func parseFlags(args []string) (*options, error) {
 		fmt.Fprintf(flag.CommandLine.Output(), "Usage: %s [OPTION] manifest.json\n", args[0])
 		fs.PrintDefaults()
 	}
-	fs.BoolVar(&opts.check, "check", false, "Validate manifest instead installing it")
+	var checkMode string
+	fs.StringVar(&checkMode, "check-mode", "off", `Validate configuration without installing it (possible values: "manifest","sopsfile","off")`)
 	if err := fs.Parse(args[1:]); err != nil {
 		return nil, err
+	}
+
+	switch CheckMode(checkMode) {
+	case Manifest, SopsFile, Off:
+		opts.checkMode = CheckMode(checkMode)
+	default:
+		return nil, fmt.Errorf("Invalid value provided for -check-mode flag: %s", opts.checkMode)
 	}
 
 	if fs.NArg() != 1 {
@@ -394,11 +509,17 @@ func installSecrets(args []string) error {
 		return err
 	}
 
-	if err := validateManifest(manifest); err != nil {
+	app := appContext{
+		manifest:    *manifest,
+		checkMode:   opts.checkMode,
+		secretFiles: make(map[string]secretFile),
+	}
+
+	if err := app.validateManifest(); err != nil {
 		return fmt.Errorf("Manifest is not valid: %s", err)
 	}
 
-	if opts.check {
+	if app.checkMode != Off {
 		return nil
 	}
 
