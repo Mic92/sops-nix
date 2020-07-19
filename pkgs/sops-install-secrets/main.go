@@ -45,7 +45,7 @@ type manifest struct {
 	GnupgHome         string   `json:"gnupgHome"`
 }
 
-type secretFile struct {							  
+type secretFile struct {
 	cipherText []byte
 	keys       map[string]interface{}
 	/// First secret that defined this secretFile, used for error messages
@@ -324,25 +324,28 @@ func (app *appContext) validateSecret(secret *secret) error {
 	}
 	secret.mode = os.FileMode(mode)
 
-	owner, err := user.Lookup(secret.Owner)
-	if err != nil {
-		return fmt.Errorf("Failed to lookup user '%s': %s", secret.Owner, err)
-	}
-	ownerNr, err := strconv.ParseUint(owner.Uid, 10, 64)
-	if err != nil {
-		return fmt.Errorf("Cannot parse uid %s: %s", owner.Uid, err)
-	}
-	secret.owner = int(ownerNr)
+	if app.checkMode == Off {
+		// we only access to the user/group during deployment
+		owner, err := user.Lookup(secret.Owner)
+		if err != nil {
+			return fmt.Errorf("Failed to lookup user '%s': %s", secret.Owner, err)
+		}
+		ownerNr, err := strconv.ParseUint(owner.Uid, 10, 64)
+		if err != nil {
+			return fmt.Errorf("Cannot parse uid %s: %s", owner.Uid, err)
+		}
+		secret.owner = int(ownerNr)
 
-	group, err := user.LookupGroup(secret.Group)
-	if err != nil {
-		return fmt.Errorf("Failed to lookup group '%s': %s", secret.Group, err)
+		group, err := user.LookupGroup(secret.Group)
+		if err != nil {
+			return fmt.Errorf("Failed to lookup group '%s': %s", secret.Group, err)
+		}
+		groupNr, err := strconv.ParseUint(group.Gid, 10, 64)
+		if err != nil {
+			return fmt.Errorf("Cannot parse gid %s: %s", group.Gid, err)
+		}
+		secret.group = int(groupNr)
 	}
-	groupNr, err := strconv.ParseUint(group.Gid, 10, 64)
-	if err != nil {
-		return fmt.Errorf("Cannot parse gid %s: %s", group.Gid, err)
-	}
-	secret.group = int(groupNr)
 
 	if secret.Format == "" {
 		secret.Format = "yaml"
