@@ -12,27 +12,6 @@ import (
 	"golang.org/x/crypto/ssh"
 )
 
-func parsePublicKey(publicKey []byte) (*rsa.PublicKey, error) {
-	key, _, _, _, err := ssh.ParseAuthorizedKey(publicKey)
-	if err != nil {
-		return nil, fmt.Errorf("failed to parse public ssh key: %s", err)
-	}
-
-	cryptoPublicKey, ok := key.(ssh.CryptoPublicKey)
-
-	if !ok {
-		return nil, fmt.Errorf("Unsupported public key algo: %s", key.Type())
-	}
-
-	rsaKey, ok := cryptoPublicKey.CryptoPublicKey().(*rsa.PublicKey)
-
-	if !ok {
-		return nil, fmt.Errorf("Unsupported public key algo: %s", key.Type())
-	}
-
-	return rsaKey, nil
-}
-
 func parsePrivateKey(sshPrivateKey []byte) (*rsa.PrivateKey, error) {
 	privateKey, err := ssh.ParseRawPrivateKey(sshPrivateKey)
 	if err != nil {

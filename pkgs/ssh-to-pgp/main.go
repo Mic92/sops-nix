@@ -25,7 +25,10 @@ func parseFlags(args []string) options {
 	f.StringVar(&opts.format, "format", "armor", "GPG format encoding (binary|armor)")
 	f.StringVar(&opts.in, "i", "-", "Input path. Reads by default from standard output")
 	f.StringVar(&opts.out, "o", "-", "Output path. Prints by default to standard output")
-	f.Parse(args[1:])
+	if err := f.Parse(args[1:]); err != nil {
+		// should never happen since flag.ExitOnError
+		panic(err)
+	}
 
 	return opts
 }
