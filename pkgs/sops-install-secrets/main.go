@@ -4,6 +4,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
+	"flag"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -41,7 +42,7 @@ type manifest struct {
 	SecretsMountPoint string   `json:"secretsMountpoint"`
 	SymlinkPath       string   `json:"symlinkPath"`
 	SSHKeyPaths       []string `json:"sshKeyPaths"`
-	GnupgHome         string   `json:"gnupgHome`
+	GnupgHome         string   `json:"gnupgHome"`
 }
 
 func readManifest(path string) (*manifest, error) {
@@ -357,17 +358,48 @@ func setupGPGKeyring(sshKeys []string, parentDir string) (*keyring, error) {
 	return &k, nil
 }
 
-func installSecrets(args []string) error {
-	if len(args) <= 1 {
-		return fmt.Errorf("USAGE: %s manifest.json", args)
+type options struct {
+	check    bool
+	manifest string
+}
+
+func parseFlags(args []string) (*options, error) {
+	var opts options
+	fs := flag.NewFlagSet(args[0], flag.ContinueOnError)
+	fs.Usage = func() {
+		fmt.Fprintf(flag.CommandLine.Output(), "Usage: %s [OPTION] manifest.json\n", args[0])
+		fs.PrintDefaults()
 	}
-	manifest, err := readManifest(args[1])
+	fs.BoolVar(&opts.check, "check", false, "Validate manifest instead installing it")
+	if err := fs.Parse(args[1:]); err != nil {
+		return nil, err
+	}
+
+	if fs.NArg() != 1 {
+		flag.Usage()
+		return nil, flag.ErrHelp
+	}
+	opts.manifest = fs.Arg(0)
+	return &opts, nil
+}
+
+func installSecrets(args []string) error {
+	opts, err := parseFlags(args)
+	if err != nil {
+		return err
+	}
+
+	manifest, err := readManifest(opts.manifest)
 	if err != nil {
 		return err
 	}
 
 	if err := validateManifest(manifest); err != nil {
 		return fmt.Errorf("Manifest is not valid: %s", err)
+	}
+
+	if opts.check {
+		return nil
 	}
 
 	keysGid, err := lookupKeysGroup()
@@ -413,6 +445,9 @@ func installSecrets(args []string) error {
 
 func main() {
 	if err := installSecrets(os.Args); err != nil {
+		if err == flag.ErrHelp {
+			return
+		}
 		fmt.Fprintf(os.Stderr, "%s: %s\n", os.Args[0], err)
 		os.Exit(1)
 	}
