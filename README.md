@@ -266,9 +266,92 @@ $ ls -la /run/secrets
 lrwxrwxrwx 16 root 12 Jul  6:23  /run/secrets -> /run/secrets.d/1
 ```
 
-## Permissions & Owner & services
+## Set secret permission/owner and allow services to access it
 
-TODO
+By default secrets are owned by `root:root`. Furthermore
+the parent directory `/run/secrets.d` is only owned by
+`root` and the `keys` group has read access to it:
+
+``` console
+$ ls -la /run/secrets.d/1
+total 24
+drwxr-x--- 2 root keys   0 Jul 18 15:35 .
+drwxr-x--- 3 root keys   0 Jul 18 15:35 ..
+-r-------- 1 root root  20 Jul 18 15:35 borgbackup
+```
+
+The secrets option has further parameter to change secret permission.
+Consider the following nixos configuration example:
+
+```nix
+{
+  # Permission modes are in octal representation,
+  # the digits reprsent: user|group|owner
+  # 7 - full (rwx)
+  # 6 - read and write (rw-)
+  # 5 - read and execute (r-x)
+  # 4 - read only (r--)
+  # 3 - write and execute (-wx)
+  # 2 - write only (-w-)
+  # 1 - execute only (--x)
+  # 0 - none (---)
+  sops.secrets.example-secret.mode = "0440";
+  # Either a user id or group name representation of the secret owner
+  # It is recommended to get the user name from `config.users.<?name>.name` to avoid misconfiguration
+  sops.secrets.example-secret.owner = config.users.nobody.name;
+  # Either the group id or group name representation of the secret group
+  # It is recommended to get the group name from `config.users.<?name>.group` to avoid misconfiguration
+  sops.secrets.example-secret.group = config.users.nobody.group;
+}
+```
+
+To access secrets each non-root process/service needs to be part of the keys group.
+For systemd services this can be achieved as following:
+
+```nix
+{
+  systemd.services.some-service = {
+    serviceConfig.SupplementaryGroups = [ config.users.groups.keys.name ];
+  };
+}
+```
+
+For login or system users this can be done like this:
+
+```nix
+users.users.example-user.extraGroups = [ "keys" ];
+```
+
+The following example configures secrets for buildkite, a CI agent
+the service needs a token and a ssh private key to function:
+
+```nix
+{ pkgs, config, ... }:
+{
+  services.buildkite-agents.builder = {
+    enable = true;
+    tokenPath = config.sops.secrets.buildkite-token.path;
+    privateSshKeyPath = config.sops.secrets.buildkite-ssh-key.path;
+
+    runtimePackages = [
+      pkgs.gnutar
+      pkgs.bash
+      pkgs.nix
+      pkgs.gzip
+      pkgs.git
+    ];
+
+  };
+
+  systemd.services.buildkite-agent-builder = {
+    serviceConfig.SupplementaryGroups = [ config.users.groups.keys.name ];
+  };
+
+  sops.secrets.buildkite-token.owner = config.users.buildkite-agent-builder.name;
+  sops.secrets.buildkite-ssh-key.owner = config.users.buildkite-agent-builder.name;
+}
+```
+
 
 ## Symlinks to other directories
 
