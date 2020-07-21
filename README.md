@@ -319,7 +319,9 @@ For systemd services this can be achieved as following:
 For login or system users this can be done like this:
 
 ```nix
-users.users.example-user.extraGroups = [ "keys" ];
+{
+  users.users.example-user.extraGroups = [ config.users.groups.keys.name ];
+}
 ```
 
 The following example configures secrets for buildkite, a CI agent
