@@ -11,7 +11,8 @@ jobs:
         nixPath:
           - nixpkgs=channel:nixos-20.03
           - nixpkgs=channel:nixpkgs-unstable
-    runs-on: ubuntu-latest
+        os: [ ubuntu-latest, macos-latest ]
+    runs-on: ${{ matrix.os }}
     steps:
     - uses: actions/checkout@v2
     - uses: cachix/install-nix-action@v10
@@ -29,9 +30,11 @@ jobs:
       if: matrix.nixPath == 'nixpkgs=channel:nixpkgs-unstable'
     - name: Build nix packages
       run: nix run nixpkgs.nix-build-uncached -c nix-build-uncached default.nix
-    - name: Add keys group (needed for go tests)
-      run: sudo groupadd keys
-    - name: Run sops-install-secrets tests
-      run: nix-shell --pure --run "$(command -v sudo) unshare --mount --fork go test ./pkgs/sops-install-secrets"
     - name: Run sops-pgp-hook tests
       run: nix-shell --pure --run "NIX_PATH=nixpkgs=$(nix-instantiate --find-file nixpkgs) go test ./pkgs/sops-pgp-hook"
+    - name: Add keys group (needed for go tests)
+      run: sudo groupadd keys
+      if: matrix.os == 'ubuntu-latest'
+    - name: Run sops-install-secrets tests
+      run: nix-shell --pure --run "$(command -v sudo) unshare --mount --fork go test ./pkgs/sops-install-secrets"
+      if: matrix.os == 'ubuntu-latest'
