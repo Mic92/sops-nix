@@ -23,7 +23,7 @@ func ok(tb testing.TB, err error) {
 func TestCli(t *testing.T) {
 	_, filename, _, _ := runtime.Caller(0)
 	assets := path.Join(path.Dir(filename), "test-assets")
-	tempdir, err := ioutil.TempDir("", "testdir")
+	tempdir, err := ioutil.TempDir("/tmp", "testdir")
 	ok(t, err)
 	defer os.RemoveAll(tempdir)
 
