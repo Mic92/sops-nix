@@ -1,8 +1,9 @@
 _sopsAddKey() {
   @gpg@ --quiet --import "$key"
   local fpr
+  # only add the first fingerprint, this way we ignore subkeys
   fpr=$(@gpg@ --with-fingerprint --with-colons --show-key "$key" \
-         | awk -F: '$1 == "fpr" { print $10;}')
+         | awk -F: '$1 == "fpr" { print $10; exit }')
   if [[ $fpr != "" ]]; then
       export SOPS_PGP_FP=''${SOPS_PGP_FP}''${SOPS_PGP_FP:+','}$fpr
   fi
