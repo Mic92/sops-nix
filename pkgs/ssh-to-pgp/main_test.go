@@ -20,10 +20,19 @@ func ok(tb testing.TB, err error) {
 	}
 }
 
+func TempRoot() string {
+	if runtime.GOOS == "darwin" {
+		// macOS make its TEMPDIR long enough for unix socket to break
+		return "/tmp"
+	} else {
+		return os.TempDir()
+	}
+}
+
 func TestCli(t *testing.T) {
 	_, filename, _, _ := runtime.Caller(0)
 	assets := path.Join(path.Dir(filename), "test-assets")
-	tempdir, err := ioutil.TempDir("/tmp", "testdir")
+	tempdir, err := ioutil.TempDir(TempRoot(), "testdir")
 	ok(t, err)
 	defer os.RemoveAll(tempdir)
 
