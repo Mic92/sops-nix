@@ -41,9 +41,15 @@ func TestShellHook(t *testing.T) {
 	fmt.Printf("$ %s\nstdout: \n%s\nstderr: \n%s\n", strings.Join(cmd.Args, " "), stdout, stderr)
 	ok(t, err)
 
-	expectedStdout := "SOPS_PGP_FP=C6DA56E69A7C756564A8AFEB4A6B05B714D13EFD,4EC40F8E04A945339F7F7C0032C5225271038E3F,7FB89715AADA920D65D25E63F9BA9DEBD03F57C0"
-	if !strings.Contains(stdout, expectedStdout) {
-		t.Fatalf("'%v' not in '%v'", expectedStdout, stdout)
+	expectedKeys := []string{
+		"C6DA56E69A7C756564A8AFEB4A6B05B714D13EFD",
+		"4EC40F8E04A945339F7F7C0032C5225271038E3F",
+		"7FB89715AADA920D65D25E63F9BA9DEBD03F57C0",
+	}
+	for _, key := range expectedKeys {
+		if !strings.Contains(stdout, key) {
+			t.Fatalf("'%v' not in '%v'", key, stdout)
+		}
 	}
 
 	expectedStderr := "./non-existing-key.gpg does not exists"
