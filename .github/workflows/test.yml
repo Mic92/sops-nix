@@ -29,7 +29,7 @@ jobs:
       run: nix-shell --pure --run "golangci-lint run"
       if: matrix.nixPath == 'nixpkgs=channel:nixpkgs-unstable'
     - name: Build nix packages
-      run: nix run nixpkgs.nix-build-uncached -c nix-build-uncached default.nix
+      run: nix-build release.nix
     - name: Run sops-pgp-hook tests
       run: nix-shell --pure --run "NIX_PATH=nixpkgs=$(nix-instantiate --find-file nixpkgs) go test ./pkgs/sops-pgp-hook"
     - name: Add keys group (needed for go tests)
