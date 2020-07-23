@@ -15,4 +15,9 @@ stdenv.mkDerivation {
         coreutils utillinux gnupg
       ] ++ stdenv.lib.optionals (!stdenv.isDarwin) [ unixtools.hostname ])}
   '';
+
+  doInstallCheck = true;
+  installCheckPhase = ''
+    $out/bin/sops-init-gpg-key --hostname server01 --gpghome $TMPDIR/key
+  '';
 }
