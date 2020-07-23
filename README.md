@@ -28,12 +28,61 @@ key management APIs such as AWS KMS, GCP KMS, Azure Key Vault or Hashicorp's vau
 
 ### 1. Install nix-sops
 
-- Install via niv
+- Install via [niv](https://github.com/nmattia/niv):
+  First add it to niv:
+  ```console
+  $ niv add Mic92/sops-nix
+  ```
+  Than add the following to your configuration.nix in the `imports` list:
+  
+  ```nix
+  {
+    imports = [ "${(import ../../nix/sources.nix).sops-nix}/modules/sops" ];
+  }
+  ```
 - Install via nix-channel
-- Install via fetchTarball
-- Install via krops
 
-Than add <sops-nix/modules/sops>
+  As root run:
+  ```console
+  $ nix-channel --add https://github.com/Mic92/sops-nix/archive/master.tar.gz sops-nix
+  $ nix-channel --update
+  ```
+  
+  Than add the following to your configuration.nix in the `imports` list:
+  ```nix
+  {
+    imports = [ <sops-nix/modules/sops> ];
+  }
+  ```
+
+- Install via fetchTarball
+
+  Add the following to your configuration.nix:
+
+  ``` nix
+  {
+    imports = [ "${builtins.fetchTarball "https://github.com/Mic92/sops-nix/archive/master.tar.gz"}/modules/sops" ];
+  }
+  ```
+  
+  or with pinning:
+  
+  ```nix
+  {
+    imports = let
+      # replace this with an actual commit id or tag
+      commit = "298b235f664f925b433614dc33380f0662adfc3f";
+    in [ 
+      "${builtins.fetchTarball {
+        url = "https://github.com/Mic92/sops-nix/archive/${commit}.tar.gz";
+        # replace this with an actual hash
+        sha256 = "0000000000000000000000000000000000000000000000000000";
+      }}/modules/sops"
+    ];
+  }
+  ```
+  
+
 
 ### 2. Generate a GPG key for yourself
 
