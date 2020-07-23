@@ -35,60 +35,90 @@ There is a configuration.nix example in the [deployment step](#5-deploy) of our 
 
 ### 1. Install nix-sops
 
-- Install via [niv](https://github.com/nmattia/niv):
+Choose one of the following methods:
+
+#### [niv](https://github.com/nmattia/niv) (Current recommendation)
   First add it to niv:
-  ```console
-  $ niv add Mic92/sops-nix
-  ```
+  
+```console
+$ niv add Mic92/sops-nix
+```
+
   Than add the following to your configuration.nix in the `imports` list:
   
-  ```nix
-  {
-    imports = [ "${(import ./nix/sources.nix).sops-nix}/modules/sops" ];
-  }
-  ```
-- Install via nix-channel
+```nix
+{
+  imports = [ "${(import ./nix/sources.nix).sops-nix}/modules/sops" ];
+}
+```
+  
+#### nix-channel
 
   As root run:
-  ```console
-  $ nix-channel --add https://github.com/Mic92/sops-nix/archive/master.tar.gz sops-nix
-  $ nix-channel --update
-  ```
+  
+```console
+$ nix-channel --add https://github.com/Mic92/sops-nix/archive/master.tar.gz sops-nix
+$ nix-channel --update
+```
   
   Than add the following to your configuration.nix in the `imports` list:
-  ```nix
-  {
-    imports = [ <sops-nix/modules/sops> ];
-  }
-  ```
+  
+```nix
+{
+  imports = [ <sops-nix/modules/sops> ];
+}
+```
 
-- Install via fetchTarball
+#### fetchTarball
 
   Add the following to your configuration.nix:
 
-  ``` nix
-  {
-    imports = [ "${builtins.fetchTarball "https://github.com/Mic92/sops-nix/archive/master.tar.gz"}/modules/sops" ];
-  }
-  ```
+``` nix
+{
+  imports = [ "${builtins.fetchTarball "https://github.com/Mic92/sops-nix/archive/master.tar.gz"}/modules/sops" ];
+}
+```
   
   or with pinning:
   
-  ```nix
-  {
-    imports = let
-      # replace this with an actual commit id or tag
-      commit = "298b235f664f925b433614dc33380f0662adfc3f";
-    in [ 
-      "${builtins.fetchTarball {
-        url = "https://github.com/Mic92/sops-nix/archive/${commit}.tar.gz";
-        # replace this with an actual hash
-        sha256 = "0000000000000000000000000000000000000000000000000000";
-      }}/modules/sops"
-    ];
-  }
-  ```
+```nix
+{
+  imports = let
+    # replace this with an actual commit id or tag
+    commit = "298b235f664f925b433614dc33380f0662adfc3f";
+  in [ 
+    "${builtins.fetchTarball {
+      url = "https://github.com/Mic92/sops-nix/archive/${commit}.tar.gz";
+      # replace this with an actual hash
+      sha256 = "0000000000000000000000000000000000000000000000000000";
+    }}/modules/sops"
+  ];
+}
+```
   
+#### Flakes
+
+If you use experimental nix flakes support:
+
+``` nix
+{
+  inputs.sops-nix.url = github:Mic92/sops-nix;
+  # optional, not necessary for the module
+  #inputs.sops-nix.inputs.nixpkgs.follows = "nixpkgs";
+  
+  outputs = { self, nixpkgs, sops-nix }: {
+    # change `yourhostname` to your actual hostname
+    nixosConfigurations.yourhostname = nixpkgs.lib.nixosSystem {
+      # change to your system:
+      system = "x86_64-linux";
+      modules = [
+        ./configuration.nix
+        sops-nix.nixosModules.sops
+      ];
+    };
+  };
+}
+```
 
 
 ### 2. Generate a GPG key for yourself
@@ -624,7 +654,7 @@ In this case you need to make upload the gpg key directory `/tmp/newkey` to your
 If you have used [pass](https://www.passwordstore.org) before i.e. in [krops](https://github.com/krebs/krops) than you can use
 the following one-liner to convert all your secrets to a yaml structure.
 
-``` console
+```console
 $ for i in *.gpg; do echo "$(basename $i .gpg): |\n$(pass $(dirname $i)/$(basename $i .gpg)| sed 's/^/  /')"; done
 ```
 
