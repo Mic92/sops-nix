@@ -11,9 +11,9 @@ stdenv.mkDerivation {
   installPhase = ''
     install -m755 -D $src $out/bin/sops-init-gpg-key
     wrapProgram $out/bin/sops-init-gpg-key \
-      --prefix PATH : ${stdenv.lib.makeBinPath ([
-        coreutils utillinux gnupg
-      ] ++ stdenv.lib.optionals (!stdenv.isDarwin) [ unixtools.hostname ])}
+      --prefix PATH : ${stdenv.lib.makeBinPath [
+        coreutils utillinux gnupg unixtools.hostname
+      ]}
   '';
 
   doInstallCheck = true;
