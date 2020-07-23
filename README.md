@@ -499,7 +499,7 @@ ssh_key: |
 
 You can include it like this in your `configuration.nix`:
 
-``` json
+```nix
 {
   sops.defaultSopsFile = ./secrets.yaml;
   # yaml is the default 
@@ -531,7 +531,7 @@ Than put in the following content:
 
 You can include it like this in your `configuration.nix`:
 
-``` json
+```nix
 {
   sops.defaultSopsFile = ./secrets.json;
   # yaml is the default 
