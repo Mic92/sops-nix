@@ -141,7 +141,7 @@ If you get:
 ssh-to-pgp: failed to parse private ssh key: ssh: this private key is passphrase protected
 ```
 
-then your ssh key is encrypted with your password and you need to create a encrypted copy temporarily:
+then your ssh key is encrypted with your password and you need to create an uencrypted copy temporarily:
 
 ```
 $ cp $HOME/.ssh/id_rsa /tmp/id_rsa
