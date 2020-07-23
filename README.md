@@ -17,12 +17,19 @@ key management APIs such as AWS KMS, GCP KMS, Azure Key Vault or Hashicorp's vau
 
 - Compatible with all NixOS deployment frameworks: [NixOps](https://github.com/NixOS/nixops), nixos-rebuild, [krops](https://github.com/krebs/krops/), [morph](https://github.com/DBCDK/morph), [nixus](https://github.com/Infinisil/nixus)
 - Version-control friendly: Since all files are encrypted they can directly committed to version control. The format is readable in diffs and there are also ways of showing [git diffs in cleartext](https://github.com/mozilla/sops#showing-diffs-in-cleartext-in-git)
+- Works well in teams: sops-nix comes with nix-shell hooks that allows quickly import multiple people to import all used keys.
+  The cryptography used in sops is designed to be scalable: Secrets are only encrypted once with a master key
+  instead of each machine/developer key.
 - CI friendly: Since sops files can be added to the nix store as well without leaking secrets, machine definition can be build as a whole.
 - Atomic upgrades: New secrets are written to a new directory which replaces the old directory in an atomic step.
 - Rollback support: If sops files are added to Nix store, old secrets can be rolled back. This is optional.
 - Fast: Unlike solutions implemented by NixOps, krops and morph there is no extra step required to upload secrets
 - Different storage formats: Secrets can be stored in YAML, JSON or binary.
 - Minimize configuration errors: sops files are checked against the configuration at evaluation time.
+
+## Demo
+
+There is a configuration.nix example in the [deployment step](#5-deploy) of our usage example.
 
 ## Usage example
 
@@ -215,6 +222,9 @@ In our example we put the following content in it:
 example-key: example-value
 ```
 
+NOTE: At the moment we do not support nested data structures that
+sops support. This might change in the future. See also [Different file formats](#different-file-formats)
+
 As a result when saving the file the following content will be in it:
 
 ```
@@ -406,7 +416,175 @@ the service needs a token and a ssh private key to function:
 
 ## Symlinks to other directories
 
-TODO
+Some services might expect files in certain locations.
+Using the `path` option as symlink to this directory can
+be created:
+
+``` nix
+{
+  sops.secrets."home-assistant-secrets.yaml" = {
+    owner = "hass";
+    path = "/var/lib/hass/secrets.yaml";
+  };
+}
+```
+
+``` nix
+$ ls -la /var/lib/hass/secrets.yaml
+lrwxrwxrwx 1 root root 40 Jul 19 22:36 /var/lib/hass/secrets.yaml -> /run/secrets/home-assistant-secrets.yaml
+```
+
+
+## Different file formats
+
+At the moment we support the following file formats: YAML, JSON, binary
+
+NOTE: At the moment we do not support nested data structures that
+sops support. This might change in the future:
+
+We support the following yaml:
+
+```yaml
+key: 1
+```
+
+but not:
+
+```yaml
+nested: 
+  key: 1
+```
+
+nix-sops allows to specify multiple sops files in different file formats:
+
+```nix
+{
+  imports = [ <sops-nix/modules/sops> ];
+  # The default sops file used for all secrets can be controlled using `sops.defaultSopsFile`
+  sops.defaultSopsFile = ./secrets.yaml;
+  # If you use something different from yaml, you can also specify it here:
+  #sops.defaultSopsFormat = "yaml";
+  sops.secrets.github_token = {
+    # The sops file can be also overwritten per secret...
+    sopsFile = ./other-secrets.json;
+    # ... as well as the format
+    format = "json";
+  };
+}
+```
+
+
+### YAML
+
+Open a new file with sops ending in `.yaml`:
+
+```console
+$ sops secrets.yaml
+```
+
+Than put in the following content:
+
+```yaml
+github_token: 4a6c73f74928a9c4c4bc47379256b72e598e2bd3
+# multi-line strings in yaml start with an |
+ssh_key: |
+  -----BEGIN OPENSSH PRIVATE KEY-----
+  b3BlbnNzaC1rZXktdjEAAAAABG5vbmUAAAAEbm9uZQAAAAAAAAABAAAAMwAAAAtzc2gtZW
+  QyNTUxOQAAACDENhLwQI4v/Ecv65iCMZ7aZAL+Sdc0Cqyjkd012XwJzQAAAJht4at6beGr
+  egAAAAtzc2gtZWQyNTUxOQAAACDENhLwQI4v/Ecv65iCMZ7aZAL+Sdc0Cqyjkd012XwJzQ
+  AAAEBizgX7v+VMZeiCtWRjpl95dxqBWUkbrPsUSYF3DGV0rsQ2EvBAji/8Ry/rmIIxntpk
+  Av5J1zQKrKOR3TXZfAnNAAAAE2pvZXJnQHR1cmluZ21hY2hpbmUBAg==
+  -----END OPENSSH PRIVATE KEY-----
+```
+
+You can include it like this in your `configuration.nix`:
+
+``` json
+{
+  sops.defaultSopsFile = ./secrets.yaml;
+  # yaml is the default 
+  #sops.defaultSopsFormat = "yaml";
+  sops.secrets.github_token = {
+    format = "yaml";
+    # can be also set per secret
+    sopsFile = ./secrets.yaml;
+  };
+}
+```
+
+### JSON
+
+Open a new file with sops ending in `.json`:
+
+```console
+$ sops secrets.json
+```
+
+Than put in the following content:
+
+``` json
+{
+  "github_token": "4a6c73f74928a9c4c4bc47379256b72e598e2bd3",
+  "ssh_key": "-----BEGIN OPENSSH PRIVATE KEY-----\\nb3BlbnNzaC1rZXktdjEAAAAABG5vbmUAAAAEbm9uZQAAAAAAAAABAAAAMwAAAAtzc2gtZW\\nQyNTUxOQAAACDENhLwQI4v/Ecv65iCMZ7aZAL+Sdc0Cqyjkd012XwJzQAAAJht4at6beGr\\negAAAAtzc2gtZWQyNTUxOQAAACDENhLwQI4v/Ecv65iCMZ7aZAL+Sdc0Cqyjkd012XwJzQ\\nAAAEBizgX7v+VMZeiCtWRjpl95dxqBWUkbrPsUSYF3DGV0rsQ2EvBAji/8Ry/rmIIxntpk\\nAv5J1zQKrKOR3TXZfAnNAAAAE2pvZXJnQHR1cmluZ21hY2hpbmUBAg==\\n-----END OPENSSH PRIVATE KEY-----\\n"
+}
+```
+
+You can include it like this in your `configuration.nix`:
+
+``` json
+{
+  sops.defaultSopsFile = ./secrets.json;
+  # yaml is the default 
+  sops.defaultSopsFormat = "json";
+  sops.secrets.github_token = {
+    format = "json";
+    # can be also set per secret
+    sopsFile = ./secrets.json;
+  };
+}
+```
+
+### Binary
+
+Unlike the other two formats for binaries one file correspond to one secret.
+This format allows to encrypt arbitrary binary format that can be not put into
+JSON/YAML files.
+
+To encrypt an binary file use the following command:
+
+``` console
+$ sops -e /tmp/krb5.keytab > krb5.keytab
+$ head krb5.keytab
+{
+        "data": "ENC[AES256_GCM,data:bIsPHrjrl9wxvKMcQzaAbS3RXCI2h8spw2Ee+KYUTsuousUBU6OMIdyY0wqrX3eh/1BUtl8H9EZciCTW29JfEJKfi3ackGufBH+0wp6vLg7r,iv:TlKiOmQUeH3+NEdDUMImg1XuXg/Tv9L6TmPQrraPlCQ=,tag:dVeVvRM567NszsXKK9pZvg==,type:str]",
+        "sops": {
+                "kms": null,
+                "gcp_kms": null,
+                "azure_kv": null,
+                "lastmodified": "2020-07-06T06:21:06Z",
+                "mac": "ENC[AES256_GCM,data:ISjUzaw/5mNiwypmUrOk2DAZnlkbnhURHmTTYA3705NmRsSyUh1PyQvCuwglmaHscwl4GrsnIz4rglvwx1zYa+UUwanR0+VeBqntHwzSNiWhh7qMAQwdUXmdCNiOyeGy6jcSDsXUeQmyIWH6yibr7hhzoQFkZEB7Wbvcw6Sossk=,iv:UilxNvfHN6WkEvfY8ZIJCWijSSpLk7fqSCWh6n8+7lk=,tag:HUTgyL01qfVTCNWCTBfqXw==,type:str]",
+                "pgp": [
+                        {
+                        
+```
+
+It can be decrypted again like this:
+
+``` console
+$ sops -d krb5.keytab > /tmp/krb5.keytab
+```
+
+This is how it can be included in your configuration.nix:
+
+```nix
+{
+  sops.secrets.krb5-keytab = {
+    format = "binary";
+    sopsFile = ./krb5.keytab;
+  };
+}
+```
+
 
 ## Use with GnuPG instead of ssh keys
 
@@ -444,8 +622,10 @@ In this case you need to make upload the gpg key directory `/tmp/newkey` to your
 ## Migrate from pass/krops
 
 If you have used [pass](https://www.passwordstore.org) before i.e. in [krops](https://github.com/krebs/krops) than you can use
-the following one-liner to convert all your (plaintext) keys to a yaml structure:
+the following one-liner to convert all your secrets to a yaml structure.
 
 ``` console
 $ for i in *.gpg; do echo "$(basename $i .gpg): |\n$(pass $(dirname $i)/$(basename $i .gpg)| sed 's/^/  /')"; done
 ```
+
+Copy the output to the editor you have opened with sops.
