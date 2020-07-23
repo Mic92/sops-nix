@@ -37,7 +37,7 @@ key management APIs such as AWS KMS, GCP KMS, Azure Key Vault or Hashicorp's vau
   
   ```nix
   {
-    imports = [ "${(import ../../nix/sources.nix).sops-nix}/modules/sops" ];
+    imports = [ "${(import ./nix/sources.nix).sops-nix}/modules/sops" ];
   }
   ```
 - Install via nix-channel
