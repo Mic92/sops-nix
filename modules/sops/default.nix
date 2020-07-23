@@ -37,7 +37,7 @@ let
         };
       format = mkOption {
         type = types.enum ["yaml" "json" "binary"];
-        default = "yaml";
+        default = cfg.defaultSopsFormat;
         description = ''
           File format used to decrypt the sops secret.
           Binary files are written to the target file as is.
@@ -101,6 +101,14 @@ in {
       type = types.either types.str types.path;
       description = ''
         Default sops file used for all secrets.
+      '';
+    };
+
+    defaultSopsFormat = mkOption {
+      type = types.str;
+      default = "yaml";
+      description = ''
+        Default sops format used for all secrets.
       '';
     };
 
