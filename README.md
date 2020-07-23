@@ -420,7 +420,7 @@ Some services might expect files in certain locations.
 Using the `path` option as symlink to this directory can
 be created:
 
-``` nix
+```nix
 {
   sops.secrets."home-assistant-secrets.yaml" = {
     owner = "hass";
@@ -429,7 +429,7 @@ be created:
 }
 ```
 
-``` nix
+```console
 $ ls -la /var/lib/hass/secrets.yaml
 lrwxrwxrwx 1 root root 40 Jul 19 22:36 /var/lib/hass/secrets.yaml -> /run/secrets/home-assistant-secrets.yaml
 ```
