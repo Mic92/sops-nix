@@ -649,6 +649,10 @@ fingerprint: E4CA86768F176AEB6C01554153AF8D7F149613B1
 
 In this case you need to make upload the gpg key directory `/tmp/newkey` to your server.
 
+## Restart/Reload systemd services
+
+TODO
+
 ## Migrate from pass/krops
 
 If you have used [pass](https://www.passwordstore.org) before i.e. in [krops](https://github.com/krebs/krops) than you can use

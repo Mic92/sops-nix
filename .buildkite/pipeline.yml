@@ -1,5 +1,0 @@
-steps:
-  - name: "NixOS tests (unstable)"
-    command: "nix-build -I nixpkgs=https://github.com/NixOS/nixpkgs-channels/archive/nixpkgs-unstable.tar.gz -A sops-install-secrets.tests"
-  - name: "NixOS tests (20.03)"
-    command: "nix-build -I nixpkgs=https://github.com/NixOS/nixpkgs-channels/archive/nixpkgs-unstable.tar.gz -A sops-install-secrets.tests"
