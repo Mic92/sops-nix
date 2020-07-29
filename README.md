@@ -649,6 +649,26 @@ fingerprint: E4CA86768F176AEB6C01554153AF8D7F149613B1
 
 In this case you need to make upload the gpg key directory `/tmp/newkey` to your server.
 
+## Share secrets between different users
+
+Secrets can be shared between different users by creating different files
+pointing to the same sops key but with different permissions. In the following
+example the `drone` secret is exposed as `/run/secrets/drone-server` for
+`drone-server` and as `/run/secrets/drone-agent` for `drone-agent`
+
+```nix
+{
+  sops.secrets.drone-server = {
+    owner = config.systemd.services.drone-server.serviceConfig.User;
+    key = "drone";
+  };
+  sops.secrets.drone-agent = {
+    owner = config.systemd.services.drone-agent.serviceConfig.User;
+    key = "drone";
+  };
+}
+```
+
 ## Restart/Reload systemd services
 
 TODO
