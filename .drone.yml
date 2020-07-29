@@ -1,0 +1,15 @@
+---
+kind: pipeline
+name: nixos-tests
+
+steps:
+- name: test
+  image: nixos/nix
+  commands:
+  - nix-build -I nixpkgs=https://github.com/NixOS/nixpkgs-channels/archive/nixpkgs-unstable.tar.gz -A sops-install-secrets.tests
+  - nix-build -I nixpkgs=https://github.com/NixOS/nixpkgs-channels/archive/nixos-20.03.tar.gz -A sops-install-secrets.tests
+---
+kind: signature
+hmac: a10d993c568e6cdaa81f9bf115d8ad054834179e57ebf2b3fb12abc585722c8a
+
+...
