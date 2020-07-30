@@ -40,12 +40,12 @@ func convertKeys(args []string) error {
 	if opts.in == "-" {
 		sshKey, _ = ioutil.ReadAll(os.Stdin)
 		if err != nil {
-			return fmt.Errorf("error reading stdin: %s", err)
+			return fmt.Errorf("error reading stdin: %w", err)
 		}
 	} else {
 		sshKey, err = ioutil.ReadFile(opts.in)
 		if err != nil {
-			return fmt.Errorf("error reading %s: %s", opts.in, err)
+			return fmt.Errorf("error reading %s: %w", opts.in, err)
 		}
 	}
 
@@ -53,7 +53,7 @@ func convertKeys(args []string) error {
 	if opts.out != "-" {
 		writer, err = os.Create(opts.out)
 		if err != nil {
-			return fmt.Errorf("failed to create %s: %s", opts.out, err)
+			return fmt.Errorf("failed to create %s: %w", opts.out, err)
 		}
 		defer writer.Close()
 	}
@@ -65,7 +65,7 @@ func convertKeys(args []string) error {
 		}
 		writer, err = armor.Encode(writer, keyType, make(map[string]string))
 		if err != nil {
-			return fmt.Errorf("failed to encode armor writer")
+			return fmt.Errorf("failed to encode armor writer: %w", err)
 		}
 	}
 
