@@ -30,7 +30,7 @@ func parsePrivateKey(sshPrivateKey []byte) (*rsa.PrivateKey, error) {
 func SSHPrivateKeyToPGP(sshPrivateKey []byte) (*openpgp.Entity, error) {
 	key, err := parsePrivateKey(sshPrivateKey)
 	if err != nil {
-		return nil, fmt.Errorf("failed to parse private ssh key: %s", err)
+		return nil, fmt.Errorf("failed to parse private ssh key: %w", err)
 	}
 
 	// Let's make keys reproducible
