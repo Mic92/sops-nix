@@ -11,6 +11,7 @@ import (
 	"io/ioutil"
 	"os"
 	"os/user"
+	"path"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -452,7 +453,7 @@ func importSSHKeys(keyPaths []string, gpgHome string) error {
 			return fmt.Errorf("Cannot write secring: %w", err)
 		}
 
-		fmt.Printf("%s: Imported %s with fingerprint %s\n", os.Args[0], path, hex.EncodeToString(gpgKey.PrimaryKey.Fingerprint[:]))
+		fmt.Printf("%s: Imported %s with fingerprint %s\n", path.Base(os.Args[0]), p, hex.EncodeToString(gpgKey.PrimaryKey.Fingerprint[:]))
 	}
 
 	return nil
