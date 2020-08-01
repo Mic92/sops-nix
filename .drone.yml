@@ -4,12 +4,28 @@ name: nixos-tests
 
 steps:
 - name: test
-  image: NixOS/docker
+  image: busybox
+  environment:
+    NIX_REMOTE: daemon
+    PATH: /nix/var/nix/profiles/system/sw/bin/
+    SSL_CERT_FILE: /nix/var/nix/profiles/system/etc/ssl/certs/ca-bundle.crt
+    PAGER: cat
+    USER: root
+  volumes:
+    - name: socket
+      path: /nix/var/nix/daemon-socket/socket
+  volumes:
+    - name: nixstore
+      path: /nix
   commands:
   - nix-build -I nixpkgs=https://github.com/NixOS/nixpkgs-channels/archive/nixpkgs-unstable.tar.gz -A sops-install-secrets.tests
   - nix-build -I nixpkgs=https://github.com/NixOS/nixpkgs-channels/archive/nixos-20.03.tar.gz -A sops-install-secrets.tests
+volumes:
+- name: nixstore
+  host:
+    path: /nix
 ---
 kind: signature
-hmac: bfd2c6b78669fca14f1a0fae6fb55f1004e491e15005c4a8a8790614d2474700
+hmac: 1d9dc0576a5f871c84ac9fd1919fcbd85a7e68fe927f8467d1bfc856fa0c5967
 
 ...
