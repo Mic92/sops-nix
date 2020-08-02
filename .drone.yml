@@ -4,7 +4,7 @@ name: nixos-tests
 
 steps:
 - name: test
-  image: busybox
+  image: mic92/scratch
   environment:
     NIX_REMOTE: daemon
     PATH: /nix/var/nix/profiles/system/sw/bin/
@@ -17,6 +17,9 @@ steps:
   volumes:
     - name: nixstore
       path: /nix
+  volumes:
+    - name: binsh
+      path: /bin/sh
   commands:
   - nix-build -I nixpkgs=https://github.com/NixOS/nixpkgs-channels/archive/nixpkgs-unstable.tar.gz -A sops-install-secrets.tests
   - nix-build -I nixpkgs=https://github.com/NixOS/nixpkgs-channels/archive/nixos-20.03.tar.gz -A sops-install-secrets.tests
@@ -24,8 +27,11 @@ volumes:
 - name: nixstore
   host:
     path: /nix
+- name: binsh
+  host:
+    path: /bin/sh
 ---
 kind: signature
-hmac: 1d9dc0576a5f871c84ac9fd1919fcbd85a7e68fe927f8467d1bfc856fa0c5967
+hmac: da836527c09a1048942de3875e0f2c7289628609fe11fd84ea5a71ce020ef73a
 
 ...
