@@ -16,7 +16,6 @@ import (
 	"strconv"
 	"strings"
 	"syscall"
-	"unsafe"
 
 	"github.com/Mic92/sops-nix/pkgs/sshkeys"
 
@@ -127,21 +126,6 @@ func linksAreEqual(linkTarget, targetFile string, info os.FileInfo, secret *secr
 	return linkTarget == targetFile && validUG
 }
 
-func fchown(filename string, owner, group int) error {
-	f, err := os.Open(filename)
-	if err != nil {
-		return fmt.Errorf("Failed to open for fchown '%s': %w", filename, err)
-	}
-	fd := f.Fd()
-	realfd := (*uint64)(unsafe.Pointer(fd))
-	realfd2 := int(*realfd)
-	err = syscall.Fchown(realfd2, owner, group)
-	if err != nil {
-		return fmt.Errorf("Failed to fchown '%s': %w", filename, err)
-	}
-	return nil
-}
-
 func symlinkSecret(targetFile string, secret *secret) error {
 	for {
 		stat, err := os.Lstat(secret.Path)
@@ -149,8 +133,8 @@ func symlinkSecret(targetFile string, secret *secret) error {
 			if err := os.Symlink(targetFile, secret.Path); err != nil {
 				return fmt.Errorf("Cannot create symlink '%s': %w", secret.Path, err)
 			}
-			if err := fchown(secret.Path, secret.owner, secret.group); err != nil {
-				return fmt.Errorf("Cannot fchown symlink '%s': %w", secret.Path, err)
+			if err := os.Lchown(secret.Path, secret.owner, secret.group); err != nil {
+				return fmt.Errorf("Cannot lchown symlink '%s': %w", secret.Path, err)
 			}
 			return nil
 		} else if err != nil {
