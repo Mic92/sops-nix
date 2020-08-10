@@ -7,6 +7,9 @@ buildGoModule {
 
   subPackages = [ "pkgs/sops-install-secrets" ];
 
+  # requires root privileges for tests
+  doCheck = false;
+
   passthru.tests = import ./nixos-test.nix {
     makeTest = import (path + "/nixos/tests/make-test-python.nix");
     inherit pkgs;
