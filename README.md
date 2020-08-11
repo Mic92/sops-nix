@@ -649,6 +649,22 @@ fingerprint: E4CA86768F176AEB6C01554153AF8D7F149613B1
 ```
 
 In this case you need to make upload the gpg key directory `/tmp/newkey` to your server.
+If you uploaded it to `/var/lib/sops` than your sops configuration will look like this:
+
+```nix
+{
+  # Make sure that `/var/lib/sops` is owned by root and is not world-readable/writable
+  sops.gnupgHome = "/var/lib/sops";
+  # disable import host ssh keys
+  sops.sshKeyPaths = [];
+}
+```
+
+However be aware that this will also run gnupg on your server including the
+gnupg daemon. Gnupg is in general not great software and might break in
+hilarious ways. If you experience problems, you are on your own. If you want a
+more stable and predictable solution go with ssh keys or one of the KMS services.
+
 
 ## Share secrets between different users
 
