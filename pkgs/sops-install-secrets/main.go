@@ -126,6 +126,25 @@ func linksAreEqual(linkTarget, targetFile string, info os.FileInfo, secret *secr
 	return linkTarget == targetFile && validUG
 }
 
+func secureSymlinkChown(path, expectedTarget string, owner, group int) error {
+	fd, err := unix.Open(path, unix.O_CLOEXEC|unix.O_PATH|unix.O_NOFOLLOW, 0)
+	if err != nil {
+		return fmt.Errorf("Failed to open %s: %w", path, err)
+	}
+	defer unix.Close(fd)
+	targetLen := len(expectedTarget)
+	buf := make([]byte, len(expectedTarget) + 1, len(expectedTarget) + 1)
+	n, err := unix.Readlinkat(fd, "", buf)
+	if n > targetLen || string(buf) != expectedTarget {
+		return fmt.Errorf("symlink %s does not point to %s", path, expectedTarget)
+	}
+	err = unix.Fchown(fd, owner, group)
+	if err != nil {
+		return fmt.Errorf("cannot chown %s: %w", path, err)
+	}
+	return nil
+}
+
 func symlinkSecret(targetFile string, secret *secret) error {
 	for {
 		stat, err := os.Lstat(secret.Path)
@@ -133,8 +152,8 @@ func symlinkSecret(targetFile string, secret *secret) error {
 			if err := os.Symlink(targetFile, secret.Path); err != nil {
 				return fmt.Errorf("Cannot create symlink '%s': %w", secret.Path, err)
 			}
-			if err := os.Lchown(secret.Path, secret.owner, secret.group); err != nil {
-				return fmt.Errorf("Cannot lchown symlink '%s': %w", secret.Path, err)
+			if err := secureSymlinkChown(targetFile, secret.Path, secret.owner, secret.group); err != nil {
+				return err
 			}
 			return nil
 		} else if err != nil {
