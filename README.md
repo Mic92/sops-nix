@@ -121,7 +121,6 @@ If you use experimental nix flakes support:
 }
 ```
 
-
 ### 2. Generate a GPG key for yourself
 
 First generate yourself [a GPG key](https://docs.github.com/en/github/authenticating-to-github/generating-a-new-gpg-key) or use nix-sops
@@ -444,7 +443,6 @@ the service needs a token and a ssh private key to function:
 }
 ```
 
-
 ## Symlinks to other directories
 
 Some services might expect files in certain locations.
@@ -464,7 +462,6 @@ be created:
 $ ls -la /var/lib/hass/secrets.yaml
 lrwxrwxrwx 1 root root 40 Jul 19 22:36 /var/lib/hass/secrets.yaml -> /run/secrets/home-assistant-secrets.yaml
 ```
-
 
 ## Different file formats
 
@@ -503,7 +500,6 @@ nix-sops allows to specify multiple sops files in different file formats:
   };
 }
 ```
-
 
 ### YAML
 
@@ -616,7 +612,6 @@ This is how it can be included in your configuration.nix:
 }
 ```
 
-
 ## Use with GnuPG instead of ssh keys
 
 If you prefer having a separate GnuPG key, sops-nix also comes with a helper tool:
@@ -686,10 +681,6 @@ example the `drone` secret is exposed as `/run/secrets/drone-server` for
 }
 ```
 
-## Restart/Reload systemd services
-
-TODO
-
 ## Migrate from pass/krops
 
 If you have used [pass](https://www.passwordstore.org) before i.e. in [krops](https://github.com/krebs/krops) than you can use
@@ -700,3 +691,26 @@ $ for i in *.gpg; do echo "$(basename $i .gpg): |\n$(pass $(dirname $i)/$(basena
 ```
 
 Copy the output to the editor you have opened with sops.
+
+## Realworld Examples
+
+My [personal configuration](https://github.com/Mic92/dotfiles/tree/master/nixos) makes extensive usage of sops-nix.
+Each host has a [secrets](https://github.com/Mic92/dotfiles/tree/master/nixos/eve/secrets) directory containing secrets for the host.
+
+## Known limitations
+
+### Restarting systemd services
+
+Right now systemd services are not restarted automatically.
+We want to implement this in future.
+
+### Initrd secrets
+
+sops-nix does not fully support initrd secrets.
+This is because `nixos-rebuild switch` installs
+the bootloader before running sops-nix activation hook.
+At the moment it is be possible to run `nixos-rebuild test`
+before `nixos-rebuild switch` to provision initrd secrets key
+before the initrd secrets are built.
+In future we hope to extend nixos to allow keys to be
+provisioned in the bootloader install phase.
