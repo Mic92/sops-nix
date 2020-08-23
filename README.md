@@ -158,16 +158,15 @@ export SOPS_PGP_FP=2504791468b153b8a3963cc97ba53d1919c5dfd4
 If you have generated a GnuPG key directly you can get your fingerprint like this:
 
 ```
-gpg --list-secret-keys --fingerprint
+gpg --list-secret-keys
 /tmp/tmp.JA07D1aVRD/pubring.kbx
 -------------------------------
 sec   rsa2048 1970-01-01 [SCE]
-      9F89 C5F6 9A10 281A 8350  14B0 9C3D C61F 7520 87EF
+      9F89C5F69A10281A835014B09C3DC61F752087EF
 uid           [ unknown] root <root@localhost>
 ```
 
-The fingerprint here is `9F89 C5F6 9A10 281A 8350 14B0 9C3D C61F 7520 87EF`, you
-need to remove the space in-between manually.
+The fingerprint here is `9F89C5F69A10281A835014B09C3DC61F752087EF`.
 
 ### 3. Get a PGP Public key for your machine
 
