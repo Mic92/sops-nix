@@ -158,7 +158,7 @@ func symlinkSecret(targetFile string, secret *secret) error {
 				return fmt.Errorf("Cannot create symlink '%s': %w", secret.Path, err)
 			}
 			if err := secureSymlinkChown(secret.Path, targetFile, secret.owner, secret.group); err != nil {
-				return fmt.Errorf("Cannot secure symlink '%s': %w", secret.Path, err)
+				return fmt.Errorf("Cannot chown symlink '%s': %w", secret.Path, err)
 			}
 			return nil
 		} else if err != nil {
