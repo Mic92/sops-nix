@@ -21,7 +21,7 @@ key management APIs such as AWS KMS, GCP KMS, Azure Key Vault or Hashicorp's vau
 - Works well in teams: sops-nix comes with nix-shell hooks that allows quickly import multiple people to import all used keys.
   The cryptography used in sops is designed to be scalable: Secrets are only encrypted once with a master key
   instead of each machine/developer key.
-- CI friendly: Since sops files can be added to the nix store as well without leaking secrets, machine definition can be build as a whole.
+- CI friendly: Since sops files can be added to the Nix store without leaking secrets, a machine definition can be built as a whole.
 - Atomic upgrades: New secrets are written to a new directory which replaces the old directory in an atomic step.
 - Rollback support: If sops files are added to Nix store, old secrets can be rolled back. This is optional.
 - Fast: Unlike solutions implemented by NixOps, krops and morph there is no extra step required to upload secrets
