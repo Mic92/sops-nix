@@ -18,8 +18,8 @@ steps:
     - name: sslcerts
       path: /etc/ssl
   commands:
-  - nix-build -I nixpkgs=https://github.com/NixOS/nixpkgs-channels/archive/nixpkgs-unstable.tar.gz -A sops-install-secrets.tests
-  - nix-build -I nixpkgs=https://github.com/NixOS/nixpkgs-channels/archive/nixos-20.03.tar.gz -A sops-install-secrets.tests
+  - nix-build -I nixpkgs=https://github.com/NixOS/nixpkgs/archive/nixpkgs-unstable.tar.gz -A sops-install-secrets.tests
+  - nix-build -I nixpkgs=https://github.com/NixOS/nixpkgs/archive/nixos-20.09.tar.gz -A sops-install-secrets.tests
 volumes:
 - name: nixstore
   host:
@@ -32,6 +32,6 @@ volumes:
     path: /nix/var/nix/profiles/system/etc/ssl
 ---
 kind: signature
-hmac: 71062808e9e5bf8ab2fc064e586a37abff019cd4576025e3e4118b3f29d9f4c4
+hmac: 5bb657faca0ecd18576534f7e486511d6f698595cc244d9617e660ef2ddb678d
 
 ...
