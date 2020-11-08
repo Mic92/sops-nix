@@ -8,26 +8,30 @@ steps:
   environment:
     NIX_REMOTE: daemon
     PATH: /nix/var/nix/profiles/system/sw/bin/
-    SSL_CERT_FILE: /nix/var/nix/profiles/system/etc/ssl/certs/ca-certificates.crt
-    GIT_SSL_CAINFO: /nix/var/nix/profiles/system/etc/ssl/certs/ca-certificates.crt
-    CURL_CA_BUNDLE: /nix/var/nix/profiles/system/etc/ssl/certs/ca-certificates.crt
     PAGER: cat
     USER: root
   volumes:
-    - name: socket
-      path: /nix/var/nix/daemon-socket/socket
-  volumes:
     - name: nixstore
       path: /nix
+    - name: nixconf
+      path: /etc/nix
+    - name: sslcerts
+      path: /etc/ssl
   commands:
-  - nix-build -I nixpkgs=https://github.com/NixOS/nixpkgs-channels/archive/nixpkgs-unstable.tar.gz -A sops-install-secrets.tests
-  - nix-build -I nixpkgs=https://github.com/NixOS/nixpkgs-channels/archive/nixos-20.03.tar.gz -A sops-install-secrets.tests
+  - nix-build -I nixpkgs=https://github.com/NixOS/nixpkgs/archive/nixpkgs-unstable.tar.gz -A sops-install-secrets.tests
+  - nix-build -I nixpkgs=https://github.com/NixOS/nixpkgs/archive/nixos-20.09.tar.gz -A sops-install-secrets.tests
 volumes:
 - name: nixstore
   host:
     path: /nix
+- name: nixconf
+  host:
+    path: /nix/var/nix/profiles/system/etc/nix
+- name: sslcerts
+  host:
+    path: /nix/var/nix/profiles/system/etc/ssl
 ---
 kind: signature
-hmac: d9b3b156902d9351d56c103b9c9f91588c9b3ed17a821dd14877bf8e567d939d
+hmac: 5bb657faca0ecd18576534f7e486511d6f698595cc244d9617e660ef2ddb678d
 
 ...
