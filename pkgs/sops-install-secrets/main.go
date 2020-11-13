@@ -9,13 +9,18 @@ import (
 	"flag"
 	"fmt"
 	"io/ioutil"
+	"net"
 	"os"
+	"os/signal"
 	"os/user"
 	"path"
 	"path/filepath"
 	"strconv"
 	"strings"
+	"sync"
+	"sync/atomic"
 	"syscall"
+	"time"
 
 	"github.com/Mic92/sops-nix/pkgs/sshkeys"
 
@@ -106,16 +111,16 @@ type appContext struct {
 func secureSymlinkChown(symlinkToCheck, expectedTarget string, owner, group int) error {
 	fd, err := unix.Open(symlinkToCheck, unix.O_CLOEXEC|unix.O_PATH|unix.O_NOFOLLOW, 0)
 	if err != nil {
-			return fmt.Errorf("Failed to open %s: %w", symlinkToCheck, err)
+		return fmt.Errorf("Failed to open %s: %w", symlinkToCheck, err)
 	}
 	defer unix.Close(fd)
 
-	buf := make([]byte, len(expectedTarget) + 1) // oversize by one to detect trunc
+	buf := make([]byte, len(expectedTarget)+1) // oversize by one to detect trunc
 	n, err := unix.Readlinkat(fd, "", buf)
 	if err != nil {
 		return fmt.Errorf("couldn't readlinkat %s", symlinkToCheck)
 	}
-	if n > len(expectedTarget) || string(buf[:n]) != expectedTarget  {
+	if n > len(expectedTarget) || string(buf[:n]) != expectedTarget {
 		return fmt.Errorf("symlink %s does not point to %s", symlinkToCheck, expectedTarget)
 	}
 	err = unix.Fchownat(fd, "", owner, group, unix.AT_EMPTY_PATH)
@@ -140,7 +145,7 @@ func readManifest(path string) (*manifest, error) {
 }
 
 func linksAreEqual(linkTarget, targetFile string, info os.FileInfo, secret *secret) bool {
-	validUG := true;
+	validUG := true
 	if stat, ok := info.Sys().(*syscall.Stat_t); ok {
 		validUG = validUG && int(stat.Uid) == secret.owner
 		validUG = validUG && int(stat.Gid) == secret.group
@@ -562,15 +567,15 @@ func parseFlags(args []string) (*options, error) {
 	return &opts, nil
 }
 
-func installSecrets(args []string) error {
+func installSecrets(args []string) (*manifest, error) {
 	opts, err := parseFlags(args)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	manifest, err := readManifest(opts.manifest)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	app := appContext{
@@ -580,26 +585,26 @@ func installSecrets(args []string) error {
 	}
 
 	if err := app.validateManifest(); err != nil {
-		return fmt.Errorf("Manifest is not valid: %w", err)
+		return nil, fmt.Errorf("Manifest is not valid: %w", err)
 	}
 
 	if app.checkMode != Off {
-		return nil
+		return nil, nil
 	}
 
 	keysGid, err := lookupKeysGroup()
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	if err := mountSecretFs(manifest.SecretsMountPoint, keysGid); err != nil {
-		return fmt.Errorf("Failed to mount filesystem for secrets: %w", err)
+		return nil, fmt.Errorf("Failed to mount filesystem for secrets: %w", err)
 	}
 
 	if len(manifest.SSHKeyPaths) != 0 {
 		keyring, err := setupGPGKeyring(manifest.SSHKeyPaths, manifest.SecretsMountPoint)
 		if err != nil {
-			return fmt.Errorf("Error setting up gpg keyring: %w", err)
+			return nil, fmt.Errorf("Error setting up gpg keyring: %w", err)
 		}
 		defer keyring.Remove()
 	} else if manifest.GnupgHome != "" {
@@ -607,33 +612,146 @@ func installSecrets(args []string) error {
 	}
 
 	if err := decryptSecrets(manifest.Secrets); err != nil {
-		return err
+		return nil, err
 	}
 
 	secretDir, err := prepareSecretsDir(manifest.SecretsMountPoint, manifest.SymlinkPath, keysGid)
 	if err != nil {
-		return fmt.Errorf("Failed to prepare new secrets directory: %w", err)
+		return nil, fmt.Errorf("Failed to prepare new secrets directory: %w", err)
 	}
 	if err := writeSecrets(*secretDir, manifest.Secrets); err != nil {
-		return fmt.Errorf("Cannot write secrets: %w", err)
+		return nil, fmt.Errorf("Cannot write secrets: %w", err)
 	}
 	if err := symlinkSecrets(manifest.SymlinkPath, manifest.Secrets); err != nil {
-		return fmt.Errorf("Failed to prepare symlinks to secret store: %w", err)
+		return nil, fmt.Errorf("Failed to prepare symlinks to secret store: %w", err)
 	}
 	if err := atomicSymlink(*secretDir, manifest.SymlinkPath); err != nil {
-		return fmt.Errorf("Cannot update secrets symlink: %w", err)
+		return nil, fmt.Errorf("Cannot update secrets symlink: %w", err)
+	}
+
+	return manifest, nil
+}
+
+func Listeners() []*net.UnixListener {
+	defer os.Unsetenv("LISTEN_PID")
+	defer os.Unsetenv("LISTEN_FDS")
+	defer os.Unsetenv("LISTEN_FDNAMES")
+
+	pid, err := strconv.Atoi(os.Getenv("LISTEN_PID"))
+	if err != nil || pid != os.Getpid() {
+		return nil
+	}
+
+	nfds, err := strconv.Atoi(os.Getenv("LISTEN_FDS"))
+	if err != nil || nfds == 0 {
+		return nil
+	}
+
+	names := strings.Split(os.Getenv("LISTEN_FDNAMES"), ":")
+
+	listeners := make([]*net.UnixListener, 0)
+	for fd := 3; fd < 3+nfds; fd++ {
+		syscall.CloseOnExec(fd)
+		name := "LISTEN_FD_" + strconv.Itoa(fd)
+		offset := fd - 3
+		if offset < len(names) && len(names[offset]) > 0 {
+			name = names[offset]
+		}
+		file := os.NewFile(uintptr(fd), name)
+		if listener, err := net.FileListener(file); err == nil {
+			if l, ok := listener.(*net.UnixListener); ok {
+				listeners = append(listeners, l)
+			}
+		}
+	}
+
+	return listeners
+}
+
+type server struct {
+	stopListening  int32
+	activeWorkers  sync.WaitGroup
+	lastConnection time.Time
+}
+
+func (s *server) Run(listener *net.UnixListener) {
+	atomic.StoreInt32(&s.stopListening, 0)
+	s.activeWorkers.Add(1)
+	defer s.activeWorkers.Done()
+	defer listener.Close()
+	for atomic.LoadInt32(&s.stopListening) != 1 {
+		if e := listener.SetDeadline(time.Now().Add(time.Second)); e != nil {
+			fmt.Fprintf(os.Stderr, "Error setting deadline: %v\n", e)
+			continue
+		}
+		conn, err := listener.AcceptUnix()
+		if err != nil {
+			if err, ok := err.(net.Error); ok && err.Timeout() {
+				continue
+			} else {
+				fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+				os.Exit(1)
+			}
+		}
+
+		s.activeWorkers.Add(1)
+		s.lastConnection = time.Now()
+		go s.handleConn(conn)
+	}
+}
+
+func (s *server) handleConn(conn *net.UnixConn) {
+	defer func() {
+		conn.Close()
+		s.activeWorkers.Done()
+	}()
+	fmt.Printf("got connetion for %s\n", conn.LocalAddr())
+	//s.registry.HandleQuery(conn)
+}
+
+func serveSecrets(manifest *manifest) error {
+	var s = server{}
+	if listeners := Listeners(); len(listeners) > 0 {
+		fmt.Printf("socket action detected\n")
+		for _, listener := range listeners {
+			go s.Run(listener)
+		}
+	}
+
+	signals := make(chan os.Signal, 1)
+	signal.Notify(signals, os.Interrupt)
+	signal.Notify(signals, syscall.SIGTERM)
+	signal.Notify(signals, syscall.SIGINT)
+
+Out:
+	for {
+		select {
+		case <-signals:
+			break Out
+		case <-time.After(time.Second * 3):
+			if time.Since(s.lastConnection).Seconds() >= 10 {
+				break Out
+			}
+		}
 	}
 
 	return nil
-
 }
 
 func main() {
-	if err := installSecrets(os.Args); err != nil {
+	manifest, err := installSecrets(os.Args)
+	if err != nil {
 		if err == flag.ErrHelp {
 			return
 		}
 		fmt.Fprintf(os.Stderr, "%s: %s\n", os.Args[0], err)
 		os.Exit(1)
+	}
+	if manifest != nil {
+		err = serveSecrets(manifest)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "%s: %s\n", os.Args[0], err)
+			os.Exit(1)
+		}
 	}
 }
