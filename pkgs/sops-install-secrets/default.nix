@@ -1,4 +1,4 @@
-{ stdenv, buildGoModule, path, pkgs, vendorSha256 }:
+{ stdenv, buildGoModule, path, pkgs, vendorSha256, go }:
 buildGoModule {
   pname = "sops-install-secrets";
   version = "0.0.1";
@@ -14,6 +14,14 @@ buildGoModule {
     makeTest = import (path + "/nixos/tests/make-test-python.nix");
     inherit pkgs;
   };
+
+  outputs = [ "out" "unittest" ];
+
+  postBuild = ''
+    go test -c ./pkgs/sops-install-secrets
+    install -D ./sops-install-secrets.test $unittest/bin/sops-install-secrets.test
+    remove-references-to -t ${go} $unittest/bin/sops-install-secrets.test
+  '';
 
   inherit vendorSha256;
 

@@ -46,6 +46,10 @@ func writeManifest(t *testing.T, dir string, m *manifest) string {
 }
 
 func testAssetPath() string {
+	assets := os.Getenv("TEST_ASSETS")
+	if assets != "" {
+		return assets
+	}
 	_, filename, _, _ := runtime.Caller(0)
 	return path.Join(path.Dir(filename), "test-assets")
 }

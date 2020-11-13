@@ -23,8 +23,11 @@ func ok(tb testing.TB, err error) {
 }
 
 func TestShellHook(t *testing.T) {
-	_, filename, _, _ := runtime.Caller(0)
-	assets := path.Join(path.Dir(filename), "test-assets")
+	assets := os.Getenv("TEST_ASSETS")
+	if assets == "" {
+		_, filename, _, _ := runtime.Caller(0)
+		assets = path.Join(path.Dir(filename), "test-assets")
+	}
 	tempdir, err := ioutil.TempDir("", "testdir")
 	ok(t, err)
 	defer os.RemoveAll(tempdir)
