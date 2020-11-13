@@ -1,7 +1,6 @@
 # sops-nix
 
 ![Test](https://github.com/Mic92/sops-nix/workflows/Test/badge.svg)
-[![NixOS Test status](https://drone.thalheim.io/api/badges/Mic92/sops-nix/status.svg)](https://drone.thalheim.io/Mic92/sops-nix)
 
 
 Atomic secret provisioning for NixOS based on [sops](https://github.com/mozilla/sops).
