@@ -23,21 +23,10 @@ jobs:
       with:
         name: mic92
         signingKey: '${{ secrets.CACHIX_SIGNING_KEY }}'
-    - name: Show nixpkgs version
-      run: nix-instantiate --eval -E '(import <nixpkgs> {}).lib.version'
-    - name: Run golangci-lint
-      run: nix-shell --pure --run "golangci-lint run"
-      if: matrix.nixPath == 'nixpkgs=channel:nixpkgs-unstable'
-    - name: Build nix packages
-      run: nix-build release.nix
-    - name: Run sops-pgp-hook tests
-      run: nix-shell --pure --run "NIX_PATH=nixpkgs=$(nix-instantiate --find-file nixpkgs) go test ./pkgs/sops-pgp-hook"
     - name: Add keys group (needed for go tests)
       run: sudo groupadd keys
       if: matrix.os == 'ubuntu-latest'
-    - name: Run sops-install-secrets tests
-      run: nix-shell --pure --run "$(command -v sudo) unshare --mount --fork go test ./pkgs/sops-install-secrets"
-      if: matrix.os == 'ubuntu-latest'
-    - name: Run NixOS test
-      run: nix-build -A sops-install-secrets.tests
-      if: matrix.os == 'ubuntu-latest'
+    - name: Build nix packages
+      run: nix-build --no-out-link release.nix
+    - name: Run unit tests
+      run: nix-shell --no-out-link ./unit-tests.nix --argstr sudo "$(command -v sudo)" --pure --run 'true'

@@ -1,4 +1,4 @@
-{ stdenv, makeSetupHook, gnupg, sops, go, nix }:
+{ stdenv, makeSetupHook, gnupg, sops, nix }:
 
 (makeSetupHook {
   substitutions = {
