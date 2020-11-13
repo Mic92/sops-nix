@@ -1,7 +1,6 @@
 name: "Test"
 on:
   pull_request:
-  push:
   schedule:
     - cron:  '51 2 * * *'
 jobs:
@@ -15,9 +14,10 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
     - uses: actions/checkout@v2
-    - uses: cachix/install-nix-action@v10
+    - uses: cachix/install-nix-action@v12
       with:
         nix_path: "${{ matrix.nixPath }}"
+        extra_nix_config: "system-features = nixos-test benchmark big-parallel kvm"
     - name: Setup cachix
       uses: cachix/cachix-action@v6
       with:
@@ -37,4 +37,7 @@ jobs:
       if: matrix.os == 'ubuntu-latest'
     - name: Run sops-install-secrets tests
       run: nix-shell --pure --run "$(command -v sudo) unshare --mount --fork go test ./pkgs/sops-install-secrets"
+      if: matrix.os == 'ubuntu-latest'
+    - name: Run NixOS test
+      run: nix-build -A sops-install-secrets.tests
       if: matrix.os == 'ubuntu-latest'
