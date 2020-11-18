@@ -20,7 +20,10 @@ buildGoModule {
   postBuild = ''
     go test -c ./pkgs/sops-install-secrets
     install -D ./sops-install-secrets.test $unittest/bin/sops-install-secrets.test
-    remove-references-to -t ${go} $unittest/bin/sops-install-secrets.test
+    # newer versions of nixpkgs no longer require this step
+    if command -v remove-references-to; then
+      remove-references-to -t ${go} $unittest/bin/sops-install-secrets.test
+    fi
   '';
 
   inherit vendorSha256;
