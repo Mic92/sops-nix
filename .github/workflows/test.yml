@@ -12,6 +12,8 @@ jobs:
           - nixpkgs=https://github.com/NixOS/nixpkgs/archive/nixpkgs-unstable.tar.gz
         os: [ ubuntu-latest, macos-latest ]
     runs-on: ${{ matrix.os }}
+    env:
+      ACTIONS_ALLOW_UNSECURE_COMMANDS: 'true'
     steps:
     - uses: actions/checkout@v2
     - uses: cachix/install-nix-action@v12
