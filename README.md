@@ -1,8 +1,5 @@
 # sops-nix
 
-![Test](https://github.com/Mic92/sops-nix/workflows/Test/badge.svg)
-
-
 Atomic secret provisioning for NixOS based on [sops](https://github.com/mozilla/sops).
 
 ## How it works
