@@ -30,8 +30,10 @@ func TempRoot() string {
 }
 
 func TestCli(t *testing.T) {
-	_, filename, _, _ := runtime.Caller(0)
-	assets := path.Join(path.Dir(filename), "test-assets")
+	assets := os.Getenv("TEST_ASSETS")
+	if assets == "" {
+		assets = "test-assets"
+	}
 	tempdir, err := ioutil.TempDir(TempRoot(), "testdir")
 	ok(t, err)
 	defer os.RemoveAll(tempdir)
