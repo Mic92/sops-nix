@@ -123,7 +123,7 @@ First generate yourself [a GPG key](https://docs.github.com/en/github/authentica
 conversion tool to convert an existing ssh key (we only support RSA keys right now):
 
 ```
-$ nix-shell -p ssh-to-pgp
+$ nix run -f https://github.com/Mic92/sops-nix/archive/master.tar.gz ssh-to-pgp
 $ ssh-to-pgp -private-key -i $HOME/.ssh/id_rsa | gpg --import --quiet
 2504791468b153b8a3963cc97ba53d1919c5dfd4
 # This exports the public key
