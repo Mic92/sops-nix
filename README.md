@@ -336,14 +336,14 @@ If you derived your server public key from ssh, all you need in your configurati
 ```
 
 On `nixos-rebuild switch` this will make the key accessible 
-via `/run/secret/example-key`:
+via `/run/secrets/example-key`:
 
 ```console
-$ cat /run/secret/example-key
+$ cat /run/secrets/example-key
 example-value
 ```
 
-`/run/secret` is a symlink to `/etc/secret.d/1`:
+`/run/secrets` is a symlink to `/etc/secret.d/1`:
 
 ```console
 $ ls -la /run/secrets
