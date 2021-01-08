@@ -27,4 +27,6 @@ sopsPGPHook() {
 
 if [ -z "${shellHook-}" ]; then
   shellHook=sopsPGPHook
+else
+  shellHook="sopsPGPHook;${shellHook}"
 fi
