@@ -569,7 +569,7 @@ You can include it like this in your `configuration.nix`:
 ### Binary
 
 Unlike the other two formats for binaries one file correspond to one secret.
-This format allows to encrypt arbitrary binary format that can be not put into
+This format allows to encrypt an arbitrary binary format that can't be put into
 JSON/YAML files.
 
 To encrypt an binary file use the following command:
