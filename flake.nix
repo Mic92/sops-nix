@@ -13,7 +13,9 @@
     forAllSystems = f: nixpkgs.lib.genAttrs systems (system: f system);
   in {
     nixosModules.sops = import ./modules/sops;
-    packages = forAllSystems (system: nixpkgs.legacyPackages.${system}.callPackage ./default.nix {});
+    packages = forAllSystems (system: import ./default.nix {
+      pkgs = import nixpkgs { inherit system; };
+    });
     defaultPackage = forAllSystems (system: self.packages.${system}.sops-init-gpg-key);
   };
 }
