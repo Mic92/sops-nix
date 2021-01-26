@@ -20,6 +20,7 @@
   '';
  } {
    inherit pkgs;
+   inherit (pkgs) system;
  };
 
  pgp-keys = makeTest {
@@ -73,5 +74,6 @@
   '';
  } {
    inherit pkgs;
+   inherit (pkgs) system;
  };
 }
