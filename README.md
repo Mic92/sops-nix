@@ -41,7 +41,7 @@ Choose one of the following methods:
 $ niv add Mic92/sops-nix
 ```
 
-  Than add the following to your configuration.nix in the `imports` list:
+  Then add the following to your configuration.nix in the `imports` list:
   
 ```nix
 {
@@ -58,7 +58,7 @@ $ nix-channel --add https://github.com/Mic92/sops-nix/archive/master.tar.gz sops
 $ nix-channel --update
 ```
   
-  Than add the following to your configuration.nix in the `imports` list:
+  Then add the following to your configuration.nix in the `imports` list:
   
 ```nix
 {
