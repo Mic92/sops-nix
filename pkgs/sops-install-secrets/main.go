@@ -198,7 +198,7 @@ func symlinkSecrets(targetDir string, secrets []secret) error {
 }
 
 type plainData struct {
-	data   map[string]string
+	data   map[string]interface{}
 	binary []byte
 }
 
@@ -227,10 +227,15 @@ func decryptSecret(s *secret, sourceFiles map[string]plainData) error {
 		s.value = sourceFile.binary
 	} else {
 		val, ok := sourceFile.data[s.Key]
+
 		if !ok {
 			return fmt.Errorf("The key '%s' cannot be found in '%s'", s.Key, s.SopsFile)
 		}
-		s.value = []byte(val)
+		strVal, ok := val.(string)
+		if !ok {
+			return fmt.Errorf("The value of key '%s' in '%s' is not a string", s.Key, s.SopsFile)
+		} 
+		s.value = []byte(strVal)
 	}
 	sourceFiles[s.SopsFile] = sourceFile
 	return nil
