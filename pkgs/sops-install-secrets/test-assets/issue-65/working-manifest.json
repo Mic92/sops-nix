@@ -1,0 +1,15 @@
+{
+    "secretsMountPoint": "secrets.d",
+    "secrets": [{
+        "format": "yaml",
+        "group": "nobody",
+        "key": "hello",
+        "mode": "0400",
+        "name": "hello",
+        "owner": "nobody",
+        "path": "secrets/hello",
+        "sopsFile": "secrets.yaml"
+    }],
+    "sshKeyPaths": [ "broken-ssh-key" ],
+    "symlinkPath": "secrets"
+}

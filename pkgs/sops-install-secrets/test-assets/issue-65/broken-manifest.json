@@ -1,0 +1,15 @@
+{
+    "secretsMountPoint": "secrets.d",
+    "secrets": [{
+        "format": "yaml",
+        "group": "nobody",
+        "key": "radius-cert-key",
+        "mode": "0400",
+        "name": "radius-cert-key",
+        "owner": "nobody",
+        "path": "secrets/radius-cert-key",
+        "sopsFile": "broken-secrets.yaml"
+    }],
+    "sshKeyPaths": [ "broken-ssh-key" ],
+    "symlinkPath": "secrets"
+}
