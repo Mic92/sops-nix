@@ -41,7 +41,7 @@ Choose one of the following methods:
 $ niv add Mic92/sops-nix
 ```
 
-  Than add the following to your configuration.nix in the `imports` list:
+  Then add the following to your configuration.nix in the `imports` list:
   
 ```nix
 {
@@ -58,7 +58,7 @@ $ nix-channel --add https://github.com/Mic92/sops-nix/archive/master.tar.gz sops
 $ nix-channel --update
 ```
   
-  Than add the following to your configuration.nix in the `imports` list:
+  Then add the following to your configuration.nix in the `imports` list:
   
 ```nix
 {
@@ -123,7 +123,7 @@ First generate yourself [a GPG key](https://docs.github.com/en/github/authentica
 conversion tool to convert an existing ssh key (we only support RSA keys right now):
 
 ```
-$ nix-shell -p ssh-to-pgp
+$ nix run -f https://github.com/Mic92/sops-nix/archive/master.tar.gz ssh-to-pgp
 $ ssh-to-pgp -private-key -i $HOME/.ssh/id_rsa | gpg --import --quiet
 2504791468b153b8a3963cc97ba53d1919c5dfd4
 # This exports the public key
@@ -336,14 +336,14 @@ If you derived your server public key from ssh, all you need in your configurati
 ```
 
 On `nixos-rebuild switch` this will make the key accessible 
-via `/run/secret/example-key`:
+via `/run/secrets/example-key`:
 
 ```console
-$ cat /run/secret/example-key
+$ cat /run/secrets/example-key
 example-value
 ```
 
-`/run/secret` is a symlink to `/etc/secret.d/1`:
+`/run/secrets` is a symlink to `/etc/secret.d/1`:
 
 ```console
 $ ls -la /run/secrets
@@ -569,7 +569,7 @@ You can include it like this in your `configuration.nix`:
 ### Binary
 
 Unlike the other two formats for binaries one file correspond to one secret.
-This format allows to encrypt arbitrary binary format that can be not put into
+This format allows to encrypt an arbitrary binary format that can't be put into
 JSON/YAML files.
 
 To encrypt an binary file use the following command:
