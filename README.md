@@ -122,39 +122,38 @@ If you use experimental nix flakes support:
 First generate yourself [a GPG key](https://docs.github.com/en/github/authenticating-to-github/generating-a-new-gpg-key) or use nix-sops
 conversion tool to convert an existing ssh key (we only support RSA keys right now):
 
-```
-$ nix run -f https://github.com/Mic92/sops-nix/archive/master.tar.gz ssh-to-pgp
-$ ssh-to-pgp -private-key -i $HOME/.ssh/id_rsa | gpg --import --quiet
+```console
+$ nix-shell -p gnupg -p ssh-to-pgp --run "ssh-to-pgp -private-key -i $HOME/.ssh/id_rsa | gpg --import --quiet"
 2504791468b153b8a3963cc97ba53d1919c5dfd4
 # This exports the public key
-$ ssh-to-pgp -i $HOME/.ssh/id_rsa -o $USER.asc
+$ nix-shell -p ssh-to-pgp --run "ssh-to-pgp -i $HOME/.ssh/id_rsa -o $USER.asc"
 2504791468b153b8a3963cc97ba53d1919c5dfd4
 ```
 
 If you get:
 
-```
+```console
 ssh-to-pgp: failed to parse private ssh key: ssh: this private key is passphrase protected
 ```
 
 then your ssh key is encrypted with your password and you need to create an unencrypted copy temporarily:
 
-```
+```console
 $ cp $HOME/.ssh/id_rsa /tmp/id_rsa
 $ ssh-keygen -p -N "" -f /tmp/id_rsa
-$ ssh-to-pgp -private-key -i /tmp/id_rsa | gpg --import --quiet
+$ nix-shell -p gnupg -p ssh-to-pgp --run "ssh-to-pgp -private-key -i /tmp/id_rsa | gpg --import --quiet"
 ```
 
 The hex string printed here is your GPG fingerprint that can be exported to `SOPS_PGP_FP`.
 
-```
-export SOPS_PGP_FP=2504791468b153b8a3963cc97ba53d1919c5dfd4
+```console
+$ export SOPS_PGP_FP=2504791468b153b8a3963cc97ba53d1919c5dfd4
 ```
 
 If you have generated a GnuPG key directly you can get your fingerprint like this:
 
-```
-gpg --list-secret-keys
+```console
+$ gpg --list-secret-keys
 /tmp/tmp.JA07D1aVRD/pubring.kbx
 -------------------------------
 sec   rsa2048 1970-01-01 [SCE]
@@ -170,22 +169,21 @@ The easiest way to add new hosts is using ssh host keys (requires openssh to be 
 Since sops does not natively supports ssh keys yet, nix-sops supports a conversion tool
 to store them as gpg keys.
 
-```
-$ nix-shell -p ssh-to-pgp
-$ ssh root@server01 "cat /etc/ssh/ssh_host_rsa_key" | ssh-to-pgp -o server01.asc
+```console
+$ ssh root@server01 "cat /etc/ssh/ssh_host_rsa_key" | nix-shell -p ssh-to-pgp --run "ssh-to-pgp -o server01.asc"
 # or with sudo
-$ ssh youruser@server01 "sudo cat /etc/ssh/ssh_host_rsa_key" | ssh-to-pgp -o server01.asc
+$ ssh youruser@server01 "sudo cat /etc/ssh/ssh_host_rsa_key" | nix-shell -p ssh-to-pgp --run "ssh-to-pgp -o server01.asc"
 0fd60c8c3b664aceb1796ce02b318df330331003
 # Or just read them locally (or in a ssh session)
-$ ssh-to-pgp -i /etc/ssh/ssh_host_rsa_key -o server01.asc
+$ nix-shell -p ssh-to-pgp --run "ssh-to-pgp -i /etc/ssh/ssh_host_rsa_key -o server01.asc"
 0fd60c8c3b664aceb1796ce02b318df330331003
 ```
 
 Also the hex string here is the fingerprint of your server's gpg key that can be exported
 append to `SOPS_PGP_FP`:
 
-```
-export SOPS_PGP_FP=${SOPS_PGP_FP}:2504791468b153b8a3963cc97ba53d1919c5dfd4
+```console
+$ export SOPS_PGP_FP=${SOPS_PGP_FP}:2504791468b153b8a3963cc97ba53d1919c5dfd4
 ```
 
 If you prefer having a separate GnuPG key, see [Use with GnuPG instead of ssh keys](#use-with-gnupg-instead-of-ssh-keys).
@@ -195,14 +193,14 @@ If you prefer having a separate GnuPG key, see [Use with GnuPG instead of ssh ke
 To create a sops file you need to set export `SOPS_PGP_FP` to include both the fingerprint 
 of your personal gpg key (and your colleagues) and your servers:
 
-```
-export SOPS_PGP_FP="2504791468b153b8a3963cc97ba53d1919c5dfd4,2504791468b153b8a3963cc97ba53d1919c5dfd4"
+```console
+$ export SOPS_PGP_FP="2504791468b153b8a3963cc97ba53d1919c5dfd4,2504791468b153b8a3963cc97ba53d1919c5dfd4"
 ```
 
 sops-nix automates that with a hook for nix-shell and also takes care of importing all keys, allowing
 public keys to be stored in git:
 
-```
+```nix
 # shell.nix
 with import <nixpkgs> {};
 mkShell {
@@ -236,8 +234,8 @@ $ tree .
 
 After that you can open a new file with sops
 
-```
-nix-shell --run "sops secrets.yaml"
+```console
+$ nix-shell -p sops --run "sops secrets.yaml"
 ```
 
 This will start your configured editor
@@ -611,7 +609,7 @@ This is how it can be included in your configuration.nix:
 
 If you prefer having a separate GnuPG key, sops-nix also comes with a helper tool:
 
-```
+```console
 $ nix-shell -p sops-init-gpg-key
 $ sops-init-gpg-key --hostname server01 --gpghome /tmp/newkey
 You can use the following command to save it to a file:

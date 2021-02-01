@@ -9,11 +9,8 @@ in rec {
   sops-pgp-hook = pkgs.callPackage ./pkgs/sops-pgp-hook { };
   inherit sops-install-secrets;
 
-  ssh-to-pgp = pkgs.callPackage ./pkgs/ssh-to-pgp {
-    inherit vendorSha256;
-  };
-
-  inherit (sops-install-secrets);
+  # backwards compatibility
+  inherit (pkgs) ssh-to-pgp;
 
   # used in the CI only
   sops-pgp-hook-test = pkgs.buildGoModule {
@@ -28,7 +25,7 @@ in rec {
 
   unit-tests = pkgs.callPackage ./unit-tests.nix {};
 
-  lint = ssh-to-pgp.overrideAttrs (old: {
+  lint = sops-install-secrets.overrideAttrs (old: {
     name = "golangci-lint";
     nativeBuildInputs = old.nativeBuildInputs ++ [ pkgs.golangci-lint ];
     buildPhase = ''
@@ -36,7 +33,7 @@ in rec {
     '';
     doCheck = false;
     installPhase = ''
-      touch $out
+      touch $out $unittest
     '';
     fixupPhase = ":";
   });

@@ -28,6 +28,7 @@ jobs:
       if: matrix.os == 'ubuntu-latest'
     - name: Run lint
       run: nix-build --no-out-link default.nix -A lint
+      if: matrix.os == 'ubuntu-latest'
     - name: Build nix packages
       run: nix-build --no-out-link release.nix
     - name: Run unit tests
