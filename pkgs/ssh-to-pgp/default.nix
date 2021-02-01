@@ -1,4 +1,4 @@
-{ stdenv, buildGoModule, gnupg, vendorSha256, }:
+{ stdenv, lib, buildGoModule, gnupg, vendorSha256, }:
 buildGoModule {
   pname = "ssh-to-pgp";
   version = "0.0.1";
@@ -16,7 +16,7 @@ buildGoModule {
 
   inherit vendorSha256;
 
-  meta = with stdenv.lib; {
+  meta = with lib; {
     description = "Convert ssh public/private keys to PGP";
     homepage = "https://github.com/Mic92/sops-nix";
     license = licenses.mit;
