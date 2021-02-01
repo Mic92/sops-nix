@@ -26,6 +26,8 @@ jobs:
     - name: Add keys group (needed for go tests)
       run: sudo groupadd keys
       if: matrix.os == 'ubuntu-latest'
+    - name: Run lint
+      run: nix-build --no-out-link default.nix -A lint
     - name: Build nix packages
       run: nix-build --no-out-link release.nix
     - name: Run unit tests

@@ -34,6 +34,7 @@ in rec {
     buildPhase = ''
       HOME=$TMPDIR golangci-lint run
     '';
+    doCheck = false;
     installPhase = ''
       touch $out
     '';
@@ -46,8 +47,9 @@ in rec {
     buildPhase = ''
       (cd pkgs/sops-install-secrets && gox -os linux)
     '';
+    doCheck = false;
     installPhase = ''
-      touch $out
+      touch $out $unittest
     '';
     fixupPhase = ":";
   });
