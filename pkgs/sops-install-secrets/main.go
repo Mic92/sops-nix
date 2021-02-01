@@ -251,7 +251,7 @@ func decryptSecrets(secrets []secret) error {
 	return nil
 }
 
-const RAMFS_MAGIC = 0x858458f6
+const RAMFS_MAGIC int64 = 0x858458f6
 
 func mountSecretFs(mountpoint string, keysGid int) error {
 	if err := os.MkdirAll(mountpoint, 0750); err != nil {
