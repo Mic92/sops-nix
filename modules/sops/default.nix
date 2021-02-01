@@ -5,7 +5,6 @@ with lib;
 let
   cfg = config.sops;
   users = config.users.users;
-  sops-install-secrets = (pkgs.callPackage ../.. {}).sops-install-secrets;
   secretType = types.submodule ({ config, ... }: {
     options = {
       name = mkOption {
@@ -81,7 +80,9 @@ let
     inherit (cfg) gnupgHome sshKeyPaths;
   });
 
-  checkedManifest = pkgs.runCommandNoCC "checked-manifest.json" {
+  checkedManifest = let
+    sops-install-secrets = (pkgs.buildPackages.callPackage ../.. {}).sops-install-secrets;
+  in pkgs.runCommandNoCC "checked-manifest.json" {
     nativeBuildInputs = [ sops-install-secrets ];
   } ''
     sops-install-secrets -check-mode=${if cfg.validateSopsFiles then "sopsfile" else "manifest"} ${manifest}
@@ -155,7 +156,9 @@ in {
       message = "${sopsFile} is not in the nix store. Either add it to the nix store or set `sops.validateSopsFiles` to false";
     }) (builtins.attrNames cfg.secrets);
 
-    system.activationScripts.setup-secrets = stringAfter [ "users" "groups" ] ''
+    system.activationScripts.setup-secrets = let
+      sops-install-secrets = (pkgs.callPackage ../.. {}).sops-install-secrets;
+    in stringAfter [ "users" "groups" ] ''
       echo setting up secrets...
       ${optionalString (cfg.gnupgHome != null) "SOPS_GPG_EXEC=${pkgs.gnupg}/bin/gpg"} ${sops-install-secrets}/bin/sops-install-secrets ${checkedManifest}
     '';
