@@ -251,7 +251,7 @@ func decryptSecrets(secrets []secret) error {
 	return nil
 }
 
-const RAMFS_MAGIC = 0x858458f6
+const RAMFS_MAGIC int32 = -2054924042
 
 func mountSecretFs(mountpoint string, keysGid int) error {
 	if err := os.MkdirAll(mountpoint, 0750); err != nil {
@@ -262,7 +262,7 @@ func mountSecretFs(mountpoint string, keysGid int) error {
 	if err := unix.Statfs(mountpoint, &buf); err != nil {
 		return fmt.Errorf("Cannot get statfs for directory '%s': %w", mountpoint, err)
 	}
-	if buf.Type != RAMFS_MAGIC {
+	if int32(buf.Type) != RAMFS_MAGIC {
 		if err := unix.Mount("none", mountpoint, "ramfs", unix.MS_NODEV|unix.MS_NOSUID, "mode=0750"); err != nil {
 			return fmt.Errorf("Cannot mount: %s", err)
 		}

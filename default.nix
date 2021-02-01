@@ -40,5 +40,17 @@ in rec {
     fixupPhase = ":";
   });
 
+  cross-build = sops-install-secrets.overrideAttrs (old: {
+    name = "cross-build";
+    nativeBuildInputs = old.nativeBuildInputs ++ [ pkgs.gox ];
+    buildPhase = ''
+      (cd pkgs/sops-install-secrets && gox -os linux)
+    '';
+    installPhase = ''
+      touch $out
+    '';
+    fixupPhase = ":";
+  });
+
 # integration tests
 } // pkgs.lib.optionalAttrs (pkgs.stdenv.isLinux) sops-install-secrets.tests
