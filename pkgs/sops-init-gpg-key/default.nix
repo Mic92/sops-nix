@@ -1,4 +1,4 @@
-{ stdenv, makeWrapper, gnupg, coreutils, utillinux, unixtools }:
+{ stdenv, lib, makeWrapper, gnupg, coreutils, utillinux, unixtools }:
 
 stdenv.mkDerivation {
   name = "sops-init-gpg-key";
@@ -11,7 +11,7 @@ stdenv.mkDerivation {
   installPhase = ''
     install -m755 -D $src $out/bin/sops-init-gpg-key
     wrapProgram $out/bin/sops-init-gpg-key \
-      --prefix PATH : ${stdenv.lib.makeBinPath [
+      --prefix PATH : ${lib.makeBinPath [
         coreutils utillinux gnupg unixtools.hostname
       ]}
   '';

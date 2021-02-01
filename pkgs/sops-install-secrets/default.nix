@@ -1,4 +1,4 @@
-{ stdenv, buildGoModule, path, pkgs, vendorSha256, go }:
+{ stdenv, lib, buildGoModule, path, pkgs, vendorSha256, go }:
 buildGoModule {
   pname = "sops-install-secrets";
   version = "0.0.1";
@@ -28,7 +28,7 @@ buildGoModule {
 
   inherit vendorSha256;
 
-  meta = with stdenv.lib; {
+  meta = with lib; {
     description = "Atomic secret provisioning based on sops";
     homepage = "https://github.com/Mic92/sops-nix";
     license = licenses.mit;
