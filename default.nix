@@ -34,8 +34,22 @@ in rec {
     buildPhase = ''
       HOME=$TMPDIR golangci-lint run
     '';
+    doCheck = false;
     installPhase = ''
       touch $out
+    '';
+    fixupPhase = ":";
+  });
+
+  cross-build = sops-install-secrets.overrideAttrs (old: {
+    name = "cross-build";
+    nativeBuildInputs = old.nativeBuildInputs ++ [ pkgs.gox ];
+    buildPhase = ''
+      (cd pkgs/sops-install-secrets && gox -os linux)
+    '';
+    doCheck = false;
+    installPhase = ''
+      touch $out $unittest
     '';
     fixupPhase = ":";
   });
