@@ -12,6 +12,12 @@
     ];
     forAllSystems = f: nixpkgs.lib.genAttrs systems (system: f system);
   in {
+    overlay = final: prev:
+      let
+        localPkgs = import ./default.nix { pkgs = final; };
+      in {
+        inherit (localPkgs) sops-install-secrets sops-init-gpg-key sops-pgp-hook ssh-to-pgp;
+      };
     nixosModules.sops = import ./modules/sops;
     packages = forAllSystems (system: import ./default.nix {
       pkgs = import nixpkgs { inherit system; };
