@@ -173,9 +173,12 @@ to store them as gpg keys.
 ```
 $ nix-shell -p ssh-to-pgp
 $ ssh root@server01 "cat /etc/ssh/ssh_host_rsa_key" | ssh-to-pgp -o server01.asc
+
 # or with sudo
+$ nix shell github:Mic92/sops-nix#ssh-to-pgp
 $ ssh youruser@server01 "sudo cat /etc/ssh/ssh_host_rsa_key" | ssh-to-pgp -o server01.asc
 0fd60c8c3b664aceb1796ce02b318df330331003
+
 # Or just read them locally (or in a ssh session)
 $ ssh-to-pgp -i /etc/ssh/ssh_host_rsa_key -o server01.asc
 0fd60c8c3b664aceb1796ce02b318df330331003
