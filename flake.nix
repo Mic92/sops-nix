@@ -16,7 +16,9 @@
       let
         localPkgs = import ./default.nix { pkgs = final; };
       in {
-        inherit (localPkgs) sops-install-secrets sops-init-gpg-key sops-pgp-hook ssh-to-pgp;
+        inherit (localPkgs) sops-install-secrets sops-init-gpg-key sops-pgp-hook;
+        # backward compatibility
+        inherit (prev) ssh-to-pgp;
       };
     nixosModules.sops = import ./modules/sops;
     packages = forAllSystems (system: import ./default.nix {

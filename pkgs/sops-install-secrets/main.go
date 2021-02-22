@@ -17,7 +17,7 @@ import (
 	"strings"
 	"syscall"
 
-	"github.com/Mic92/sops-nix/pkgs/sshkeys"
+	"github.com/Mic92/sops-nix/pkgs/sops-install-secrets/sshkeys"
 
 	"github.com/mozilla-services/yaml"
 	"go.mozilla.org/sops/v3/decrypt"
@@ -106,16 +106,16 @@ type appContext struct {
 func secureSymlinkChown(symlinkToCheck, expectedTarget string, owner, group int) error {
 	fd, err := unix.Open(symlinkToCheck, unix.O_CLOEXEC|unix.O_PATH|unix.O_NOFOLLOW, 0)
 	if err != nil {
-			return fmt.Errorf("Failed to open %s: %w", symlinkToCheck, err)
+		return fmt.Errorf("Failed to open %s: %w", symlinkToCheck, err)
 	}
 	defer unix.Close(fd)
 
-	buf := make([]byte, len(expectedTarget) + 1) // oversize by one to detect trunc
+	buf := make([]byte, len(expectedTarget)+1) // oversize by one to detect trunc
 	n, err := unix.Readlinkat(fd, "", buf)
 	if err != nil {
 		return fmt.Errorf("couldn't readlinkat %s", symlinkToCheck)
 	}
-	if n > len(expectedTarget) || string(buf[:n]) != expectedTarget  {
+	if n > len(expectedTarget) || string(buf[:n]) != expectedTarget {
 		return fmt.Errorf("symlink %s does not point to %s", symlinkToCheck, expectedTarget)
 	}
 	err = unix.Fchownat(fd, "", owner, group, unix.AT_EMPTY_PATH)
@@ -140,7 +140,7 @@ func readManifest(path string) (*manifest, error) {
 }
 
 func linksAreEqual(linkTarget, targetFile string, info os.FileInfo, secret *secret) bool {
-	validUG := true;
+	validUG := true
 	if stat, ok := info.Sys().(*syscall.Stat_t); ok {
 		validUG = validUG && int(stat.Uid) == secret.owner
 		validUG = validUG && int(stat.Gid) == secret.group
@@ -234,7 +234,7 @@ func decryptSecret(s *secret, sourceFiles map[string]plainData) error {
 		strVal, ok := val.(string)
 		if !ok {
 			return fmt.Errorf("The value of key '%s' in '%s' is not a string", s.Key, s.SopsFile)
-		} 
+		}
 		s.value = []byte(strVal)
 	}
 	sourceFiles[s.SopsFile] = sourceFile
@@ -258,7 +258,7 @@ func mountSecretFs(mountpoint string, keysGid int) error {
 		return fmt.Errorf("Cannot create directory '%s': %w", mountpoint, err)
 	}
 
-	buf := unix.Statfs_t {}
+	buf := unix.Statfs_t{}
 	if err := unix.Statfs(mountpoint, &buf); err != nil {
 		return fmt.Errorf("Cannot get statfs for directory '%s': %w", mountpoint, err)
 	}
