@@ -23,17 +23,14 @@ let
           This option is ignored if format is binary.
         '';
       };
-      path = assert assertMsg (builtins.pathExists config.sopsFile) ''
-          Cannot find path '${config.sopsFile}' set in 'sops.secrets."${config._module.args.name}".sopsFile'
+      path = mkOption {
+        type = types.str;
+        default = "/run/secrets/${config.name}";
+        description = ''
+          Path where secrets are symlinked to.
+          If the default is kept no symlink is created.
         '';
-        mkOption {
-          type = types.str;
-          default = "/run/secrets/${config.name}";
-          description = ''
-            Path where secrets are symlinked to.
-            If the default is kept no symlink is created.
-          '';
-        };
+      };
       format = mkOption {
         type = types.enum ["yaml" "json" "binary"];
         default = cfg.defaultSopsFormat;
@@ -64,7 +61,7 @@ let
         '';
       };
       sopsFile = mkOption {
-        type = types.either types.str types.path;
+        type = types.path;
         default = cfg.defaultSopsFile;
         description = ''
           Sops file the secret is loaded from.
@@ -72,7 +69,7 @@ let
       };
     };
   });
-  manifest = builtins.toFile "manifest.json" (builtins.toJSON {
+  manifest = pkgs.writeText "manifest.json" (builtins.toJSON {
     secrets = builtins.attrValues cfg.secrets;
     # Does this need to be configurable?
     secretsMountPoint = "/run/secrets.d";
@@ -99,7 +96,7 @@ in {
     };
 
     defaultSopsFile = mkOption {
-      type = types.either types.str types.path;
+      type = types.path;
       description = ''
         Default sops file used for all secrets.
       '';
@@ -144,17 +141,19 @@ in {
   };
   config = mkIf (cfg.secrets != {}) {
     assertions = [{
-      assertion = cfg.gnupgHome != null -> cfg.sshKeyPaths == [];
-      message = "Configuration options sops.gnupgHome and sops.sshKeyPaths cannot be set both at the same time";
-    } {
-      assertion = cfg.gnupgHome == null -> cfg.sshKeyPaths != [];
-      message = "Either sops.sshKeyPaths and sops.gnupgHome must be set";
-    }] ++ map (name: let
-      inherit (cfg.secrets.${name}) sopsFile;
-    in {
-      assertion = cfg.validateSopsFiles -> builtins.isPath sopsFile;
-      message = "${sopsFile} is not in the nix store. Either add it to the nix store or set `sops.validateSopsFiles` to false";
-    }) (builtins.attrNames cfg.secrets);
+      assertion = (cfg.gnupgHome == null) != (cfg.sshKeyPaths == []);
+      message = "Exactly one of sops.gnupgHome and sops.sshKeyPaths must be set";
+    }] ++ optionals cfg.validateSopsFiles (
+      concatLists (mapAttrsToList (name: secret: [{
+        assertion = builtins.pathExists secret.sopsFile;
+        message = "Cannot find path '${secret.sopsFile}' set in sops.secrets.${strings.escapeNixIdentifier name}.sopsFile";
+      } {
+        assertion =
+          builtins.isPath secret.sopsFile ||
+          (builtins.isString secret.sopsFile && hasPrefix builtins.storeDir secret.sopsFile);
+        message = "'${secret.sopsFile}' is not in the Nix store. Either add it to the Nix store or set sops.validateSopsFiles to false";
+      }]) cfg.secrets)
+    );
 
     system.activationScripts.setup-secrets = let
       sops-install-secrets = (pkgs.callPackage ../.. {}).sops-install-secrets;
