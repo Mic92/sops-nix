@@ -21,6 +21,7 @@
         inherit (prev) ssh-to-pgp;
       };
     nixosModules.sops = import ./modules/sops;
+    nixosModule = self.nixosModules.sops;
     packages = forAllSystems (system: import ./default.nix {
       pkgs = import nixpkgs { inherit system; };
     });
