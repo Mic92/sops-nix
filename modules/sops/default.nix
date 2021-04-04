@@ -6,6 +6,9 @@ let
   cfg = config.sops;
   users = config.users.users;
   secretType = types.submodule ({ config, ... }: {
+    config = {
+      sopsFile = lib.mkOptionDefault cfg.defaultSopsFile;
+    };
     options = {
       name = mkOption {
         type = types.str;
@@ -62,7 +65,7 @@ let
       };
       sopsFile = mkOption {
         type = types.path;
-        default = cfg.defaultSopsFile;
+        defaultText = "\${config.sops.defaultSopsFile}";
         description = ''
           Sops file the secret is loaded from.
         '';
