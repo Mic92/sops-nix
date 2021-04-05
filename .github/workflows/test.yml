@@ -14,7 +14,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
     - uses: actions/checkout@v2
-    - uses: cachix/install-nix-action@v12
+    - uses: cachix/install-nix-action@v13
       with:
         nix_path: "${{ matrix.nixPath }}"
         extra_nix_config: "system-features = nixos-test benchmark big-parallel kvm"
