@@ -19,7 +19,7 @@ jobs:
         nix_path: "${{ matrix.nixPath }}"
         extra_nix_config: "system-features = nixos-test benchmark big-parallel kvm"
     - name: Setup cachix
-      uses: cachix/cachix-action@v9
+      uses: cachix/cachix-action@v10
       with:
         name: mic92
         signingKey: '${{ secrets.CACHIX_SIGNING_KEY }}'
