@@ -7,6 +7,7 @@
 in rec {
   sops-init-gpg-key = pkgs.callPackage ./pkgs/sops-init-gpg-key {};
   sops-pgp-hook = pkgs.callPackage ./pkgs/sops-pgp-hook { };
+  sops-age-hook = pkgs.callPackage ./pkgs/sops-age-hook { };
   inherit sops-install-secrets;
 
   # backwards compatibility
