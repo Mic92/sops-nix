@@ -3,7 +3,7 @@
 set -o errexit -o pipefail -o noclobber -o nounset
 
 OPTIONS=h
-LONGOPTS=help,gpghome:,hostname:
+LONGOPTS=help,gpghome:,hostname:,keytype:
 
 ! PARSED=$(getopt --options=$OPTIONS --longoptions=$LONGOPTS --name "$0" -- "$@")
 
@@ -17,9 +17,13 @@ eval set -- "$PARSED"
 
 FINAL_GNUPGHOME=/root/.gnupg
 HOSTNAME=$(hostname)
+KEYTYPE="RSA"
 
 usage() {
-    echo "$0: [--hostname hostname] [--gpghome home]"
+    echo "$0: [--hostname hostname] [--gpghome home] [--keytype keytype]"
+    echo
+    echo "  keytype: RSA (default) or Curve25519"
+    echo
 }
 
 while true; do
@@ -34,6 +38,10 @@ while true; do
       ;;
     --hostname)
       HOSTNAME=$2
+      shift 2
+      ;;
+    --keytype)
+      KEYTYPE=$2
       shift 2
       ;;
     --)
@@ -56,10 +64,28 @@ fi
 export GNUPGHOME=$(mktemp -d)
 trap "rm -rf $GNUPGHOME" EXIT
 
+
 cat > "$GNUPGHOME/key-template" <<EOF
 %no-protection
+EOF
+
+if [[ "$KEYTYPE" == "Curve25519" ]]; then
+  cat >> "$GNUPGHOME/key-template" <<EOF
+Key-Type: eddsa
+Key-Curve: Ed25519
+Key-Usage: sign
+Subkey-Type: ecdh
+Subkey-Curve: Curve25519
+Subkey-Usage: encrypt
+EOF
+else 
+  cat >> "$GNUPGHOME/key-template" <<EOF
 Key-Type: 1
 Key-Length: 2048
+EOF
+fi
+
+cat >> "$GNUPGHOME/key-template" <<EOF
 Name-Real: $HOSTNAME
 Name-Email: root@$HOSTNAME
 Expire-Date: 0
