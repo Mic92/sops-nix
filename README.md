@@ -217,6 +217,11 @@ keys to be shared via version control (i.e. git):
 ```nix
 # shell.nix
 with import <nixpkgs> {};
+let
+  sops-nix = builtins.fetchTarball {
+    url = "https://github.com/Mic92/sops-nix/archive/master.tar.gz";
+  };
+in
 mkShell {
   # imports all files ending in .asc/.gpg
   sopsPGPKeyDirs = [ 
@@ -244,7 +249,7 @@ mkShell {
   #sopsGPGHome = "${toString ./.}/../gnupg";
   
   nativeBuildInputs = [
-    (pkgs.callPackage <sops-nix> {}).sops-import-keys-hook
+    (pkgs.callPackage sops-nix {}).sops-import-keys-hook
   ];
 }
 ```
