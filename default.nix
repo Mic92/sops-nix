@@ -33,7 +33,7 @@ in rec {
     name = "golangci-lint";
     nativeBuildInputs = old.nativeBuildInputs ++ [ pkgs.golangci-lint ];
     buildPhase = ''
-      HOME=$TMPDIR golangci-lint run
+      HOME=$TMPDIR golangci-lint run --timeout 360s
     '';
     doCheck = false;
     installPhase = ''
