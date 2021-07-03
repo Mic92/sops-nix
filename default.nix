@@ -6,7 +6,11 @@
   };
 in rec {
   sops-init-gpg-key = pkgs.callPackage ./pkgs/sops-init-gpg-key {};
-  sops-pgp-hook = pkgs.callPackage ./pkgs/sops-pgp-hook { };
+  sops-pgp-hook = pkgs.lib.warn ''
+    sops-pgp-hook is deprecated, use sops-import-keys-hook instead.
+    Also see https://github.com/Mic92/sops-nix/issues/98
+  '' pkgs.callPackage ./pkgs/sops-pgp-hook { };
+  sops-import-keys-hook = pkgs.callPackage ./pkgs/sops-import-keys-hook { };
   inherit sops-install-secrets;
 
   # backwards compatibility

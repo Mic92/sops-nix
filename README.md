@@ -144,10 +144,20 @@ $ ssh-keygen -p -N "" -f /tmp/id_rsa
 $ nix-shell -p gnupg -p ssh-to-pgp --run "ssh-to-pgp -private-key -i /tmp/id_rsa | gpg --import --quiet"
 ```
 
-The hex string printed here is your GPG fingerprint that can be exported to `SOPS_PGP_FP`.
+The hex string printed here is your GPG fingerprint that can written to your [`.sops.yaml`](https://github.com/mozilla/sops#using-sops-yaml-conf-to-select-kms-pgp-for-new-files) in the root of your configuration directory or repository.
 
-```console
-$ export SOPS_PGP_FP=2504791468b153b8a3963cc97ba53d1919c5dfd4
+```yaml
+# This example uses yaml anchors which allows to name keys
+# and re-use for multiple keys in a flexible way.
+# Also see https://github.com/Mic92/dotfiles/blob/master/nixos/.sops.yaml
+# for a more complex example
+keys:
+  - &admin 2504791468b153b8a3963cc97ba53d1919c5dfd4
+creation_rules:
+  - path_regex: secrets/[^/]+\.yaml$
+    key_groups:
+    - pgp:
+      - *admin
 ```
 
 If you have generated a GnuPG key directly you can get your fingerprint like this:
@@ -179,32 +189,36 @@ $ nix-shell -p ssh-to-pgp --run "ssh-to-pgp -i /etc/ssh/ssh_host_rsa_key -o serv
 0fd60c8c3b664aceb1796ce02b318df330331003
 ```
 
-Also the hex string here is the fingerprint of your server's gpg key that can be exported
-append to `SOPS_PGP_FP`:
+Also the hex string here is the fingerprint of your server's gpg key that can be exported append to `.sops.yaml`:
 
-```console
-$ export SOPS_PGP_FP=${SOPS_PGP_FP}:2504791468b153b8a3963cc97ba53d1919c5dfd4
+```yaml
+keys:
+  - &admin 2504791468b153b8a3963cc97ba53d1919c5dfd4
+  - &server 0fd60c8c3b664aceb1796ce02b318df330331003
+creation_rules:
+  - path_regex: secrets/[^/]+\.yaml$
+    key_groups:
+    - pgp:
+      - *admin
+      - *server
 ```
 
 If you prefer having a separate GnuPG key, see [Use with GnuPG instead of ssh keys](#use-with-gnupg-instead-of-ssh-keys).
 
 ### 4. Create a sops file
 
-To create a sops file you need to set export `SOPS_PGP_FP` to include both the fingerprint 
-of your personal gpg key (and your colleagues) and your servers:
+To create a sops file you need write a `.sops.yaml` as described above and
+import your personal gpg key (and your colleagues) and your servers into your
+gpg key chain.
 
-```console
-$ export SOPS_PGP_FP="2504791468b153b8a3963cc97ba53d1919c5dfd4,2504791468b153b8a3963cc97ba53d1919c5dfd4"
-```
-
-sops-nix automates that with a hook for nix-shell and also takes care of importing all keys, allowing
-public keys to be stored in git:
+sops-nix automates importing gpg keys with a hook for nix-shell allowing public
+keys to be shared via version control (i.e. git):
 
 ```nix
 # shell.nix
 with import <nixpkgs> {};
 mkShell {
-  # imports all files ending in .asc/.gpg and sets $SOPS_PGP_FP.
+  # imports all files ending in .asc/.gpg
   sopsPGPKeyDirs = [ 
     "./keys/hosts"
     "./keys/users"
@@ -214,8 +228,23 @@ mkShell {
   #  "./keys/users/mic92.asc"
   #  "./keys/hosts/server01.asc"
   #];
+  
+  # This hook can also import gpg keys into its own seperate
+  # gpg keyring instead of using the default one. This allows
+  # to isolate otherwise unrelated server keys from the user gpg keychain.
+  # By uncommenting the following lines, it will set GNUPGHOME
+  # to .git/gnupg. 
+  # Storing it inside .git prevents accedentially commiting private keys.
+  # After setting this option you will also need to import your own
+  # private key into keyring, i.e. using a a command like this 
+  # (replacing 0000000000000000000000000000000000000000 with your fingerprint)
+  # $ (unset GNUPGHOME; gpg --armor --export-secret-key 0000000000000000000000000000000000000000) | gpg --import
+  #sopsCreateGPGHome = true;
+  # To use a different directory for gpg dirs set sopsGPGHome
+  #sopsGPGHome = "${toString ./.}/../gnupg";
+  
   nativeBuildInputs = [
-    (pkgs.callPackage <sops-nix> {}).sops-pgp-hook
+    (pkgs.callPackage <sops-nix> {}).sops-import-keys-hook
   ];
 }
 ```
