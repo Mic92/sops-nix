@@ -1,5 +1,5 @@
 { pkgs ? import <nixpkgs> {} }: let
-  vendorSha256 = "sha256-O0z+oEffOOZa/bn2gV9onLVbPBHsNDH2yq1CZPi8w58=";
+  vendorSha256 = "sha256-Dag7Kyplw4zWsCGBbn+Zd9hjD5JSAolApXGku6mQW9o=";
 
   sops-install-secrets = pkgs.callPackage ./pkgs/sops-install-secrets {
     inherit vendorSha256;
@@ -33,7 +33,7 @@ in rec {
     name = "golangci-lint";
     nativeBuildInputs = old.nativeBuildInputs ++ [ pkgs.golangci-lint ];
     buildPhase = ''
-      HOME=$TMPDIR golangci-lint run
+      HOME=$TMPDIR golangci-lint run --timeout 360s
     '';
     doCheck = false;
     installPhase = ''
