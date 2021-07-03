@@ -1,9 +1,10 @@
-{ stdenv, lib, buildGoModule, path, pkgs, vendorSha256, go }:
-buildGoModule {
+{ stdenv, lib, buildGoApplication, path, pkgs, go }:
+buildGoApplication {
   pname = "sops-install-secrets";
   version = "0.0.1";
 
   src = ../..;
+  modules = ../../gomod2nix.toml;
 
   subPackages = [ "pkgs/sops-install-secrets" ];
 
@@ -25,8 +26,6 @@ buildGoModule {
       remove-references-to -t ${go} $unittest/bin/sops-install-secrets.test
     fi
   '';
-
-  inherit vendorSha256;
 
   meta = with lib; {
     description = "Atomic secret provisioning based on sops";

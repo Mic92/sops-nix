@@ -1,29 +1,39 @@
 { pkgs ? import <nixpkgs> {} }: let
-  vendorSha256 = "sha256-Dag7Kyplw4zWsCGBbn+Zd9hjD5JSAolApXGku6mQW9o=";
-
+  buildGoApplication = pkgs.callPackage ./pkgs/builder { };
   sops-install-secrets = pkgs.callPackage ./pkgs/sops-install-secrets {
-    inherit vendorSha256;
+    inherit buildGoApplication;
   };
 in rec {
-  sops-init-gpg-key = pkgs.callPackage ./pkgs/sops-init-gpg-key {};
+  # vendored from https://github.com/tweag/gomod2nix
+  sops-init-gpg-key = pkgs.callPackage ./pkgs/sops-init-gpg-key {
+  };
   sops-pgp-hook = pkgs.lib.warn ''
     sops-pgp-hook is deprecated, use sops-import-keys-hook instead.
     Also see https://github.com/Mic92/sops-nix/issues/98
   '' pkgs.callPackage ./pkgs/sops-pgp-hook { };
   sops-import-keys-hook = pkgs.callPackage ./pkgs/sops-import-keys-hook { };
-  inherit sops-install-secrets;
 
+  inherit sops-install-secrets;
   # backwards compatibility
   inherit (pkgs) ssh-to-pgp;
 
   # used in the CI only
-  sops-pgp-hook-test = pkgs.buildGoModule {
+  sops-pgp-hook-test = buildGoApplication {
     name = "sops-pgp-hook-test";
     src = ./.;
-    inherit vendorSha256;
+    modules = ./gomod2nix.toml;
     buildPhase = ''
       go test -c ./pkgs/sops-pgp-hook
       install -D sops-pgp-hook.test $out/bin/sops-pgp-hook.test
+    '';
+  };
+  sops-import-keys-hook-test = buildGoApplication {
+    name = "sops-import-keys-hook-test";
+    src = ./.;
+    modules = ./gomod2nix.toml;
+    buildPhase = ''
+      go test -c ./pkgs/sops-import-keys-hook
+      install -D sops-import-keys-hook.test $out/bin/sops-import-keys-hook.test
     '';
   };
 
