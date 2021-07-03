@@ -65,9 +65,7 @@
     value = server.succeed("cat /run/secrets/test_key")
     assertEqual("test_value", value)
 
-    server.succeed("runuser -u someuser -G keys -- cat /run/secrets/test_key >&2")
-    # should have no permission to read the file
-    server.fail("runuser -u someuser -- cat /run/secrets/test_key >&2")
+    server.succeed("runuser -u someuser -- cat /run/secrets/test_key >&2")
 
     target = server.succeed("readlink -f /run/existing-file")
     assertEqual("/run/secrets.d/1/existing-file", target.strip())
