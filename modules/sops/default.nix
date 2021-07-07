@@ -70,6 +70,14 @@ let
           Sops file the secret is loaded from.
         '';
       };
+      sopsFileHash = mkOption {
+        type = types.str;
+        readOnly = true;
+        default = if cfg.validateSopsFiles then "${builtins.hashFile "sha256" config.sopsFile}" else "";
+        description = ''
+          Hash of the sops file, useful in systemd.services.<name>.restartTriggers.
+        '';
+      };
     };
   });
   manifest = pkgs.writeText "manifest.json" (builtins.toJSON {
