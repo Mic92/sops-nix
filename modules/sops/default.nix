@@ -8,6 +8,7 @@ let
   secretType = types.submodule ({ config, ... }: {
     config = {
       sopsFile = lib.mkOptionDefault cfg.defaultSopsFile;
+      sopsFileHash = mkOptionDefault (optionalString cfg.validateSopsFiles "${builtins.hashFile "sha256" config.sopsFile}");
     };
     options = {
       name = mkOption {
@@ -73,9 +74,8 @@ let
       sopsFileHash = mkOption {
         type = types.str;
         readOnly = true;
-        default = if cfg.validateSopsFiles then "${builtins.hashFile "sha256" config.sopsFile}" else "";
         description = ''
-          Hash of the sops file, useful in systemd.services.<name>.restartTriggers.
+          Hash of the sops file, useful in <xref linkend="opt-systemd.services._name_.restartTriggers" />.
         '';
       };
     };
