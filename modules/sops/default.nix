@@ -168,7 +168,7 @@ in {
 
     system.activationScripts.setup-secrets = let
       sops-install-secrets = (pkgs.callPackage ../.. {}).sops-install-secrets;
-    in stringAfter [ "users" "groups" ] ''
+    in stringAfter [ "specialfs" "users" "groups" ] ''
       echo setting up secrets...
       ${optionalString (cfg.gnupgHome != null) "SOPS_GPG_EXEC=${pkgs.gnupg}/bin/gpg"} ${sops-install-secrets}/bin/sops-install-secrets ${checkedManifest}
     '';
