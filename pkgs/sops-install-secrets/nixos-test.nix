@@ -23,6 +23,26 @@
    inherit (pkgs) system;
  };
 
+ age-keys = makeTest {
+  name = "sops-age-keys";
+  machine = {
+    imports = [ ../../modules/sops ];
+    sops = {
+      ageKeyFile = ./test-assets/age-keys.txt;
+      defaultSopsFile = ./test-assets/secrets.yaml;
+      secrets.test_key = {};
+    };
+  };
+
+  testScript = ''
+    start_all()
+    machine.succeed("cat /run/secrets/test_key | grep -q test_value")
+  '';
+ } {
+   inherit pkgs;
+   inherit (pkgs) system;
+ };
+
  pgp-keys = makeTest {
    name = "sops-pgp-keys";
    nodes.server = { pkgs, lib, config, ... }: {

@@ -5,7 +5,6 @@ package main
 import (
 	"encoding/hex"
 	"encoding/json"
-	"errors"
 	"flag"
 	"fmt"
 	"io/ioutil"
@@ -47,6 +46,7 @@ type manifest struct {
 	SymlinkPath       string   `json:"symlinkPath"`
 	SSHKeyPaths       []string `json:"sshKeyPaths"`
 	GnupgHome         string   `json:"gnupgHome"`
+	AgeKeyFile        string   `json:"ageKeyFile"`
 }
 
 type secretFile struct {
@@ -437,10 +437,17 @@ func (app *appContext) validateManifest() error {
 	if m.SymlinkPath == "" {
 		m.SymlinkPath = "/run/secrets"
 	}
-	if len(m.SSHKeyPaths) > 0 && m.GnupgHome != "" {
-		return errors.New("gnupgHome and sshKeyPaths were specified in the manifest. " +
-			"Both options are mutual exclusive.")
+	if m.GnupgHome != "" {
+		errorFmt := "gnupgHome and %s were specified in the manifest. " +
+			"Both options are mutually exclusive."
+		if len(m.SSHKeyPaths) > 0 {
+			return fmt.Errorf(errorFmt, "sshKeyPaths")
+		}
+		if m.AgeKeyFile != "" {
+			return fmt.Errorf(errorFmt, "ageKeyFile")
+		}
 	}
+
 	for i := range m.Secrets {
 		if err := app.validateSecret(&m.Secrets[i]); err != nil {
 			return err
@@ -604,6 +611,8 @@ func installSecrets(args []string) error {
 		defer keyring.Remove()
 	} else if manifest.GnupgHome != "" {
 		os.Setenv("GNUPGHOME", manifest.GnupgHome)
+	} else if manifest.AgeKeyFile != "" {
+		os.Setenv("SOPS_AGE_KEY_FILE", manifest.AgeKeyFile)
 	}
 
 	if err := decryptSecrets(manifest.Secrets); err != nil {

@@ -85,7 +85,7 @@ let
     # Does this need to be configurable?
     secretsMountPoint = "/run/secrets.d";
     symlinkPath = "/run/secrets";
-    inherit (cfg) gnupgHome sshKeyPaths;
+    inherit (cfg) gnupgHome sshKeyPaths ageKeyFile;
   });
 
   checkedManifest = let
@@ -130,6 +130,25 @@ in {
       '';
     };
 
+    ageKeyFile = mkOption {
+      type = types.nullOr types.path;
+      default = null;
+      example = "/var/lib/sops-nix/key.txt";
+      description = ''
+        Path to age key file used for sops decryption.
+      '';
+    };
+
+    generateAgeKey = mkOption {
+      type = types.bool;
+      default = false;
+      description = ''
+        Whether or not to generate the age key. If this
+        option is set to false, the key must already be
+        present at the specified location.
+      '';
+    };
+
     gnupgHome = mkOption {
       type = types.nullOr types.str;
       default = null;
@@ -152,8 +171,11 @@ in {
   };
   config = mkIf (cfg.secrets != {}) {
     assertions = [{
-      assertion = (cfg.gnupgHome == null) != (cfg.sshKeyPaths == []);
+      assertion = cfg.ageKeyFile == null -> (cfg.gnupgHome == null) != (cfg.sshKeyPaths == []);
       message = "Exactly one of sops.gnupgHome and sops.sshKeyPaths must be set";
+    } {
+      assertion = (cfg.sshKeyPaths != [] || cfg.gnupgHome != null) != (cfg.ageKeyFile != null);
+      message = "sops.ageKeyFile is mutually exclusive with sops.gnupgHome and sops.sshKeyPaths";
     }] ++ optionals cfg.validateSopsFiles (
       concatLists (mapAttrsToList (name: secret: [{
         assertion = builtins.pathExists secret.sopsFile;
@@ -168,9 +190,18 @@ in {
 
     system.activationScripts.setup-secrets = let
       sops-install-secrets = (pkgs.callPackage ../.. {}).sops-install-secrets;
-    in stringAfter [ "specialfs" "users" "groups" ] ''
+    in stringAfter ([ "specialfs" "users" "groups" ] ++ optional cfg.generateAgeKey "generate-age-key") ''
       echo setting up secrets...
       ${optionalString (cfg.gnupgHome != null) "SOPS_GPG_EXEC=${pkgs.gnupg}/bin/gpg"} ${sops-install-secrets}/bin/sops-install-secrets ${checkedManifest}
     '';
+
+    system.activationScripts.generate-age-key = (mkIf cfg.generateAgeKey) (stringAfter [] ''
+      if [[ ! -f "${cfg.ageKeyFile}" ]]; then;
+        echo generating machine-specific age key...
+        mkdir -p $(dirname ${cfg.ageKeyFile})
+        # age-keygen sets 0600 by default, no need to chmod.
+        ${pkgs.age}/bin/age-keygen -o ${cfg.ageKeyFile}
+      fi
+    '');
   };
 }
