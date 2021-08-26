@@ -90,7 +90,7 @@ let
 
   checkedManifest = let
     sops-install-secrets = (pkgs.buildPackages.callPackage ../.. {}).sops-install-secrets;
-  in pkgs.runCommandNoCC "checked-manifest.json" {
+  in pkgs.runCommand "checked-manifest.json" {
     nativeBuildInputs = [ sops-install-secrets ];
   } ''
     sops-install-secrets -check-mode=${if cfg.validateSopsFiles then "sopsfile" else "manifest"} ${manifest}
