@@ -678,9 +678,9 @@ If you uploaded it to `/var/lib/sops` than your sops configuration will look lik
 ```nix
 {
   # Make sure that `/var/lib/sops` is owned by root and is not world-readable/writable
-  sops.gnupgHome = "/var/lib/sops";
+  sops.gnupg.home = "/var/lib/sops";
   # disable import host ssh keys
-  sops.sshKeyPaths = [];
+  sops.gnupg.sshKeyPaths = [];
 }
 ```
 

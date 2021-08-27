@@ -28,7 +28,7 @@
   machine = {
     imports = [ ../../modules/sops ];
     sops = {
-      ageKeyFile = ./test-assets/age-keys.txt;
+      age.keyFile = ./test-assets/age-keys.txt;
       defaultSopsFile = ./test-assets/secrets.yaml;
       secrets.test_key = {};
     };
@@ -55,7 +55,7 @@
        group = "nogroup";
      };
 
-     sops.gnupgHome = "/run/gpghome";
+     sops.gnupg.home = "/run/gpghome";
      sops.defaultSopsFile = ./test-assets/secrets.yaml;
      sops.secrets.test_key.owner = config.users.users.someuser.name;
      sops.secrets.existing-file = {
