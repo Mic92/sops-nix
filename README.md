@@ -9,8 +9,9 @@ Atomic secret provisioning for NixOS based on [sops](https://github.com/mozilla/
 Sops-nix decrypts secrets [sops files](https://github.com/mozilla/sops#2usage)
 on the target machine to files specified in the NixOS configuration at
 activation time. It also adjusts file permissions/owner/group. It uses either
-host ssh keys or GPG keys for decryption. In future we will also support cloud
-key management APIs such as AWS KMS, GCP KMS, Azure Key Vault or Hashicorp's vault.
+age or GPG keys for decryption, where both types can be derived from ssh host
+keys. In future we will also support cloud key management APIs such as AWS
+KMS, GCP KMS, Azure Key Vault or Hashicorp's vault.
 
 ## Features
 
@@ -29,6 +30,16 @@ key management APIs such as AWS KMS, GCP KMS, Azure Key Vault or Hashicorp's vau
 ## Demo
 
 There is a configuration.nix example in the [deployment step](#5-deploy) of our usage example.
+
+## Supported encryption methods
+
+sops-nix supports two basic ways of encryption, gnupg and age. Gnupg is based
+on gnupg (duh) and encrypts against gnupg public keys. Private gnupg keys may
+be used to decrypt the secrets on the target machine. The tool `ssh-to-pgp` can
+be used to derive a gnupg key from a ssh (host) key in RSA format.
+
+The other method is age which is based on [age](https://github.com/FiloSottile/age).
+A tool is provided with sops-nix that can convert ssh host or user keys to age keys.
 
 ## Usage example
 
@@ -119,7 +130,10 @@ If you use experimental nix flakes support:
 }
 ```
 
-### 2. Generate a GPG key for yourself
+### 2a. Generate a GPG key for yourself
+
+This is only needed when you plan to use the gnupg encryption.
+When using age, you can skip to step 2b instead.
 
 First generate yourself [a GPG key](https://docs.github.com/en/github/authenticating-to-github/generating-a-new-gpg-key) or use nix-sops
 conversion tool to convert an existing ssh key (we only support RSA keys right now):
@@ -175,7 +189,24 @@ uid           [ unknown] root <root@localhost>
 
 The fingerprint here is `9F89C5F69A10281A835014B09C3DC61F752087EF`.
 
-### 3. Get a PGP Public key for your machine
+
+### 2a. Generate a SSH and age key for yourself
+
+This is only needed when you plan to use the age encryption.
+When using gnupg, you need to go back to step 2a.
+
+sops-nix in age mode requires you to have a `ed25519` key. If you don't already
+have one, you can generate one using
+```console
+$ ssh-keygen -t ed25519
+```
+
+Converting it to the age format works like this:
+```console
+$ nix run -f default.nix sops-ssh-to-age -c sh -c 'ssh-add -L | sops-ssh-to-age'
+```
+
+### 3a. Get a PGP Public key for your machine
 
 The easiest way to add new hosts is using ssh host keys (requires openssh to be enabled).
 Since sops does not natively supports ssh keys yet, nix-sops supports a conversion tool
@@ -207,11 +238,20 @@ creation_rules:
 
 If you prefer having a separate GnuPG key, see [Use with GnuPG instead of ssh keys](#use-with-gnupg-instead-of-ssh-keys).
 
+### 3b. Get a age Public key for your machine
+
+The `sops-ssh-to-age` tool is used to convert any ssh public key to the age format.
+This way you can convert any key:
+```console
+$ nix run -f default.nix sops-ssh-to-age -c sh -c 'ssh-keyscan my-server.com | sops-ssh-to-age'
+$ nix run -f default.nix sops-ssh-to-age -c sh -c 'cat /etc/ssh/ssh_host_ed25519_key.pub | sops-ssh-to-age'
+```
+
 ### 4. Create a sops file
 
-To create a sops file you need write a `.sops.yaml` as described above and
-import your personal gpg key (and your colleagues) and your servers into your
-gpg key chain.
+To create a sops file you need write a `.sops.yaml` as described above.
+When using gnupg you also need to import your personal gpg key
+(and your colleagues) and your servers into your gpg key chain.
 
 sops-nix automates importing gpg keys with a hook for nix-shell allowing public
 keys to be shared via version control (i.e. git):
@@ -366,6 +406,8 @@ If you derived your server public key from ssh, all you need in your configurati
   # sops.defaultSopsFile = "/root/.sops/secrets.yaml";
   sops.defaultSopsFile = ./secrets.yaml;
   sops.secrets.example-key = {};
+  # This is using ssh keys in the age format:
+  sops.age.sshKeyPaths = [ "/etc/ssh/ssh_host_ed25519_key" ];
 }
 ```
 
