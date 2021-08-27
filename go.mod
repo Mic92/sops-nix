@@ -3,6 +3,7 @@ module github.com/Mic92/sops-nix
 go 1.14
 
 require (
+	filippo.io/age v1.0.0-rc.3
 	github.com/ProtonMail/go-crypto v0.0.0-20210707164159-52430bf6b52c
 	github.com/mozilla-services/yaml v0.0.0-20191106225358-5c216288813c
 	go.mozilla.org/sops/v3 v3.7.1

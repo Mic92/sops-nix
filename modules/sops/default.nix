@@ -88,6 +88,7 @@ let
     gnupgHome = cfg.gnupg.home;
     sshKeyPaths = cfg.gnupg.sshKeyPaths;
     ageKeyFile = cfg.age.keyFile;
+    ageSshKeyPaths = cfg.age.sshKeyPaths;
   });
 
   checkedManifest = let
@@ -152,6 +153,17 @@ in {
           present at the specified location.
         '';
       };
+
+      sshKeyPaths = mkOption {
+        type = types.listOf types.path;
+        default = []; # If we set this like the gnupg option, we would use age by default
+        description = ''
+          Path to ssh keys added as age keys during sops description.
+          This option must be explicitly unset if <literal>config.sops.age.keyFile</literal> is set.
+
+          Setting this to a non-empty list causes age to be used instead of gnupg.
+        '';
+      };
     };
 
     gnupg = {
@@ -182,10 +194,10 @@ in {
   ];
   config = mkIf (cfg.secrets != {}) {
     assertions = [{
-      assertion = cfg.age.keyFile == null -> (cfg.gnupg.home == null) != (cfg.gnupg.sshKeyPaths == []);
+      assertion = (cfg.age.keyFile == null && cfg.age.sshKeyPaths == []) -> (cfg.gnupg.home == null) != (cfg.gnupg.sshKeyPaths == []);
       message = "Exactly one of sops.gnupg.home and sops.gnupg.sshKeyPaths must be set for gnupg mode";
     } {
-      assertion = cfg.age.keyFile != null -> (cfg.age.sshKeyPaths != []) != (cfg.age.keyFile != null);
+      assertion = (cfg.age.keyFile != null || cfg.age.sshKeyPaths != []) -> (cfg.age.sshKeyPaths != []) != (cfg.age.keyFile != null);
       message = "sops.age.keyFile is mutually exclusive with sops.age.sshKeyPaths";
     }] ++ optionals cfg.validateSopsFiles (
       concatLists (mapAttrsToList (name: secret: [{

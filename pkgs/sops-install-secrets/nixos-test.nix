@@ -38,10 +38,30 @@
     start_all()
     machine.succeed("cat /run/secrets/test_key | grep -q test_value")
   '';
- } {
-   inherit pkgs;
-   inherit (pkgs) system;
- };
+  } {
+    inherit pkgs;
+    inherit (pkgs) system;
+  };
+
+  age-ssh-keys = makeTest {
+  name = "sops-age-ssh-keys";
+  machine = {
+    imports = [ ../../modules/sops ];
+    sops = {
+      age.sshKeyPaths = [ ./test-assets/ssh-ed25519-key ];
+      defaultSopsFile = ./test-assets/secrets.yaml;
+      secrets.test_key = {};
+    };
+  };
+
+  testScript = ''
+    start_all()
+    machine.succeed("cat /run/secrets/test_key | grep -q test_value")
+  '';
+  } {
+    inherit pkgs;
+    inherit (pkgs) system;
+  };
 
  pgp-keys = makeTest {
    name = "sops-pgp-keys";

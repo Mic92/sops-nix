@@ -219,7 +219,7 @@ func testSSHKey(t *testing.T) {
 	testInstallSecret(t, testdir, &m)
 }
 
-func testAge(t *testing.T) {
+func TestAge(t *testing.T) {
 	assets := testAssetPath()
 
 	testdir := newTestDir(t)
@@ -252,11 +252,43 @@ func testAge(t *testing.T) {
 	testInstallSecret(t, testdir, &m)
 }
 
+func TestAgeWithSSH(t *testing.T) {
+	assets := testAssetPath()
+
+	testdir := newTestDir(t)
+	defer testdir.Remove()
+
+	target := path.Join(testdir.path, "existing-target")
+	file, err := os.Create(target)
+	ok(t, err)
+	file.Close()
+
+	s := secret{
+		Name:            "test",
+		Key:             "test_key",
+		Owner:           "nobody",
+		Group:           "nogroup",
+		SopsFile:        path.Join(assets, "secrets.yaml"),
+		Path:            target,
+		Mode:            "0400",
+		RestartServices: []string{"affected-service"},
+		ReloadServices:  make([]string, 0),
+	}
+
+	m := manifest{
+		Secrets:           []secret{s},
+		SecretsMountPoint: testdir.secretsPath,
+		SymlinkPath:       testdir.symlinkPath,
+		AgeSshKeyPaths:    []string{path.Join(assets, "ssh-ed25519-key")},
+	}
+
+	testInstallSecret(t, testdir, &m)
+}
+
 func TestAll(t *testing.T) {
 	// we can't test in parallel because we rely on GNUPGHOME environment variable
 	testGPG(t)
 	testSSHKey(t)
-	testAge(t)
 }
 
 func TestValidateManifest(t *testing.T) {
