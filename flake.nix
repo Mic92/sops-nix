@@ -17,7 +17,7 @@
       let
         localPkgs = import ./default.nix { pkgs = final; };
       in {
-        inherit (localPkgs) sops-install-secrets sops-init-gpg-key sops-pgp-hook sops-import-keys-hook;
+        inherit (localPkgs) sops-install-secrets sops-init-gpg-key sops-pgp-hook sops-import-keys-hook sops-ssh-to-age;
         # backward compatibility
         inherit (prev) ssh-to-pgp;
       };
