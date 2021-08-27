@@ -8,7 +8,7 @@ jobs:
     strategy:
       matrix:
         nixPath:
-          - nixpkgs=https://github.com/NixOS/nixpkgs/archive/nixos-20.09.tar.gz
+          - nixpkgs=https://github.com/NixOS/nixpkgs/archive/nixos-21.05.tar.gz
           - nixpkgs=https://github.com/NixOS/nixpkgs/archive/nixpkgs-unstable.tar.gz
         os: [ ubuntu-latest, macos-latest ]
     runs-on: ${{ matrix.os }}
