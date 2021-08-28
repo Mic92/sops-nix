@@ -47,8 +47,12 @@
   name = "sops-age-ssh-keys";
   machine = {
     imports = [ ../../modules/sops ];
+    services.openssh.enable = true;
+    services.openssh.hostKeys = [{
+      type = "ed25519";
+      path = ./test-assets/ssh-ed25519-key;
+    }];
     sops = {
-      age.sshKeyPaths = [ ./test-assets/ssh-ed25519-key ];
       defaultSopsFile = ./test-assets/secrets.yaml;
       secrets.test_key = {};
     };

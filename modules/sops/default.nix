@@ -140,7 +140,7 @@ in {
         example = "/var/lib/sops-nix/key.txt";
         description = ''
           Path to age key file used for sops decryption.
-          Setting this to a non-null value causes age to be used instead of gnupg.
+          Setting this to a non-null value causes the ssh keys to be ignored.
         '';
       };
 
@@ -156,12 +156,10 @@ in {
 
       sshKeyPaths = mkOption {
         type = types.listOf types.path;
-        default = []; # If we set this like the gnupg option, we would use ed25519 by default
+        default = if config.services.openssh.enable then map (e: e.path) (lib.filter (e: e.type == "ed25519") config.services.openssh.hostKeys) else [];
         description = ''
-          Path to ssh keys added as age keys during sops description.
-          This option must be explicitly unset if <literal>config.sops.age.keyFile</literal> is set.
-
-          Setting this to a non-empty list causes age to be used instead of gnupg.
+          Paths to ssh keys added as age keys during sops description.
+          This setting is ignored when the keyFile is set to a non-null value.
         '';
       };
     };
@@ -196,9 +194,6 @@ in {
     assertions = [{
       assertion = (cfg.age.keyFile == null && cfg.age.sshKeyPaths == []) -> (cfg.gnupg.home == null) != (cfg.gnupg.sshKeyPaths == []);
       message = "Exactly one of sops.gnupg.home and sops.gnupg.sshKeyPaths must be set for gnupg mode";
-    } {
-      assertion = (cfg.age.keyFile != null || cfg.age.sshKeyPaths != []) -> (cfg.age.sshKeyPaths != []) != (cfg.age.keyFile != null);
-      message = "sops.age.keyFile is mutually exclusive with sops.age.sshKeyPaths";
     }] ++ optionals cfg.validateSopsFiles (
       concatLists (mapAttrsToList (name: secret: [{
         assertion = builtins.pathExists secret.sopsFile;
