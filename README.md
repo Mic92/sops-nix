@@ -39,7 +39,8 @@ be used to decrypt the secrets on the target machine. The tool `ssh-to-pgp` can
 be used to derive a gnupg key from a ssh (host) key in RSA format.
 
 The other method is age which is based on [age](https://github.com/FiloSottile/age).
-A tool is provided with sops-nix that can convert ssh host or user keys to age keys.
+A tool is provided with sops-nix that can convert ssh host or user keys in ed25519
+format to age keys.
 
 ## Usage example
 
@@ -201,10 +202,12 @@ have one, you can generate one using
 $ ssh-keygen -t ed25519
 ```
 
-Converting it to the age format works like this:
+Converting the public key to the age format works like this:
 ```console
 $ nix run -f default.nix sops-ssh-to-age -c sh -c 'ssh-add -L | sops-ssh-to-age'
 ```
+
+Ssh public key files may also be piped into the `sops-ssh-to-age` tool.
 
 ### 3a. Get a PGP Public key for your machine
 
@@ -408,6 +411,10 @@ If you derived your server public key from ssh, all you need in your configurati
   sops.secrets.example-key = {};
   # This is using ssh keys in the age format:
   sops.age.sshKeyPaths = [ "/etc/ssh/ssh_host_ed25519_key" ];
+  # This is using an age key that is expected to already be in the filesystem
+  sops.age.keyFile = "/var/lib/sops-nix/key.txt";
+  # This will generate a new key if the key specified above does not exist
+  sops.age.generateKey = true;
 }
 ```
 

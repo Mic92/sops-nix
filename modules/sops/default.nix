@@ -156,7 +156,7 @@ in {
 
       sshKeyPaths = mkOption {
         type = types.listOf types.path;
-        default = []; # If we set this like the gnupg option, we would use age by default
+        default = []; # If we set this like the gnupg option, we would use ed25519 by default
         description = ''
           Path to ssh keys added as age keys during sops description.
           This option must be explicitly unset if <literal>config.sops.age.keyFile</literal> is set.
