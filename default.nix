@@ -11,7 +11,8 @@ in rec {
     Also see https://github.com/Mic92/sops-nix/issues/98
   '' pkgs.callPackage ./pkgs/sops-pgp-hook { };
   sops-import-keys-hook = pkgs.callPackage ./pkgs/sops-import-keys-hook { };
-  sops-ssh-to-age = pkgs.callPackage ./pkgs/sops-ssh-to-age { inherit vendorSha256; };
+  ssh-pubkey-to-age = pkgs.callPackage ./pkgs/ssh-pubkey-to-age { inherit vendorSha256; };
+  ssh-privkey-to-age = pkgs.callPackage ./pkgs/ssh-privkey-to-age { inherit vendorSha256; };
   inherit sops-install-secrets;
 
   # backwards compatibility

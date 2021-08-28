@@ -204,10 +204,16 @@ $ ssh-keygen -t ed25519
 
 Converting the public key to the age format works like this:
 ```console
-$ nix run -f default.nix sops-ssh-to-age -c sh -c 'ssh-add -L | sops-ssh-to-age'
+$ nix run -f default.nix ssh-pubkey-to-age -c sh -c 'ssh-add -L | ssh-pubkey-to-age'
 ```
 
-Ssh public key files may also be piped into the `sops-ssh-to-age` tool.
+Ssh public key files may also be piped into the `ssh-pubkey-to-age` tool.
+
+Finally, you need to convert your private key to the age format:
+```console
+$ mkdir -p ~/.config/sops
+$ nix run -f default.nix ssh-privkey-to-age -c ssh-privkey-to-age ~/.ssh/id_ed25519 > ~/.config/sops/keys.txt
+```
 
 ### 3a. Get a PGP Public key for your machine
 
@@ -243,11 +249,11 @@ If you prefer having a separate GnuPG key, see [Use with GnuPG instead of ssh ke
 
 ### 3b. Get a age Public key for your machine
 
-The `sops-ssh-to-age` tool is used to convert any ssh public key to the age format.
+The `ssh-pubkey-to-age` tool is used to convert any ssh public key to the age format.
 This way you can convert any key:
 ```console
-$ nix run -f default.nix sops-ssh-to-age -c sh -c 'ssh-keyscan my-server.com | sops-ssh-to-age'
-$ nix run -f default.nix sops-ssh-to-age -c sh -c 'cat /etc/ssh/ssh_host_ed25519_key.pub | sops-ssh-to-age'
+$ nix run -f default.nix ssh-pubkey-to-age -c sh -c 'ssh-keyscan my-server.com | ssh-pubkey-to-age'
+$ nix run -f default.nix ssh-pubkey-to-age -c sh -c 'cat /etc/ssh/ssh_host_ed25519_key.pub | ssh-pubkey-to-age'
 ```
 
 ### 4. Create a sops file
