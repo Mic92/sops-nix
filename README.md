@@ -1,5 +1,7 @@
 # sops-nix
 
+![sops-nix logo](https://github.com/Mic92/sops-nix/releases/download/assets/logo.gif "Logo of sops-nix")
+
 Atomic secret provisioning for NixOS based on [sops](https://github.com/mozilla/sops).
 
 ## How it works
