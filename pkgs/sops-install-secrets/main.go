@@ -17,8 +17,8 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/Mic92/sops-nix/pkgs/sops-install-secrets/agessh"
 	"github.com/Mic92/sops-nix/pkgs/sops-install-secrets/sshkeys"
+	agessh "github.com/Mic92/ssh-to-age"
 
 	"github.com/mozilla-services/yaml"
 	"go.mozilla.org/sops/v3/decrypt"
@@ -533,13 +533,13 @@ func importAgeSSHKeys(keyPaths []string, ageFilePath string) error {
 		if err != nil {
 			return fmt.Errorf("Cannot read ssh key '%s': %w", p, err)
 		}
-		// Convert the key to bech32
-		bech32, err := agessh.SSHPrivateKeyToBech32(sshKey)
+		// Convert the key to age
+		bech32, err := agessh.SSHPrivateKeyToAge(sshKey)
 		if err != nil {
 			return fmt.Errorf("Cannot convert ssh key '%s': %w", p, err)
 		}
 		// Append it to the file
-		_, err = ageFile.WriteString(bech32 + "\n")
+		_, err = ageFile.WriteString(*bech32 + "\n")
 		if err != nil {
 			return fmt.Errorf("Cannot write key to age file: %w", err)
 		}

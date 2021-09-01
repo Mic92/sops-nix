@@ -1,5 +1,5 @@
 { pkgs ? import <nixpkgs> {} }: let
-  vendorSha256 = "sha256:1bizqlj56lka37gbvm37p3yifn7w2z9kfhv486gv40wknzqclq12";
+  vendorSha256 = "sha256:145vmy70mkbciy8mr92nz6w0rwr83884wwwjy4wa587c6wkgs3w2";
 
   sops-install-secrets = pkgs.callPackage ./pkgs/sops-install-secrets {
     inherit vendorSha256;
@@ -11,8 +11,6 @@ in rec {
     Also see https://github.com/Mic92/sops-nix/issues/98
   '' pkgs.callPackage ./pkgs/sops-pgp-hook { };
   sops-import-keys-hook = pkgs.callPackage ./pkgs/sops-import-keys-hook { };
-  ssh-pubkey-to-age = pkgs.callPackage ./pkgs/ssh-pubkey-to-age { inherit vendorSha256; };
-  ssh-privkey-to-age = pkgs.callPackage ./pkgs/ssh-privkey-to-age { inherit vendorSha256; };
   inherit sops-install-secrets;
 
   # backwards compatibility
