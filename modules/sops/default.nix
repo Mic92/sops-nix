@@ -78,6 +78,15 @@ let
           Hash of the sops file, useful in <xref linkend="opt-systemd.services._name_.restartTriggers" />.
         '';
       };
+      restartUnits = mkOption {
+        type = types.listOf types.str;
+        default = [ ];
+        example = [ "sshd.service" ];
+        description = ''
+          Names of units that should be restarted when this secret changes.
+          This works the same way as <xref linkend="opt-systemd.services._name_.restartTriggers" />.
+        '';
+      };
     };
   });
   manifest = pkgs.writeText "manifest.json" (builtins.toJSON {
@@ -89,6 +98,10 @@ let
     sshKeyPaths = cfg.gnupg.sshKeyPaths;
     ageKeyFile = cfg.age.keyFile;
     ageSshKeyPaths = cfg.age.sshKeyPaths;
+    logging = {
+      gpgImport = builtins.elem "gpgImport" cfg.log;
+      changes = builtins.elem "changes" cfg.log;
+    };
   });
 
   checkedManifest = let
@@ -131,6 +144,12 @@ in {
         Check all sops files at evaluation time.
         This requires sops files to be added to the nix store.
       '';
+    };
+
+    log = mkOption {
+      type = types.listOf (types.enum [ "gpgImport" "changes" ]);
+      default = [ "gpgImport" "changes" ];
+      description = "What to log";
     };
 
     age = {
@@ -209,10 +228,12 @@ in {
 
     system.activationScripts.setup-secrets = let
       sops-install-secrets = (pkgs.callPackage ../.. {}).sops-install-secrets;
-    in stringAfter ([ "specialfs" "users" "groups" ] ++ optional cfg.age.generateKey "generate-age-key") ''
-      echo setting up secrets...
+    in (stringAfter ([ "specialfs" "users" "groups" ] ++ optional cfg.age.generateKey "generate-age-key") ''
+      [ -e /run/current-system ] || echo setting up secrets...
       ${optionalString (cfg.gnupg.home != null) "SOPS_GPG_EXEC=${pkgs.gnupg}/bin/gpg"} ${sops-install-secrets}/bin/sops-install-secrets ${checkedManifest}
-    '';
+    '') // lib.optionalAttrs (config.system ? dryActivationScript) {
+      supportsDryActivation = true;
+    };
 
     system.activationScripts.generate-age-key = (mkIf cfg.age.generateKey) (stringAfter [] ''
       if [[ ! -f '${cfg.age.keyFile}' ]]; then
