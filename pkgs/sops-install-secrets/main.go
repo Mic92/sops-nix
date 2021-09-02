@@ -643,18 +643,15 @@ func installSecrets(args []string) error {
 		defer keyring.Remove()
 	} else if manifest.GnupgHome != "" {
 		os.Setenv("GNUPGHOME", manifest.GnupgHome)
-	} else if manifest.AgeKeyFile != "" || len(manifest.AgeSshKeyPaths) != 0 {
-		if len(manifest.AgeSshKeyPaths) == 0 {
-			os.Setenv("SOPS_AGE_KEY_FILE", manifest.AgeKeyFile)
-		} else {
-			keyfile := filepath.Join(manifest.SecretsMountPoint, "age-keys.txt")
-			err = importAgeSSHKeys(manifest.AgeSshKeyPaths, keyfile)
-			if err != nil {
-				return err
-			}
-			fmt.Printf("Wrote keys to %s\n", keyfile)
-			os.Setenv("SOPS_AGE_KEY_FILE", keyfile)
+	} else if len(manifest.AgeSshKeyPaths) != 0 {
+		keyfile := filepath.Join(manifest.SecretsMountPoint, "age-keys.txt")
+		err = importAgeSSHKeys(manifest.AgeSshKeyPaths, keyfile)
+		if err != nil {
+			return err
 		}
+		os.Setenv("SOPS_AGE_KEY_FILE", keyfile)
+	} else if manifest.AgeKeyFile != "" {
+		os.Setenv("SOPS_AGE_KEY_FILE", manifest.AgeKeyFile)
 	}
 
 	if err := decryptSecrets(manifest.Secrets); err != nil {
