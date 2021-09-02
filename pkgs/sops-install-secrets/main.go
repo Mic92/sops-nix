@@ -3,6 +3,7 @@
 package main
 
 import (
+	"bytes"
 	"encoding/hex"
 	"encoding/json"
 	"flag"
@@ -26,30 +27,35 @@ import (
 )
 
 type secret struct {
-	Name            string     `json:"name"`
-	Key             string     `json:"key"`
-	Path            string     `json:"path"`
-	Owner           string     `json:"owner"`
-	Group           string     `json:"group"`
-	SopsFile        string     `json:"sopsFile"`
-	Format          FormatType `json:"format"`
-	Mode            string     `json:"mode"`
-	RestartServices []string   `json:"restartServices"`
-	ReloadServices  []string   `json:"reloadServices"`
-	value           []byte
-	mode            os.FileMode
-	owner           int
-	group           int
+	Name         string     `json:"name"`
+	Key          string     `json:"key"`
+	Path         string     `json:"path"`
+	Owner        string     `json:"owner"`
+	Group        string     `json:"group"`
+	SopsFile     string     `json:"sopsFile"`
+	Format       FormatType `json:"format"`
+	Mode         string     `json:"mode"`
+	RestartUnits []string   `json:"restartUnits"`
+	value        []byte
+	mode         os.FileMode
+	owner        int
+	group        int
+}
+
+type loggingConfig struct {
+	KeyImport     bool `json:"keyImport"`
+	SecretChanges bool `json:"secretChanges"`
 }
 
 type manifest struct {
-	Secrets           []secret `json:"secrets"`
-	SecretsMountPoint string   `json:"secretsMountpoint"`
-	SymlinkPath       string   `json:"symlinkPath"`
-	SSHKeyPaths       []string `json:"sshKeyPaths"`
-	GnupgHome         string   `json:"gnupgHome"`
-	AgeKeyFile        string   `json:"ageKeyFile"`
-	AgeSshKeyPaths    []string `json:"ageSshKeyPaths"`
+	Secrets           []secret      `json:"secrets"`
+	SecretsMountPoint string        `json:"secretsMountpoint"`
+	SymlinkPath       string        `json:"symlinkPath"`
+	SSHKeyPaths       []string      `json:"sshKeyPaths"`
+	GnupgHome         string        `json:"gnupgHome"`
+	AgeKeyFile        string        `json:"ageKeyFile"`
+	AgeSshKeyPaths    []string      `json:"ageSshKeyPaths"`
+	Logging           loggingConfig `json:"logging"`
 }
 
 type secretFile struct {
@@ -549,7 +555,7 @@ func atomicSymlink(oldname, newname string) error {
 	return os.RemoveAll(d)
 }
 
-func importSSHKeys(keyPaths []string, gpgHome string) error {
+func importSSHKeys(logcfg loggingConfig, keyPaths []string, gpgHome string) error {
 	secringPath := filepath.Join(gpgHome, "secring.gpg")
 
 	secring, err := os.OpenFile(secringPath, os.O_WRONLY|os.O_CREATE, 0600)
@@ -570,7 +576,9 @@ func importSSHKeys(keyPaths []string, gpgHome string) error {
 			return fmt.Errorf("Cannot write secring: %w", err)
 		}
 
-		fmt.Printf("%s: Imported %s with fingerprint %s\n", path.Base(os.Args[0]), p, hex.EncodeToString(gpgKey.PrimaryKey.Fingerprint[:]))
+		if logcfg.KeyImport {
+			fmt.Printf("%s: Imported %s with fingerprint %s\n", path.Base(os.Args[0]), p, hex.EncodeToString(gpgKey.PrimaryKey.Fingerprint[:]))
+		}
 	}
 
 	return nil
@@ -598,6 +606,157 @@ func importAgeSSHKeys(keyPaths []string, ageFile os.File) error {
 	return nil
 }
 
+// Like filepath.Walk but symlink-aware.
+// Inspired by https://github.com/facebookarchive/symwalk
+func symlinkWalk(filename string, linkDirname string, walkFn filepath.WalkFunc) error {
+	symWalkFunc := func(path string, info os.FileInfo, err error) error {
+
+		if fname, err := filepath.Rel(filename, path); err == nil {
+			path = filepath.Join(linkDirname, fname)
+		} else {
+			return err
+		}
+
+		if err == nil && info.Mode()&os.ModeSymlink == os.ModeSymlink {
+			finalPath, err := filepath.EvalSymlinks(path)
+			if err != nil {
+				return err
+			}
+			info, err := os.Lstat(finalPath)
+			if err != nil {
+				return walkFn(path, info, err)
+			}
+			if info.IsDir() {
+				return symlinkWalk(finalPath, path, walkFn)
+			}
+		}
+
+		return walkFn(path, info, err)
+	}
+	return filepath.Walk(filename, symWalkFunc)
+}
+
+func handleModifications(isDry bool, logcfg loggingConfig, symlinkPath string, secretDir string, secrets []secret) error {
+	var restart []string
+
+	newSecrets := make(map[string]bool)
+	modifiedSecrets := make(map[string]bool)
+	removedSecrets := make(map[string]bool)
+
+	// When the symlink path does not exist yet, we are being run in stage-2-init.sh
+	// where switch-to-configuration is not run so the services would only be restarted
+	// the next time switch-to-configuration is run.
+	if _, err := os.Stat(symlinkPath); os.IsNotExist(err) {
+		return nil
+	}
+
+	// Find modified/new secrets
+	for _, secret := range secrets {
+		oldPath := filepath.Join(symlinkPath, secret.Name)
+		newPath := filepath.Join(secretDir, secret.Name)
+
+		// Read the old file
+		oldData, err := ioutil.ReadFile(oldPath)
+		if err != nil {
+			if os.IsNotExist(err) {
+				// File did not exist before
+				restart = append(restart, secret.RestartUnits...)
+				newSecrets[secret.Name] = true
+				continue
+			}
+			return err
+		}
+
+		// Read the new file
+		newData, err := ioutil.ReadFile(newPath)
+		if err != nil {
+			return err
+		}
+
+		if !bytes.Equal(oldData, newData) {
+			restart = append(restart, secret.RestartUnits...)
+			modifiedSecrets[secret.Name] = true
+		}
+	}
+
+	writeLines := func(list []string, file string) error {
+		if len(list) != 0 {
+			f, err := os.OpenFile(file, os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0600)
+			if err != nil {
+				return err
+			}
+			defer f.Close()
+			for _, unit := range list {
+				if _, err = f.WriteString(unit + "\n"); err != nil {
+					return err
+				}
+			}
+		}
+		return nil
+	}
+	var dryPrefix string
+	if isDry {
+		dryPrefix = "/run/nixos/dry-activation"
+	} else {
+		dryPrefix = "/run/nixos/activation"
+	}
+	if err := writeLines(restart, dryPrefix+"-restart-list"); err != nil {
+		return err
+	}
+
+	// Do not output changes if not requested
+	if !logcfg.SecretChanges {
+		return nil
+	}
+
+	// Find removed secrets
+	err := symlinkWalk(symlinkPath, symlinkPath, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+		if info.IsDir() {
+			return nil
+		}
+		path = strings.TrimPrefix(path, symlinkPath+string(os.PathSeparator))
+		for _, secret := range secrets {
+			if secret.Name == path {
+				return nil
+			}
+		}
+		removedSecrets[path] = true
+		return nil
+	})
+	if err != nil {
+		return err
+	}
+
+	// Output new/modified/removed secrets
+	outputChanged := func(changed map[string]bool, regularPrefix, dryPrefix string) {
+		if len(changed) > 0 {
+			s := ""
+			if len(changed) != 1 {
+				s = "s"
+			}
+			if isDry {
+				fmt.Printf("%s secret%s: ", dryPrefix, s)
+			} else {
+				fmt.Printf("%s secret%s: ", regularPrefix, s)
+			}
+			comma := ""
+			for name := range changed {
+				fmt.Printf("%s%s", comma, name)
+				comma = ", "
+			}
+			fmt.Println()
+		}
+	}
+	outputChanged(newSecrets, "adding", "would add")
+	outputChanged(modifiedSecrets, "modifying", "would modify")
+	outputChanged(removedSecrets, "removing", "would remove")
+
+	return nil
+}
+
 type keyring struct {
 	path string
 }
@@ -607,14 +766,14 @@ func (k *keyring) Remove() {
 	os.Unsetenv("GNUPGHOME")
 }
 
-func setupGPGKeyring(sshKeys []string, parentDir string) (*keyring, error) {
+func setupGPGKeyring(logcfg loggingConfig, sshKeys []string, parentDir string) (*keyring, error) {
 	dir, err := ioutil.TempDir(parentDir, "gpg")
 	if err != nil {
 		return nil, fmt.Errorf("Cannot create gpg home in '%s': %s", parentDir, err)
 	}
 	k := keyring{dir}
 
-	if err := importSSHKeys(sshKeys, dir); err != nil {
+	if err := importSSHKeys(logcfg, sshKeys, dir); err != nil {
 		os.RemoveAll(dir)
 		return nil, err
 	}
@@ -681,12 +840,14 @@ func installSecrets(args []string) error {
 		return err
 	}
 
+	isDry := os.Getenv("NIXOS_ACTION") == "dry-activate"
+
 	if err := mountSecretFs(manifest.SecretsMountPoint, keysGid); err != nil {
 		return fmt.Errorf("Failed to mount filesystem for secrets: %w", err)
 	}
 
 	if len(manifest.SSHKeyPaths) != 0 {
-		keyring, err := setupGPGKeyring(manifest.SSHKeyPaths, manifest.SecretsMountPoint)
+		keyring, err := setupGPGKeyring(manifest.Logging, manifest.SSHKeyPaths, manifest.SecretsMountPoint)
 		if err != nil {
 			return fmt.Errorf("Error setting up gpg keyring: %w", err)
 		}
@@ -739,6 +900,13 @@ func installSecrets(args []string) error {
 	}
 	if err := writeSecrets(*secretDir, manifest.Secrets, keysGid); err != nil {
 		return fmt.Errorf("Cannot write secrets: %w", err)
+	}
+	if err := handleModifications(isDry, manifest.Logging, manifest.SymlinkPath, *secretDir, manifest.Secrets); err != nil {
+		return fmt.Errorf("Cannot request units to restart: %w", err)
+	}
+	// No need to perform the actual symlinking
+	if isDry {
+		return nil
 	}
 	if err := symlinkSecrets(manifest.SymlinkPath, manifest.Secrets); err != nil {
 		return fmt.Errorf("Failed to prepare symlinks to secret store: %w", err)

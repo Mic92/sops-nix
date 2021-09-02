@@ -99,15 +99,14 @@ func testGPG(t *testing.T) {
 
 	// should create a symlink
 	yamlSecret := secret{
-		Name:            "test",
-		Key:             "test_key",
-		Owner:           "nobody",
-		Group:           "nogroup",
-		SopsFile:        path.Join(assets, "secrets.yaml"),
-		Path:            path.Join(testdir.path, "test-target"),
-		Mode:            "0400",
-		RestartServices: []string{"affected-service"},
-		ReloadServices:  make([]string, 0),
+		Name:         "test",
+		Key:          "test_key",
+		Owner:        "nobody",
+		Group:        "nogroup",
+		SopsFile:     path.Join(assets, "secrets.yaml"),
+		Path:         path.Join(testdir.path, "test-target"),
+		Mode:         "0400",
+		RestartUnits: []string{"affected-service"},
 	}
 
 	var jsonSecret, binarySecret secret
@@ -198,15 +197,14 @@ func testSSHKey(t *testing.T) {
 	file.Close()
 
 	s := secret{
-		Name:            "test",
-		Key:             "test_key",
-		Owner:           "nobody",
-		Group:           "nogroup",
-		SopsFile:        path.Join(assets, "secrets.yaml"),
-		Path:            target,
-		Mode:            "0400",
-		RestartServices: []string{"affected-service"},
-		ReloadServices:  make([]string, 0),
+		Name:         "test",
+		Key:          "test_key",
+		Owner:        "nobody",
+		Group:        "nogroup",
+		SopsFile:     path.Join(assets, "secrets.yaml"),
+		Path:         target,
+		Mode:         "0400",
+		RestartUnits: []string{"affected-service"},
 	}
 
 	m := manifest{
@@ -231,15 +229,14 @@ func TestAge(t *testing.T) {
 	file.Close()
 
 	s := secret{
-		Name:            "test",
-		Key:             "test_key",
-		Owner:           "nobody",
-		Group:           "nogroup",
-		SopsFile:        path.Join(assets, "secrets.yaml"),
-		Path:            target,
-		Mode:            "0400",
-		RestartServices: []string{"affected-service"},
-		ReloadServices:  make([]string, 0),
+		Name:         "test",
+		Key:          "test_key",
+		Owner:        "nobody",
+		Group:        "nogroup",
+		SopsFile:     path.Join(assets, "secrets.yaml"),
+		Path:         target,
+		Mode:         "0400",
+		RestartUnits: []string{"affected-service"},
 	}
 
 	m := manifest{
@@ -264,15 +261,14 @@ func TestAgeWithSSH(t *testing.T) {
 	file.Close()
 
 	s := secret{
-		Name:            "test",
-		Key:             "test_key",
-		Owner:           "nobody",
-		Group:           "nogroup",
-		SopsFile:        path.Join(assets, "secrets.yaml"),
-		Path:            target,
-		Mode:            "0400",
-		RestartServices: []string{"affected-service"},
-		ReloadServices:  make([]string, 0),
+		Name:         "test",
+		Key:          "test_key",
+		Owner:        "nobody",
+		Group:        "nogroup",
+		SopsFile:     path.Join(assets, "secrets.yaml"),
+		Path:         target,
+		Mode:         "0400",
+		RestartUnits: []string{"affected-service"},
 	}
 
 	m := manifest{
@@ -298,15 +294,14 @@ func TestValidateManifest(t *testing.T) {
 	defer testdir.Remove()
 
 	s := secret{
-		Name:            "test",
-		Key:             "test_key",
-		Owner:           "nobody",
-		Group:           "nogroup",
-		SopsFile:        path.Join(assets, "secrets.yaml"),
-		Path:            path.Join(testdir.path, "test-target"),
-		Mode:            "0400",
-		RestartServices: []string{},
-		ReloadServices:  make([]string, 0),
+		Name:         "test",
+		Key:          "test_key",
+		Owner:        "nobody",
+		Group:        "nogroup",
+		SopsFile:     path.Join(assets, "secrets.yaml"),
+		Path:         path.Join(testdir.path, "test-target"),
+		Mode:         "0400",
+		RestartUnits: []string{},
 	}
 
 	m := manifest{
