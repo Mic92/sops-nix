@@ -87,6 +87,7 @@
      sops.gnupg.home = "/run/gpghome";
      sops.defaultSopsFile = ./test-assets/secrets.yaml;
      sops.secrets.test_key.owner = config.users.users.someuser.name;
+     sops.secrets."nested/test/file".owner = config.users.users.someuser.name;
      sops.secrets.existing-file = {
        key = "test_key";
        path = "/run/existing-file";
@@ -118,6 +119,8 @@
     assertEqual("test_value", value)
 
     server.succeed("runuser -u someuser -- cat /run/secrets/test_key >&2")
+    value = server.succeed("cat /run/secrets/nested/test/file")
+    assertEqual(value, "another value")
 
     target = server.succeed("readlink -f /run/existing-file")
     assertEqual("/run/secrets.d/1/existing-file", target.strip())
