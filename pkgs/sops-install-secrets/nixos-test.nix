@@ -30,7 +30,10 @@
        ../../modules/sops
      ];
 
-     users.users.someuser.isSystemUser = true;
+     users.users.someuser = {
+       isSystemUser = true;
+       group = "nogroup";
+     };
 
      sops.gnupgHome = "/run/gpghome";
      sops.defaultSopsFile = ./test-assets/secrets.yaml;
