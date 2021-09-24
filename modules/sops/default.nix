@@ -85,7 +85,10 @@ let
     # Does this need to be configurable?
     secretsMountPoint = "/run/secrets.d";
     symlinkPath = "/run/secrets";
-    inherit (cfg) gnupgHome sshKeyPaths;
+    gnupgHome = cfg.gnupg.home;
+    sshKeyPaths = cfg.gnupg.sshKeyPaths;
+    ageKeyFile = cfg.age.keyFile;
+    ageSshKeyPaths = cfg.age.sshKeyPaths;
   });
 
   checkedManifest = let
@@ -130,30 +133,67 @@ in {
       '';
     };
 
-    gnupgHome = mkOption {
-      type = types.nullOr types.str;
-      default = null;
-      example = "/root/.gnupg";
-      description = ''
-        Path to gnupg database directory containing the key for decrypting sops file.
-      '';
+    age = {
+      keyFile = mkOption {
+        type = types.nullOr types.path;
+        default = null;
+        example = "/var/lib/sops-nix/key.txt";
+        description = ''
+          Path to age key file used for sops decryption.
+          Setting this to a non-null value causes the ssh keys to be ignored.
+        '';
+      };
+
+      generateKey = mkOption {
+        type = types.bool;
+        default = false;
+        description = ''
+          Whether or not to generate the age key. If this
+          option is set to false, the key must already be
+          present at the specified location.
+        '';
+      };
+
+      sshKeyPaths = mkOption {
+        type = types.listOf types.path;
+        default = if config.services.openssh.enable then map (e: e.path) (lib.filter (e: e.type == "ed25519") config.services.openssh.hostKeys) else [];
+        description = ''
+          Paths to ssh keys added as age keys during sops description.
+          This setting is ignored when the keyFile is set to a non-null value.
+        '';
+      };
     };
 
-    sshKeyPaths = mkOption {
-      type = types.listOf types.path;
-      default = if config.services.openssh.enable then
-                  map (e: e.path) (lib.filter (e: e.type == "rsa") config.services.openssh.hostKeys)
-                else [];
-      description = ''
-        Path to ssh keys added as GPG keys during sops description.
-        This option must be explicitly unset if <literal>config.sops.sshKeyPaths</literal>.
-      '';
+    gnupg = {
+      home = mkOption {
+        type = types.nullOr types.str;
+        default = null;
+        example = "/root/.gnupg";
+        description = ''
+          Path to gnupg database directory containing the key for decrypting the sops file.
+        '';
+      };
+
+      sshKeyPaths = mkOption {
+        type = types.listOf types.path;
+        default = if config.services.openssh.enable then
+                    map (e: e.path) (lib.filter (e: e.type == "rsa") config.services.openssh.hostKeys)
+                  else [];
+        description = ''
+          Path to ssh keys added as GPG keys during sops description.
+          This option must be explicitly unset if <literal>config.sops.gnupg.sshKeyPaths</literal> is set.
+        '';
+      };
     };
   };
+  imports = [
+    (mkRenamedOptionModule [ "sops" "gnupgHome" ] [ "sops" "gnupg" "home" ])
+    (mkRenamedOptionModule [ "sops" "sshKeyPaths" ] [ "sops" "gnupg" "sshKeyPaths" ])
+  ];
   config = mkIf (cfg.secrets != {}) {
     assertions = [{
-      assertion = (cfg.gnupgHome == null) != (cfg.sshKeyPaths == []);
-      message = "Exactly one of sops.gnupgHome and sops.sshKeyPaths must be set";
+      assertion = (cfg.age.keyFile == null && cfg.age.sshKeyPaths == []) -> (cfg.gnupg.home == null) != (cfg.gnupg.sshKeyPaths == []);
+      message = "Exactly one of sops.gnupg.home and sops.gnupg.sshKeyPaths must be set for gnupg mode";
     }] ++ optionals cfg.validateSopsFiles (
       concatLists (mapAttrsToList (name: secret: [{
         assertion = builtins.pathExists secret.sopsFile;
@@ -168,9 +208,18 @@ in {
 
     system.activationScripts.setup-secrets = let
       sops-install-secrets = (pkgs.callPackage ../.. {}).sops-install-secrets;
-    in stringAfter [ "specialfs" "users" "groups" ] ''
+    in stringAfter ([ "specialfs" "users" "groups" ] ++ optional cfg.age.generateKey "generate-age-key") ''
       echo setting up secrets...
-      ${optionalString (cfg.gnupgHome != null) "SOPS_GPG_EXEC=${pkgs.gnupg}/bin/gpg"} ${sops-install-secrets}/bin/sops-install-secrets ${checkedManifest}
+      ${optionalString (cfg.gnupg.home != null) "SOPS_GPG_EXEC=${pkgs.gnupg}/bin/gpg"} ${sops-install-secrets}/bin/sops-install-secrets ${checkedManifest}
     '';
+
+    system.activationScripts.generate-age-key = (mkIf cfg.age.generateKey) (stringAfter [] ''
+      if [[ ! -f "${cfg.age.keyFile}" ]]; then;
+        echo generating machine-specific age key...
+        mkdir -p $(dirname ${cfg.age.keyFile})
+        # age-keygen sets 0600 by default, no need to chmod.
+        ${pkgs.age}/bin/age-keygen -o ${cfg.age.keyFile}
+      fi
+    '');
   };
 }

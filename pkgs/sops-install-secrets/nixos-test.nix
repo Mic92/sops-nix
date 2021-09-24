@@ -23,6 +23,50 @@
    inherit (pkgs) system;
  };
 
+ age-keys = makeTest {
+  name = "sops-age-keys";
+  machine = {
+    imports = [ ../../modules/sops ];
+    sops = {
+      age.keyFile = ./test-assets/age-keys.txt;
+      defaultSopsFile = ./test-assets/secrets.yaml;
+      secrets.test_key = {};
+    };
+  };
+
+  testScript = ''
+    start_all()
+    machine.succeed("cat /run/secrets/test_key | grep -q test_value")
+  '';
+  } {
+    inherit pkgs;
+    inherit (pkgs) system;
+  };
+
+  age-ssh-keys = makeTest {
+  name = "sops-age-ssh-keys";
+  machine = {
+    imports = [ ../../modules/sops ];
+    services.openssh.enable = true;
+    services.openssh.hostKeys = [{
+      type = "ed25519";
+      path = ./test-assets/ssh-ed25519-key;
+    }];
+    sops = {
+      defaultSopsFile = ./test-assets/secrets.yaml;
+      secrets.test_key = {};
+    };
+  };
+
+  testScript = ''
+    start_all()
+    machine.succeed("cat /run/secrets/test_key | grep -q test_value")
+  '';
+  } {
+    inherit pkgs;
+    inherit (pkgs) system;
+  };
+
  pgp-keys = makeTest {
    name = "sops-pgp-keys";
    nodes.server = { pkgs, lib, config, ... }: {
@@ -35,7 +79,7 @@
        group = "nogroup";
      };
 
-     sops.gnupgHome = "/run/gpghome";
+     sops.gnupg.home = "/run/gpghome";
      sops.defaultSopsFile = ./test-assets/secrets.yaml;
      sops.secrets.test_key.owner = config.users.users.someuser.name;
      sops.secrets.existing-file = {
