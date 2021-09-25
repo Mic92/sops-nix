@@ -196,23 +196,45 @@ The fingerprint here is `9F89C5F69A10281A835014B09C3DC61F752087EF`.
 This is only needed when you plan to use the age encryption.
 When using gnupg, you need to go back to step 2a.
 
-sops-nix in age mode requires you to have a `ed25519` key. If you don't already
-have one, you can generate one using
+sops-nix in age mode requires you to have an age key.
+You can generate one like this:
+
+``` console
+$ mkdir -p ~/.config/sops/age
+$ age-keygen -o ~/.config/sops/age/keys.txt
+```
+
+If you have an ssh key in `ed25519` format (i.e. if it was generated `ssh-keygen -t ed25519`) 
+you can also convert to an age key:
+
 ```console
-$ ssh-keygen -t ed25519
+$ mkdir -p ~/.config/sops/age
+$ nix-shell -p ssh-to-age --run "ssh-to-age -private-key -i ~/.ssh/id_ed25519 > ~/.config/sops/age/keys.txt"
 ```
 
 Converting the public key to the age format works like this:
 ```console
+$ nix-shell -p ssh-to-age --run " ssh-to-age < ~/.ssh/id_ed25519.pub "
+```
+
+or like this
+
+``` console
 $ nix-shell -p ssh-to-age --run "ssh-add -L | ssh-to-age"
 ```
 
-Ssh public key files may also be piped into the `ssh-to-age` tool.
+If you get:
 
-Finally, you need to convert your private key to the age format:
 ```console
-$ mkdir -p ~/.config/sops
-$ nix-shell -p ssh-to-age --run "ssh-to-age -private-key -i ~/.ssh/id_ed25519 > ~/.config/sops/age/keys.txt"
+failed to parse ssh private key: ssh: this private key is passphrase protected
+```
+
+then your ssh key is encrypted with your password and you need to create an unencrypted copy temporarily:
+
+```console
+$ cp $HOME/.ssh/id_ed25519 /tmp/id_ed25519
+$ ssh-keygen -p -N "" -f /tmp/id_ed25519
+$ nix-shell -p ssh-to-age --run "ssh-to-age -private-key -i /tmp/id_ed25519 > ~/.config/sops/age/keys.txt"
 ```
 
 ### 3a. Get a PGP Public key for your machine
