@@ -513,7 +513,7 @@ func importSSHKeys(keyPaths []string, gpgHome string) error {
 			return fmt.Errorf("Cannot write secring: %w", err)
 		}
 
-		fmt.Printf("%s: Imported %s with fingerprint %s\n", path.Base(os.Args[0]), p, hex.EncodeToString(gpgKey.PrimaryKey.Fingerprint[:]))
+		fmt.Printf("%s: Imported %s as GPG key with fingerprint %s\n", path.Base(os.Args[0]), p, hex.EncodeToString(gpgKey.PrimaryKey.Fingerprint[:]))
 	}
 
 	return nil
@@ -534,15 +534,18 @@ func importAgeSSHKeys(keyPaths []string, ageFilePath string) error {
 			return fmt.Errorf("Cannot read ssh key '%s': %w", p, err)
 		}
 		// Convert the key to age
-		bech32, err := agessh.SSHPrivateKeyToAge(sshKey)
+		privKey, pubKey, err := agessh.SSHPrivateKeyToAge(sshKey)
+
 		if err != nil {
 			return fmt.Errorf("Cannot convert ssh key '%s': %w", p, err)
 		}
 		// Append it to the file
-		_, err = ageFile.WriteString(*bech32 + "\n")
+		_, err = ageFile.WriteString(*privKey + "\n")
 		if err != nil {
 			return fmt.Errorf("Cannot write key to age file: %w", err)
 		}
+
+		fmt.Printf("%s: Imported %s as Age key with fingerprint %s\n", path.Base(os.Args[0]), p, *pubKey)
 	}
 
 	return nil
