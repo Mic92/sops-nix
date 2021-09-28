@@ -643,7 +643,9 @@ func installSecrets(args []string) error {
 		defer keyring.Remove()
 	} else if manifest.GnupgHome != "" {
 		os.Setenv("GNUPGHOME", manifest.GnupgHome)
-	} else if len(manifest.AgeSshKeyPaths) != 0 {
+	}
+
+	if len(manifest.AgeSshKeyPaths) != 0 {
 		keyfile := filepath.Join(manifest.SecretsMountPoint, "age-keys.txt")
 		err = importAgeSSHKeys(manifest.AgeSshKeyPaths, keyfile)
 		if err != nil {
