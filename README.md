@@ -191,7 +191,7 @@ uid           [ unknown] root <root@localhost>
 The fingerprint here is `9F89C5F69A10281A835014B09C3DC61F752087EF`.
 
 
-### 2a. Generate a SSH and age key for yourself
+### 2b. Generate a SSH and age key for yourself
 
 This is only needed when you plan to use the age encryption.
 When using gnupg, you need to go back to step 2a.
