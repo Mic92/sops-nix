@@ -205,6 +205,54 @@ type plainData struct {
 	binary []byte
 }
 
+func recurseSecretKey(keys map[string]interface{}, wantedKey string) (string, error) {
+	var val interface{}
+	var ok bool
+	currentKey := wantedKey
+	currentData := keys
+	keyUntilNow := ""
+
+	for {
+		slashIndex := strings.IndexByte(currentKey, '/')
+		if slashIndex == -1 {
+			// We got to the end
+			val, ok = currentData[currentKey]
+			if !ok {
+				if keyUntilNow != "" {
+					keyUntilNow += "."
+				}
+				return "", fmt.Errorf("b: The key '%s%s' cannot be found", keyUntilNow, currentKey)
+			}
+			break
+		}
+		thisKey := currentKey[:slashIndex]
+		if keyUntilNow == "" {
+			keyUntilNow = thisKey
+		} else {
+			keyUntilNow += "." + thisKey
+		}
+		currentKey = currentKey[(slashIndex + 1):]
+		val, ok = currentData[thisKey]
+		if !ok {
+			return "", fmt.Errorf("The key '%s' cannot be found", keyUntilNow)
+		}
+		valWithWrongType, ok := val.(map[interface{}]interface{})
+		if !ok {
+			return "", fmt.Errorf("Key '%s' does not refer to a dictionary", keyUntilNow)
+		}
+		currentData = make(map[string]interface{})
+		for key, value := range valWithWrongType {
+			currentData[key.(string)] = value
+		}
+	}
+
+	strVal, ok := val.(string)
+	if !ok {
+		return "", fmt.Errorf("The value of key '%s' is not a string", keyUntilNow)
+	}
+	return strVal, nil
+}
+
 func decryptSecret(s *secret, sourceFiles map[string]plainData) error {
 	sourceFile := sourceFiles[s.SopsFile]
 	if sourceFile.data == nil || sourceFile.binary == nil {
@@ -229,14 +277,9 @@ func decryptSecret(s *secret, sourceFiles map[string]plainData) error {
 	if s.Format == Binary {
 		s.value = sourceFile.binary
 	} else {
-		val, ok := sourceFile.data[s.Key]
-
-		if !ok {
-			return fmt.Errorf("The key '%s' cannot be found in '%s'", s.Key, s.SopsFile)
-		}
-		strVal, ok := val.(string)
-		if !ok {
-			return fmt.Errorf("The value of key '%s' in '%s' is not a string", s.Key, s.SopsFile)
+		strVal, err := recurseSecretKey(sourceFile.data, s.Key)
+		if err != nil {
+			return fmt.Errorf("secret %s in %s is not valid: %w", s.Name, s.SopsFile, err)
 		}
 		s.value = []byte(strVal)
 	}
@@ -308,14 +351,27 @@ func prepareSecretsDir(secretMountpoint string, linkName string, keysGid int) (*
 	return &dir, nil
 }
 
-func writeSecrets(secretDir string, secrets []secret) error {
+func writeSecrets(secretDir string, secrets []secret, keysGid int) error {
 	for _, secret := range secrets {
-		filepath := filepath.Join(secretDir, secret.Name)
-		if err := ioutil.WriteFile(filepath, []byte(secret.value), secret.mode); err != nil {
-			return fmt.Errorf("Cannot write %s: %w", filepath, err)
+		fp := filepath.Join(secretDir, secret.Name)
+
+		dirs := strings.Split(filepath.Dir(secret.Name), "/")
+		pathSoFar := secretDir
+		for _, dir := range dirs {
+			pathSoFar = filepath.Join(pathSoFar, dir)
+			if err := os.MkdirAll(pathSoFar, 0751); err != nil {
+				return fmt.Errorf("Cannot create directory '%s' for %s: %w", pathSoFar, fp, err)
+			}
+			if err := os.Chown(pathSoFar, 0, int(keysGid)); err != nil {
+				return fmt.Errorf("Cannot own directory '%s' for %s: %w", pathSoFar, fp, err)
+			}
 		}
-		if err := os.Chown(filepath, secret.owner, secret.group); err != nil {
-			return fmt.Errorf("Cannot change owner/group of '%s' to %d/%d: %w", filepath, secret.owner, secret.group, err)
+
+		if err := ioutil.WriteFile(fp, []byte(secret.value), secret.mode); err != nil {
+			return fmt.Errorf("Cannot write %s: %w", fp, err)
+		}
+		if err := os.Chown(fp, secret.owner, secret.group); err != nil {
+			return fmt.Errorf("Cannot change owner/group of '%s' to %d/%d: %w", fp, secret.owner, secret.group, err)
 		}
 	}
 	return nil
@@ -374,8 +430,9 @@ func (app *appContext) validateSopsFile(s *secret, file *secretFile) error {
 			file.firstSecret.Format, file.firstSecret.Name)
 	}
 	if app.checkMode != Manifest && s.Format != Binary {
-		if _, ok := file.keys[s.Key]; !ok {
-			return fmt.Errorf("secret %s with the key %s not found in %s", s.Name, s.Key, s.SopsFile)
+		_, err := recurseSecretKey(file.keys, s.Key)
+		if err != nil {
+			return fmt.Errorf("secret %s in %s is not valid: %w", s.Name, s.SopsFile, err)
 		}
 	}
 	return nil
@@ -680,7 +737,7 @@ func installSecrets(args []string) error {
 	if err != nil {
 		return fmt.Errorf("Failed to prepare new secrets directory: %w", err)
 	}
-	if err := writeSecrets(*secretDir, manifest.Secrets); err != nil {
+	if err := writeSecrets(*secretDir, manifest.Secrets, keysGid); err != nil {
 		return fmt.Errorf("Cannot write secrets: %w", err)
 	}
 	if err := symlinkSecrets(manifest.SymlinkPath, manifest.Secrets); err != nil {
