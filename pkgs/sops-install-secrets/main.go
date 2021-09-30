@@ -645,15 +645,15 @@ func installSecrets(args []string) error {
 		os.Setenv("GNUPGHOME", manifest.GnupgHome)
 	}
 
-	if len(manifest.AgeSshKeyPaths) != 0 {
+	if manifest.AgeKeyFile != "" {
+		os.Setenv("SOPS_AGE_KEY_FILE", manifest.AgeKeyFile)
+	} else if len(manifest.AgeSshKeyPaths) != 0 {
 		keyfile := filepath.Join(manifest.SecretsMountPoint, "age-keys.txt")
 		err = importAgeSSHKeys(manifest.AgeSshKeyPaths, keyfile)
 		if err != nil {
 			return err
 		}
 		os.Setenv("SOPS_AGE_KEY_FILE", keyfile)
-	} else if manifest.AgeKeyFile != "" {
-		os.Setenv("SOPS_AGE_KEY_FILE", manifest.AgeKeyFile)
 	}
 
 	if err := decryptSecrets(manifest.Secrets); err != nil {
