@@ -140,7 +140,6 @@ in {
         example = "/var/lib/sops-nix/key.txt";
         description = ''
           Path to age key file used for sops decryption.
-          Setting this to a non-null value causes the ssh keys to be ignored.
         '';
       };
 
@@ -159,7 +158,6 @@ in {
         default = if config.services.openssh.enable then map (e: e.path) (lib.filter (e: e.type == "ed25519") config.services.openssh.hostKeys) else [];
         description = ''
           Paths to ssh keys added as age keys during sops description.
-          This setting is ignored when the keyFile is set to a non-null value.
         '';
       };
     };
