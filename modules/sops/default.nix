@@ -190,8 +190,11 @@ in {
   ];
   config = mkIf (cfg.secrets != {}) {
     assertions = [{
-      assertion = (cfg.age.keyFile == null && cfg.age.sshKeyPaths == []) -> (cfg.gnupg.home == null) != (cfg.gnupg.sshKeyPaths == []);
-      message = "Exactly one of sops.gnupg.home and sops.gnupg.sshKeyPaths must be set for gnupg mode";
+      assertion = cfg.gnupg.home != null || cfg.gnupg.sshKeyPaths != [] || cfg.age.keyFile != null || cfg.age.sshKeyPaths != [];
+      message = "No key source configurated for sops";
+    } {
+      assertion = !(cfg.gnupg.home != null && cfg.gnupg.sshKeyPaths != []);
+      message = "Exactly one of sops.gnupg.home and sops.gnupg.sshKeyPaths must be set";
     }] ++ optionals cfg.validateSopsFiles (
       concatLists (mapAttrsToList (name: secret: [{
         assertion = builtins.pathExists secret.sopsFile;

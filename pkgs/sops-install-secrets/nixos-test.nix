@@ -1,43 +1,43 @@
 { makeTest ? import <nixpkgs/nixos/tests/make-test-python.nix>, pkgs ? import <nixpkgs> }:
 {
  ssh-keys = makeTest {
-  name = "sops-ssh-keys";
-  nodes.server = { ... }: {
-    imports = [ ../../modules/sops ];
-    services.openssh.enable = true;
-    services.openssh.hostKeys = [{
-      type = "rsa";
-      bits = 4096;
-      path = ./test-assets/ssh-key;
-    }];
-    sops.defaultSopsFile = ./test-assets/secrets.yaml;
-    sops.secrets.test_key = {};
-  };
+   name = "sops-ssh-keys";
+   nodes.server = { ... }: {
+     imports = [ ../../modules/sops ];
+     services.openssh.enable = true;
+     services.openssh.hostKeys = [{
+       type = "rsa";
+       bits = 4096;
+       path = ./test-assets/ssh-key;
+     }];
+     sops.defaultSopsFile = ./test-assets/secrets.yaml;
+     sops.secrets.test_key = {};
+   };
 
-  testScript = ''
-    start_all()
-    server.succeed("cat /run/secrets/test_key | grep -q test_value")
-  '';
+   testScript = ''
+     start_all()
+     server.succeed("cat /run/secrets/test_key | grep -q test_value")
+   '';
  } {
    inherit pkgs;
    inherit (pkgs) system;
  };
 
  age-keys = makeTest {
-  name = "sops-age-keys";
-  machine = {
-    imports = [ ../../modules/sops ];
-    sops = {
-      age.keyFile = ./test-assets/age-keys.txt;
-      defaultSopsFile = ./test-assets/secrets.yaml;
-      secrets.test_key = {};
-    };
-  };
+   name = "sops-age-keys";
+   machine = {
+     imports = [ ../../modules/sops ];
+     sops = {
+       age.keyFile = ./test-assets/age-keys.txt;
+       defaultSopsFile = ./test-assets/secrets.yaml;
+       secrets.test_key = {};
+     };
+   };
 
-  testScript = ''
-    start_all()
-    machine.succeed("cat /run/secrets/test_key | grep -q test_value")
-  '';
+   testScript = ''
+     start_all()
+     machine.succeed("cat /run/secrets/test_key | grep -q test_value")
+   '';
   } {
     inherit pkgs;
     inherit (pkgs) system;
