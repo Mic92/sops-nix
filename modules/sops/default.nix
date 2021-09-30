@@ -212,7 +212,7 @@ in {
     '';
 
     system.activationScripts.generate-age-key = (mkIf cfg.age.generateKey) (stringAfter [] ''
-      if [[ ! -f "${cfg.age.keyFile}" ]]; then;
+      if [[ ! -f '${cfg.age.keyFile}' ]]; then
         echo generating machine-specific age key...
         mkdir -p $(dirname ${cfg.age.keyFile})
         # age-keygen sets 0600 by default, no need to chmod.

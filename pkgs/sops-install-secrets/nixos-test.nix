@@ -55,6 +55,11 @@
     sops = {
       defaultSopsFile = ./test-assets/secrets.yaml;
       secrets.test_key = {};
+      # Generate a key and append it to make sure it appending doesn't break anything
+      age = {
+        keyFile = "/tmp/testkey";
+        generateKey = true;
+      };
     };
   };
 
