@@ -49,7 +49,7 @@ type loggingConfig struct {
 
 type manifest struct {
 	Secrets           []secret      `json:"secrets"`
-	SecretsMountPoint string        `json:"secretsMountpoint"`
+	SecretsMountPoint string        `json:"secretsMountPoint"`
 	SymlinkPath       string        `json:"symlinkPath"`
 	SSHKeyPaths       []string      `json:"sshKeyPaths"`
 	GnupgHome         string        `json:"gnupgHome"`
@@ -497,12 +497,6 @@ func (app *appContext) validateSecret(secret *secret) error {
 
 func (app *appContext) validateManifest() error {
 	m := &app.manifest
-	if m.SecretsMountPoint == "" {
-		m.SecretsMountPoint = "/run/secrets.d"
-	}
-	if m.SymlinkPath == "" {
-		m.SymlinkPath = "/run/secrets"
-	}
 	if m.GnupgHome != "" {
 		errorFmt := "gnupgHome and %s were specified in the manifest. " +
 			"Both options are mutually exclusive."
