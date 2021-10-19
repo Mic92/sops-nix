@@ -589,6 +589,25 @@ $ ls -la /var/lib/hass/secrets.yaml
 lrwxrwxrwx 1 root root 40 Jul 19 22:36 /var/lib/hass/secrets.yaml -> /run/secrets/home-assistant-secrets.yaml
 ```
 
+## Setting a user's password
+
+sops-nix has to run after users were created by NixOS.
+This means that it's not possible to set `users.users.<name>.passwordFile` to any secrets managed by sops-nix.
+To work around this issue, it's possible to set `neededForUsers = true` in a secret.
+This will cause the secret to be decrypted to `/run/secrets-for-users` instead of `/run/secrets` before NixOS creates the users.
+As users are not created yet, it's not possible to set an owner for these secrets.
+
+```nix
+{ config, ... }: {
+  sops.secrets.my-password.neededForUsers = true;
+
+  users.users.mic92 = {
+    isNormalUser = true;
+    passwordFile = config.sops.secrets.my-password.path;
+  };
+}
+```
+
 ## Different file formats
 
 At the moment we support the following file formats: YAML, JSON, binary

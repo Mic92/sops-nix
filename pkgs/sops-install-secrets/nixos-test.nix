@@ -23,6 +23,34 @@
    inherit (pkgs) system;
  };
 
+  user-passwords = makeTest {
+    name = "sops-user-passwords";
+    machine = {
+      imports = [ ../../modules/sops ];
+      sops = {
+        age.keyFile = ./test-assets/age-keys.txt;
+        defaultSopsFile = ./test-assets/secrets.yaml;
+        secrets.test_key.neededForUsers = true;
+        secrets."nested/test/file".owner = "example-user";
+      };
+
+      users.users.example-user = {
+        isNormalUser = true;
+        passwordFile = "/run/secrets-for-users/test_key";
+      };
+    };
+
+    testScript = ''
+      start_all()
+      machine.succeed("getent shadow example-user | grep -q :test_value:")  # password was set
+      machine.succeed("cat /run/secrets/nested/test/file | grep -q 'another value'")  # regular secrets work...
+      machine.succeed("[ $(stat -c%U /run/secrets/nested/test/file) = example-user ]")  # ...and are owned
+    '';
+  } {
+    inherit pkgs;
+    inherit (pkgs) system;
+  };
+
  age-keys = makeTest {
    name = "sops-age-keys";
    machine = {
