@@ -5,6 +5,7 @@
     inherit vendorSha256;
   };
 in rec {
+  foo = 1;
   sops-init-gpg-key = pkgs.callPackage ./pkgs/sops-init-gpg-key {};
   sops-pgp-hook = pkgs.lib.warn ''
     sops-pgp-hook is deprecated, use sops-import-keys-hook instead.
