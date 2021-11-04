@@ -795,8 +795,9 @@ example the `drone` secret is exposed as `/run/secrets/drone-server` for
 
 ## Migrate from pass/krops
 
-If you have used [pass](https://www.passwordstore.org) before i.e. in [krops](https://github.com/krebs/krops) than you can use
-the following one-liner to convert all your secrets to a yaml structure.
+If you have used [pass](https://www.passwordstore.org) before i.e. in
+[krops](https://github.com/krebs/krops) than you can use the following one-liner
+to convert all your secrets to a yaml structure.
 
 ```console
 $ for i in *.gpg; do echo "$(basename $i .gpg): |\n$(pass $(dirname $i)/$(basename $i .gpg)| sed 's/^/  /')"; done
