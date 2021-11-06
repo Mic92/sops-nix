@@ -110,6 +110,7 @@ let
       # Does this need to be configurable?
       secretsMountPoint = "/run/secrets.d";
       symlinkPath = "/run/secrets";
+      keepGenerations = cfg.keepGenerations;
       gnupgHome = cfg.gnupg.home;
       sshKeyPaths = cfg.gnupg.sshKeyPaths;
       ageKeyFile = cfg.age.keyFile;
@@ -161,6 +162,14 @@ in {
       description = ''
         Check all sops files at evaluation time.
         This requires sops files to be added to the nix store.
+      '';
+    };
+
+    keepGenerations = mkOption {
+      type = types.ints.unsigned;
+      default = 1;
+      description = ''
+        Number of secrets generations to keep. Setting this to 0 disables pruning.
       '';
     };
 

@@ -51,6 +51,7 @@ type manifest struct {
 	Secrets           []secret      `json:"secrets"`
 	SecretsMountPoint string        `json:"secretsMountPoint"`
 	SymlinkPath       string        `json:"symlinkPath"`
+	KeepGenerations   int           `json:"keepGenerations"`
 	SSHKeyPaths       []string      `json:"sshKeyPaths"`
 	GnupgHome         string        `json:"gnupgHome"`
 	AgeKeyFile        string        `json:"ageKeyFile"`
@@ -554,6 +555,47 @@ func atomicSymlink(oldname, newname string) error {
 	return os.RemoveAll(d)
 }
 
+func pruneGenerations(secretsMountPoint, secretsDir string, keepGenerations int) error {
+	if keepGenerations == 0 {
+		return nil // Nothing to prune
+	}
+
+	// Prepare our failsafe
+	currentGeneration, err := strconv.Atoi(path.Base(secretsDir))
+	if err != nil {
+		return fmt.Errorf("Logic error, current generation is not numeric: %w", err)
+	}
+
+	// Read files in the mount directory
+	file, err := os.Open(secretsMountPoint)
+	if err != nil {
+		return fmt.Errorf("Cannot open %s: %w", secretsMountPoint, err)
+	}
+	defer file.Close()
+
+	generations, err := file.Readdirnames(0)
+	if err != nil {
+		return fmt.Errorf("Cannot read %s: %w", secretsMountPoint, err)
+	}
+	for _, generationName := range generations {
+		generationNum, err := strconv.Atoi(generationName)
+		// Not a number? Not relevant
+		if err != nil {
+			continue
+		}
+		// Not strictly necessary but a good failsafe to
+		// make sure we don't prune the current generation
+		if generationNum == currentGeneration {
+			continue
+		}
+		if currentGeneration-keepGenerations >= generationNum {
+			os.RemoveAll(path.Join(secretsMountPoint, generationName))
+		}
+	}
+
+	return nil
+}
+
 func importSSHKeys(logcfg loggingConfig, keyPaths []string, gpgHome string) error {
 	secringPath := filepath.Join(gpgHome, "secring.gpg")
 
@@ -919,6 +961,9 @@ func installSecrets(args []string) error {
 	}
 	if err := atomicSymlink(*secretDir, manifest.SymlinkPath); err != nil {
 		return fmt.Errorf("Cannot update secrets symlink: %w", err)
+	}
+	if err := pruneGenerations(manifest.SecretsMountPoint, *secretDir, manifest.KeepGenerations); err != nil {
+		return fmt.Errorf("Cannot prune old secrets generations: %w", err)
 	}
 
 	return nil
