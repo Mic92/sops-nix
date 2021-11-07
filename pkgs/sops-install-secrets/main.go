@@ -49,7 +49,7 @@ type loggingConfig struct {
 
 type manifest struct {
 	Secrets           []secret      `json:"secrets"`
-	SecretsMountPoint string        `json:"secretsMountpoint"`
+	SecretsMountPoint string        `json:"secretsMountPoint"`
 	SymlinkPath       string        `json:"symlinkPath"`
 	SSHKeyPaths       []string      `json:"sshKeyPaths"`
 	GnupgHome         string        `json:"gnupgHome"`
@@ -102,14 +102,16 @@ const (
 )
 
 type options struct {
-	checkMode CheckMode
-	manifest  string
+	checkMode    CheckMode
+	manifest     string
+	ignorePasswd bool
 }
 
 type appContext struct {
-	manifest    manifest
-	secretFiles map[string]secretFile
-	checkMode   CheckMode
+	manifest     manifest
+	secretFiles  map[string]secretFile
+	checkMode    CheckMode
+	ignorePasswd bool
 }
 
 func secureSymlinkChown(symlinkToCheck, expectedTarget string, owner, group int) error {
@@ -451,7 +453,10 @@ func (app *appContext) validateSecret(secret *secret) error {
 	}
 	secret.mode = os.FileMode(mode)
 
-	if app.checkMode == Off {
+	if app.ignorePasswd {
+		secret.owner = 0
+		secret.group = 0
+	} else if app.checkMode == Off {
 		// we only access to the user/group during deployment
 		owner, err := user.Lookup(secret.Owner)
 		if err != nil {
@@ -497,12 +502,6 @@ func (app *appContext) validateSecret(secret *secret) error {
 
 func (app *appContext) validateManifest() error {
 	m := &app.manifest
-	if m.SecretsMountPoint == "" {
-		m.SecretsMountPoint = "/run/secrets.d"
-	}
-	if m.SymlinkPath == "" {
-		m.SymlinkPath = "/run/secrets"
-	}
 	if m.GnupgHome != "" {
 		errorFmt := "gnupgHome and %s were specified in the manifest. " +
 			"Both options are mutually exclusive."
@@ -791,6 +790,7 @@ func parseFlags(args []string) (*options, error) {
 	}
 	var checkMode string
 	fs.StringVar(&checkMode, "check-mode", "off", `Validate configuration without installing it (possible values: "manifest","sopsfile","off")`)
+	fs.BoolVar(&opts.ignorePasswd, "ignore-passwd", false, `Don't look up anything in /etc/passwd. Causes everything to be owned by root:root`)
 	if err := fs.Parse(args[1:]); err != nil {
 		return nil, err
 	}
@@ -822,9 +822,10 @@ func installSecrets(args []string) error {
 	}
 
 	app := appContext{
-		manifest:    *manifest,
-		checkMode:   opts.checkMode,
-		secretFiles: make(map[string]secretFile),
+		manifest:     *manifest,
+		checkMode:    opts.checkMode,
+		ignorePasswd: opts.ignorePasswd,
+		secretFiles:  make(map[string]secretFile),
 	}
 
 	if err := app.validateManifest(); err != nil {
@@ -835,9 +836,14 @@ func installSecrets(args []string) error {
 		return nil
 	}
 
-	keysGid, err := lookupKeysGroup()
-	if err != nil {
-		return err
+	var keysGid int
+	if opts.ignorePasswd {
+		keysGid = 0
+	} else {
+		keysGid, err = lookupKeysGroup()
+		if err != nil {
+			return err
+		}
 	}
 
 	isDry := os.Getenv("NIXOS_ACTION") == "dry-activate"
