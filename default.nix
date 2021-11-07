@@ -11,7 +11,6 @@ in rec {
     Also see https://github.com/Mic92/sops-nix/issues/98
   '' pkgs.callPackage ./pkgs/sops-pgp-hook { };
   sops-import-keys-hook = pkgs.callPackage ./pkgs/sops-import-keys-hook { };
-  inherit sops-install-secrets;
 
   # backwards compatibility
   inherit (pkgs) ssh-to-pgp;
@@ -26,8 +25,9 @@ in rec {
       install -D sops-pgp-hook.test $out/bin/sops-pgp-hook.test
     '';
   };
-
   unit-tests = pkgs.callPackage ./unit-tests.nix {};
+} // (pkgs.lib.optionalAttrs pkgs.stdenv.isLinux {
+  inherit sops-install-secrets;
 
   lint = sops-install-secrets.overrideAttrs (old: {
     name = "golangci-lint";
@@ -54,4 +54,4 @@ in rec {
     '';
     fixupPhase = ":";
   });
-}
+})
