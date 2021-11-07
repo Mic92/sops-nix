@@ -7,9 +7,9 @@ steps:
 - name: test
   commands:
   - nix-build -I nixpkgs=https://github.com/NixOS/nixpkgs/archive/nixpkgs-unstable.tar.gz -A sops-install-secrets.tests
-  - nix-build -I nixpkgs=https://github.com/NixOS/nixpkgs/archive/nixos-20.09.tar.gz -A sops-install-secrets.tests
+  - nix-build -I nixpkgs=https://github.com/NixOS/nixpkgs/archive/nixos-21.05.tar.gz -A sops-install-secrets.tests
 ---
 kind: signature
-hmac: 6cd4aeea3ec1f0b37d44edb6db25764fcae5aa68215ffa0a542cb6e47a54cfa5
+hmac: df547336a0317ffe1dd419138c0552b79189c7caf0cc86c98bba9ca5bea22ea9
 
 ...
