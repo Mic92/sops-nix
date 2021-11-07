@@ -54,6 +54,4 @@ in rec {
     '';
     fixupPhase = ":";
   });
-
-# integration tests
-} // pkgs.lib.optionalAttrs (pkgs.stdenv.isLinux) sops-install-secrets.tests
+}
