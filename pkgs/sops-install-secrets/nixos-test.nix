@@ -51,6 +51,47 @@
     inherit (pkgs) system;
   };
 
+  pruning = makeTest {
+    name = "sops-pruning";
+    machine = { lib, ... }: {
+      imports = [ ../../modules/sops ];
+      sops = {
+        age.keyFile = ./test-assets/age-keys.txt;
+        defaultSopsFile = ./test-assets/secrets.yaml;
+        secrets.test_key = {};
+        keepGenerations = lib.mkDefault 0;
+      };
+
+      specialisation.pruning.configuration.sops.keepGenerations = 10;
+    };
+
+    testScript = ''
+      # Force us to generation 100
+      machine.succeed("mkdir /run/secrets.d/{2..99} /run/secrets.d/non-numeric")
+      machine.succeed("ln -fsn /run/secrets.d/99 /run/secrets")
+      machine.succeed("/run/current-system/activate")
+      machine.succeed("test -d /run/secrets.d/100")
+
+      # Ensure nothing is pruned, these are just random numbers
+      machine.succeed("test -d /run/secrets.d/1")
+      machine.succeed("test -d /run/secrets.d/90")
+      machine.succeed("test -d /run/secrets.d/non-numeric")
+
+      machine.succeed("/run/current-system/specialisation/pruning/bin/switch-to-configuration test")
+      print(machine.succeed("ls -la /run/secrets.d/"))
+
+      # Ensure stuff was properly pruned.
+      # We are now at generation 101 so 92 must exist when we keep 10 generations
+      # and 91 must not.
+      machine.fail("test -d /run/secrets.d/91")
+      machine.succeed("test -d /run/secrets.d/92")
+      machine.succeed("test -d /run/secrets.d/non-numeric")
+    '';
+  } {
+    inherit pkgs;
+    inherit (pkgs) system;
+  };
+
  age-keys = makeTest {
    name = "sops-age-keys";
    machine = {
