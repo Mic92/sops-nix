@@ -131,6 +131,13 @@ let
     symlinkPath = "/run/secrets-for-users";
   };
 
+  withEnvironment = sopsCall: if cfg.environment == {} then sopsCall else ''
+    (
+    ${concatStringsSep "\n" (mapAttrsToList (n: v: "  export ${n}='${v}'") cfg.environment)}
+      ${sopsCall}
+    )
+  '';
+
 in {
   options.sops = {
     secrets = mkOption {
@@ -177,6 +184,21 @@ in {
       type = types.listOf (types.enum [ "keyImport" "secretChanges" ]);
       default = [ "keyImport" "secretChanges" ];
       description = "What to log";
+    };
+
+    environment = mkOption {
+      type = types.attrsOf types.str;
+      default = {};
+      description = ''
+        Environment variables to set before calling sops-install-secrets.
+
+        The values are placed in single quotes and not escaped any further to
+        allow usage of command substitutions for more flexibility. To properly quote
+        strings with quotes use lib.escapeShellArg.
+
+        This will be evaluated twice when using secrets that use neededForUsers but
+        in a subshell each time so the environment variables don't collide.
+      '';
     };
 
     age = {
@@ -256,10 +278,12 @@ in {
       }]) cfg.secrets)
     );
 
+    sops.environment.SOPS_GPG_EXEC = mkIf (cfg.gnupg.home != null) (mkDefault "${pkgs.gnupg}/bin/gpg");
+
     system.activationScripts = {
       setupSecretsForUsers = mkIf (secretsForUsers != {}) (stringAfter ([ "specialfs" ] ++ optional cfg.age.generateKey "generate-age-key") ''
         [ -e /run/current-system ] || echo setting up secrets for users...
-        ${optionalString (cfg.gnupg.home != null) "SOPS_GPG_EXEC=${pkgs.gnupg}/bin/gpg"} ${sops-install-secrets}/bin/sops-install-secrets -ignore-passwd ${manifestForUsers}
+        ${withEnvironment "${sops-install-secrets}/bin/sops-install-secrets -ignore-passwd ${manifestForUsers}"}
       '' // lib.optionalAttrs (config.system ? dryActivationScript) {
         supportsDryActivation = true;
       });
@@ -270,7 +294,7 @@ in {
 
       setupSecrets = mkIf (regularSecrets != {}) (stringAfter ([ "specialfs" "users" "groups" ] ++ optional cfg.age.generateKey "generate-age-key") ''
         [ -e /run/current-system ] || echo setting up secrets...
-        ${optionalString (cfg.gnupg.home != null) "SOPS_GPG_EXEC=${pkgs.gnupg}/bin/gpg"} ${sops-install-secrets}/bin/sops-install-secrets ${manifest}
+        ${withEnvironment "${sops-install-secrets}/bin/sops-install-secrets ${manifest}"}
       '' // lib.optionalAttrs (config.system ? dryActivationScript) {
         supportsDryActivation = true;
       });
