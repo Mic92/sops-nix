@@ -32,6 +32,7 @@
         defaultSopsFile = ./test-assets/secrets.yaml;
         secrets.test_key.neededForUsers = true;
         secrets."nested/test/file".owner = "example-user";
+        remountReadOnly = true;
       };
 
       users.users.example-user = {
@@ -65,6 +66,7 @@
         defaultSopsFile = ./test-assets/secrets.yaml;
         secrets.test_key = { };
         keepGenerations = lib.mkDefault 0;
+        remountReadOnly = true;
       };
 
       specialisation.pruning.configuration.sops.keepGenerations = 10;
@@ -72,10 +74,12 @@
 
     testScript = ''
       # Force us to generation 100
+      machine.succeed("mount -o remount,rw /run/secrets.d")
       machine.succeed("mkdir /run/secrets.d/{2..99} /run/secrets.d/non-numeric")
       machine.succeed("ln -fsn /run/secrets.d/99 /run/secrets")
       machine.succeed("/run/current-system/activate")
       machine.succeed("test -d /run/secrets.d/100")
+      machine.succeed("mount -o remount,ro /run/secrets.d")
 
       # Ensure nothing is pruned, these are just random numbers
       machine.succeed("test -d /run/secrets.d/1")
@@ -105,6 +109,7 @@
         age.keyFile = ./test-assets/age-keys.txt;
         defaultSopsFile = ./test-assets/secrets.yaml;
         secrets.test_key = { };
+        remountReadOnly = true;
       };
     };
 
@@ -134,6 +139,7 @@
           keyFile = "/tmp/testkey";
           generateKey = true;
         };
+        remountReadOnly = true;
       };
     };
 
@@ -210,6 +216,7 @@
       sops = {
         age.keyFile = ./test-assets/age-keys.txt;
         defaultSopsFile = ./test-assets/secrets.yaml;
+        remountReadOnly = true;
         secrets.test_key = {
           restartUnits = [ "restart-unit.service" "reload-unit.service" ];
           reloadUnits = [ "reload-trigger.service" ];
@@ -257,7 +264,9 @@
       machine.fail("test -f /reloaded")
 
       # Ensure the secret is changed
+      machine.succeed("mount -o remount,rw /run/secrets.d")
       machine.succeed(": > /run/secrets/test_key")
+      machine.succeed("mount -o remount,ro /run/secrets.d")
 
       # The secret is changed, now something should happen
       machine.succeed("/run/current-system/bin/switch-to-configuration test")
@@ -266,25 +275,31 @@
       machine.succeed("test -f /restarted")
       machine.succeed("test -f /reloaded")
 
+      # We don't remount read-only in this subtest to ensure this also works
       with subtest("change detection"):
+         machine.succeed("mount -o remount,rw /run/secrets.d")
          machine.succeed("rm /run/secrets/test_key")
          out = machine.succeed("/run/current-system/bin/switch-to-configuration test")
          if "adding secret" not in out:
              raise Exception("Addition detection does not work")
 
+         machine.succeed("mount -o remount,rw /run/secrets.d")
          machine.succeed(": > /run/secrets/test_key")
          out = machine.succeed("/run/current-system/bin/switch-to-configuration test")
          if "modifying secret" not in out:
              raise Exception("Modification detection does not work")
 
+         machine.succeed("mount -o remount,rw /run/secrets.d")
          machine.succeed(": > /run/secrets/another_key")
          out = machine.succeed("/run/current-system/bin/switch-to-configuration test")
          if "removing secret" not in out:
              raise Exception("Removal detection does not work")
 
       with subtest("dry activation"):
+          machine.succeed("mount -o remount,rw /run/secrets.d")
           machine.succeed("rm /run/secrets/test_key")
           machine.succeed(": > /run/secrets/another_key")
+          machine.succeed("mount -o remount,ro /run/secrets.d")
           out = machine.succeed("/run/current-system/bin/switch-to-configuration dry-activate")
           if "would add secret" not in out:
               raise Exception("Dry addition detection does not work")
@@ -299,7 +314,9 @@
           machine.succeed("rm /restarted /reloaded")
           machine.fail("test -f /run/secrets/another_key")
 
+          machine.succeed("mount -o remount,rw /run/secrets.d")
           machine.succeed(": > /run/secrets/test_key")
+          machine.succeed("mount -o remount,ro /run/secrets.d")
           out = machine.succeed("/run/current-system/bin/switch-to-configuration dry-activate")
           if "would modify secret" not in out:
               raise Exception("Dry modification detection does not work")

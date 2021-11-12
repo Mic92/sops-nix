@@ -314,18 +314,38 @@ func mountSecretFs(mountpoint string, keysGid int) error {
 		return fmt.Errorf("Cannot create directory '%s': %w", mountpoint, err)
 	}
 
+	var mountFlags uintptr = unix.MS_NODEV | unix.MS_NOSUID
 	buf := unix.Statfs_t{}
 	if err := unix.Statfs(mountpoint, &buf); err != nil {
 		return fmt.Errorf("Cannot get statfs for directory '%s': %w", mountpoint, err)
 	}
 	if int32(buf.Type) != RAMFS_MAGIC {
-		if err := unix.Mount("none", mountpoint, "ramfs", unix.MS_NODEV|unix.MS_NOSUID, "mode=0751"); err != nil {
+		if err := unix.Mount("none", mountpoint, "ramfs", mountFlags, "mode=0751"); err != nil {
 			return fmt.Errorf("Cannot mount: %s", err)
+		}
+	} else if (buf.Flags & unix.MS_RDONLY) == unix.MS_RDONLY {
+		if err := unix.Mount("none", mountpoint, "ramfs", mountFlags|unix.MS_REMOUNT, ""); err != nil {
+			return fmt.Errorf("Cannot mount as read/write: %s", err)
 		}
 	}
 
 	if err := os.Chown(mountpoint, 0, int(keysGid)); err != nil {
 		return fmt.Errorf("Cannot change owner/group of '%s' to 0/%d: %w", mountpoint, keysGid, err)
+	}
+
+	return nil
+}
+
+func remountSecretFsRo(mountpoint string) error {
+	buf := unix.Statfs_t{}
+	if err := unix.Statfs(mountpoint, &buf); err != nil {
+		return fmt.Errorf("Cannot get statfs for directory '%s': %w", mountpoint, err)
+	}
+	if int32(buf.Type) != RAMFS_MAGIC {
+		return nil // Weird
+	}
+	if err := unix.Mount("", mountpoint, "ramfs", uintptr(buf.Flags|unix.MS_RDONLY|unix.MS_REMOUNT), ""); err != nil {
+		return fmt.Errorf("Cannot mount as readonly: %s", err)
 	}
 
 	return nil
@@ -905,8 +925,9 @@ func installSecrets(args []string) error {
 		return fmt.Errorf("Failed to mount filesystem for secrets: %w", err)
 	}
 
+	var keyring *keyring
 	if len(manifest.SSHKeyPaths) != 0 {
-		keyring, err := setupGPGKeyring(manifest.Logging, manifest.SSHKeyPaths, manifest.SecretsMountPoint)
+		keyring, err = setupGPGKeyring(manifest.Logging, manifest.SSHKeyPaths, manifest.SecretsMountPoint)
 		if err != nil {
 			return fmt.Errorf("Error setting up gpg keyring: %w", err)
 		}
@@ -947,10 +968,14 @@ func installSecrets(args []string) error {
 				return fmt.Errorf("Cannot write key to age file: %w", err)
 			}
 		}
+		ageFile.Close()
 	}
 
 	if err := decryptSecrets(manifest.Secrets); err != nil {
 		return err
+	}
+	if len(manifest.SSHKeyPaths) != 0 {
+		keyring.Remove()
 	}
 
 	secretDir, err := prepareSecretsDir(manifest.SecretsMountPoint, manifest.SymlinkPath, keysGid)
@@ -963,8 +988,11 @@ func installSecrets(args []string) error {
 	if err := handleModifications(isDry, manifest.Logging, manifest.SymlinkPath, *secretDir, manifest.Secrets); err != nil {
 		return fmt.Errorf("Cannot request units to restart: %w", err)
 	}
-	// No need to perform the actual symlinking
+	// No need to perform the actual symlinking, just remount as readonly
 	if isDry {
+		if err := remountSecretFsRo(manifest.SecretsMountPoint); err != nil {
+			return fmt.Errorf("Cannot remount secrets as readonly: %w", err)
+		}
 		return nil
 	}
 	if err := symlinkSecrets(manifest.SymlinkPath, manifest.Secrets); err != nil {
@@ -975,6 +1003,9 @@ func installSecrets(args []string) error {
 	}
 	if err := pruneGenerations(manifest.SecretsMountPoint, *secretDir, manifest.KeepGenerations); err != nil {
 		return fmt.Errorf("Cannot prune old secrets generations: %w", err)
+	}
+	if err := remountSecretFsRo(manifest.SecretsMountPoint); err != nil {
+		return fmt.Errorf("Cannot remount secrets as readonly: %w", err)
 	}
 
 	return nil
