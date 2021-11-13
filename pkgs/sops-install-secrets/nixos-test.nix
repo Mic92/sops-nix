@@ -25,7 +25,7 @@
 
   user-passwords = makeTest {
     name = "sops-user-passwords";
-    machine = {
+    machine = { config, ... }: {
       imports = [ ../../modules/sops ];
       sops = {
         age.keyFile = ./test-assets/age-keys.txt;
@@ -36,7 +36,7 @@
 
       users.users.example-user = {
         isNormalUser = true;
-        passwordFile = "/run/secrets-for-users/test_key";
+        passwordFile = config.sops.secrets.test_key.path;
       };
     };
 
@@ -44,7 +44,12 @@
       start_all()
       machine.succeed("getent shadow example-user | grep -q :test_value:")  # password was set
       machine.succeed("cat /run/secrets/nested/test/file | grep -q 'another value'")  # regular secrets work...
-      machine.succeed("[ $(stat -c%U /run/secrets/nested/test/file) = example-user ]")  # ...and are owned
+      machine.succeed("[ $(stat -c%U /run/secrets/nested/test/file) = example-user ]")  # ...and are owned...
+      machine.succeed("cat /run/secrets-for-users/test_key | grep -q 'test_value'")  # the user password still exists
+
+      machine.succeed("/run/current-system/bin/switch-to-configuration test")
+      machine.succeed("cat /run/secrets/nested/test/file | grep -q 'another value'")  # the regular secrets still work after a switch
+      machine.succeed("cat /run/secrets-for-users/test_key | grep -q 'test_value'")  # the user password is still present after a switch
     '';
   } {
     inherit pkgs;

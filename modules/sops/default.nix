@@ -127,7 +127,7 @@ let
 
   manifest = manifestFor "" regularSecrets {};
   manifestForUsers = manifestFor "-for-users" secretsForUsers {
-    secretsMountPoint = "/run/secrets.d/users";
+    secretsMountPoint = "/run/secrets-for-users.d";
     symlinkPath = "/run/secrets-for-users";
   };
 
