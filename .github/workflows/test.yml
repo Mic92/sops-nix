@@ -14,10 +14,9 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
     - uses: actions/checkout@v2
-    - uses: cachix/install-nix-action@v14
+    - uses: cachix/install-nix-action@v15
       with:
         nix_path: "${{ matrix.nixPath }}"
-        extra_nix_config: "system-features = nixos-test benchmark big-parallel kvm"
     - name: Setup cachix
       uses: cachix/cachix-action@v10
       with:
@@ -29,6 +28,11 @@ jobs:
     - name: Run lint
       run: nix-build --no-out-link default.nix -A lint
       if: matrix.os == 'ubuntu-latest'
+    - name: List flake structure
+      run: nix flake show
+    - name: Run flake check (flake)
+      run: nix flake check -L
+    # this should be the same as `nix flake check`
     - name: Build nix packages
       run: nix-build --no-out-link release.nix
     - name: Run unit tests
