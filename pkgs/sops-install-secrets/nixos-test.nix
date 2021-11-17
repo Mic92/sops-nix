@@ -87,7 +87,6 @@
       machine.succeed("test -d /run/secrets.d/non-numeric")
 
       machine.succeed("/run/current-system/specialisation/pruning/bin/switch-to-configuration test")
-      print(machine.succeed("ls -la /run/secrets.d/"))
 
       # Ensure stuff was properly pruned.
       # We are now at generation 101 so 92 must exist when we keep 10 generations
