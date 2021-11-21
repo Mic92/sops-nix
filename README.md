@@ -7,19 +7,21 @@ Atomic, declarative, and reproducible secret provisioning for NixOS based on [so
 ## How it works
 
 Secrets are decrypted from [`sops` files](https://github.com/mozilla/sops#2usage) during
-activation time. The secrets are access-controlled by by full declarative configuration of their users, permissions, and groups.
-It can use `age`, GPG, or SSH keys for decryption. 
-In the future, we will also support cloud key management APIs such as AWS
-KMS, GCP KMS, Azure Key Vault and Hashicorp Vault.
+activation time. The secrets are stored as one secret per file and access-controlled by full declarative configuration of their users, permissions, and groups.
+GPG keys or `age` keys can be used for decryption, and compatibility shims are supported to enable the use of SSH RSA or SSH Ed25519 keys.
+Sops also supports cloud key management APIs such as AWS
+KMS, GCP KMS, Azure Key Vault and Hashicorp Vault. While not
+officially supported by sops-nix yet, these can be controlled using
+environment variables that can be passed to sops.
 
 ## Features
 
 - Compatible with all NixOS deployment frameworks: [NixOps](https://github.com/NixOS/nixops), nixos-rebuild, [krops](https://github.com/krebs/krops/), [morph](https://github.com/DBCDK/morph), [nixus](https://github.com/Infinisil/nixus), etc.
-- Version-control friendly: Since all files are encrypted they can directly committed to version control without worry. Diffs of the secrets are readable, and [can be shown in cleartext](https://github.com/mozilla/sops#showing-diffs-in-cleartext-in-git).
+- Version-control friendly: Since all files are encrypted they can be directly committed to version control without worry. Diffs of the secrets are readable, and [can be shown in cleartext](https://github.com/mozilla/sops#showing-diffs-in-cleartext-in-git).
 - CI friendly: Since sops files can be added to the Nix store without leaking secrets, a machine definition can be built as a whole from a repository, without needing to rely on external secrets or services.
-- Works well in teams: sops-nix comes with `nix-shell` hooks that allows multiple people to quickly import all keys.
+- Works well in teams: sops-nix comes with `nix-shell` hooks that allows multiple people to quickly import all GPG keys.
   The cryptography used in sops is designed to be scalable: Secrets are only encrypted once with a master key
-  instead of each machine/developer key.
+  instead of encrypted per machine/developer key.
 - Atomic upgrades: New secrets are written to a new directory which replaces the old directory atomically.
 - Rollback support: If sops files are added to the Nix store, old secrets can be rolled back. This is optional.
 - Fast time-to-deploy: Unlike solutions implemented by NixOps, krops and morph, no extra steps are required to upload secrets.
@@ -32,83 +34,24 @@ There is a `configuration.nix` example in the [deployment step](#deploy-example)
 
 ## Supported encryption methods
 
-sops-nix supports two basic ways of encryption, GPG and age. 
+sops-nix supports two basic ways of encryption, GPG and `age`. 
 
 GPG is based on [GnuPG](https://gnupg.org/) and encrypts against GPG public keys. Private GPG keys may
 be used to decrypt the secrets on the target machine. The tool [`ssh-to-pgp`](https://github.com/Mic92/ssh-to-pgp) can
 be used to derive a GPG key from a SSH (host) key in RSA format.
 
-The other method is age which is based on [age](https://github.com/FiloSottile/age).
+The other method is `age` which is based on [`age`](https://github.com/FiloSottile/age).
 The tool ([`ssh-to-age`](https://github.com/Mic92/ssh-to-age)) can convert SSH host or user keys in Ed25519
-format to age keys.
+format to `age` keys.
 
 ## Usage example
 
 <details>
-<summary><b>1. Install nix-sops</b></summary>
+<summary><b>1. Install sops-nix</b></summary>
 
 Choose one of the following methods:
 
-#### [niv](https://github.com/nmattia/niv) (Current recommendation)
-  First add it to niv:
-  
-```console
-$ niv add Mic92/sops-nix
-```
-
-  Then add the following to your `configuration.nix` in the `imports` list:
-  
-```nix
-{
-  imports = [ "${(import ./nix/sources.nix).sops-nix}/modules/sops" ];
-}
-```
-  
-#### nix-channel
-
-  As root run:
-  
-```console
-$ nix-channel --add https://github.com/Mic92/sops-nix/archive/master.tar.gz sops-nix
-$ nix-channel --update
-```
-  
-  Then add the following to your `configuration.nix` in the `imports` list:
-  
-```nix
-{
-  imports = [ <sops-nix/modules/sops> ];
-}
-```
-
-#### fetchTarball
-
-  Add the following to your `configuration.nix`:
-
-``` nix
-{
-  imports = [ "${builtins.fetchTarball "https://github.com/Mic92/sops-nix/archive/master.tar.gz"}/modules/sops" ];
-}
-```
-  
-  or with pinning:
-  
-```nix
-{
-  imports = let
-    # replace this with an actual commit id or tag
-    commit = "298b235f664f925b433614dc33380f0662adfc3f";
-  in [ 
-    "${builtins.fetchTarball {
-      url = "https://github.com/Mic92/sops-nix/archive/${commit}.tar.gz";
-      # replace this with an actual hash
-      sha256 = "0000000000000000000000000000000000000000000000000000";
-    }}/modules/sops"
-  ];
-}
-```
-  
-#### Flakes
+#### Flakes (current recommendation)
 
 If you use experimental nix flakes support:
 
@@ -132,6 +75,65 @@ If you use experimental nix flakes support:
 }
 ```
 
+#### [`niv`](https://github.com/nmattia/niv) (recommended if not using flakes)
+  First add it to niv:
+  
+```console
+$ niv add Mic92/sops-nix
+```
+
+  Then add the following to your `configuration.nix` in the `imports` list:
+  
+```nix
+{
+  imports = [ "${(import ./nix/sources.nix).sops-nix}/modules/sops" ];
+}
+```
+  
+#### `nix-channel`
+
+  As root run:
+  
+```console
+$ nix-channel --add https://github.com/Mic92/sops-nix/archive/master.tar.gz sops-nix
+$ nix-channel --update
+```
+  
+  Then add the following to your `configuration.nix` in the `imports` list:
+  
+```nix
+{
+  imports = [ <sops-nix/modules/sops> ];
+}
+```
+
+#### `fetchTarball`
+
+  Add the following to your `configuration.nix`:
+
+``` nix
+{
+  imports = [ "${builtins.fetchTarball "https://github.com/Mic92/sops-nix/archive/master.tar.gz"}/modules/sops" ];
+}
+```
+  
+or with pinning:
+  
+```nix
+{
+  imports = let
+    # replace this with an actual commit id or tag
+    commit = "298b235f664f925b433614dc33380f0662adfc3f";
+  in [ 
+    "${builtins.fetchTarball {
+      url = "https://github.com/Mic92/sops-nix/archive/${commit}.tar.gz";
+      # replace this with an actual hash
+      sha256 = "0000000000000000000000000000000000000000000000000000";
+    }}/modules/sops"
+  ];
+}
+```
+  
 </details>
 
 <details>
@@ -161,7 +163,7 @@ $ nix-shell -p gnupg -p ssh-to-pgp --run "ssh-to-pgp -private-key -i $HOME/.ssh/
 $ nix-shell -p ssh-to-pgp --run "ssh-to-pgp -i $HOME/.ssh/id_rsa -o $USER.asc"
 2504791468b153b8a3963cc97ba53d1919c5dfd4
 ```
-(Note that `ssh-to-pgp` currently only supports RSA keys.)  
+(Note that `ssh-to-pgp` only supports RSA keys; to use Ed25519 keys, use `age`.)  
 If you get the following,
 ```console
 ssh-to-pgp: failed to parse private ssh key: ssh: this private key is passphrase protected
@@ -174,18 +176,18 @@ $ nix-shell -p gnupg -p ssh-to-pgp --run "ssh-to-pgp -private-key -i /tmp/id_rsa
 $ rm /tmp/id_rsa
 ```
 
-You can also use your existing SSH key as an age key.
+You can also use an existing SSH Ed25519 key as an `age` key; to do so, see the following.
 
 <details>
-<summary> How to find the age public key </summary>
+<summary> How to find the public key of an `age` key </summary>
 
-If you generated an age key, the age public key can be found via `age-keygen -y $PATH_TO_KEY`:
+If you generated an `age` key, the `age` public key can be found via `age-keygen -y $PATH_TO_KEY`:
 ```console
 $ age-keygen -y ~/.config/sops/age/keys.txt
 age12zlz6lvcdk6eqaewfylg35w0syh58sm7gh53q5vvn7hd7c6nngyseftjxl
 ```
 
-Otherwise, you can convert an existing SSH key into an age public key:
+Otherwise, you can convert an existing SSH key into an `age` public key:
 ```console
 $ nix-shell -p ssh-to-age --run "ssh-to-age < ~/.ssh/id_ed25519.pub"
 # or
@@ -224,7 +226,7 @@ uid           [ unknown] root <root@localhost>
 The fingerprint here is `9F89C5F69A10281A835014B09C3DC61F752087EF`.
 </details>
 
-Your age public key or GPG fingerprint can written to your [`.sops.yaml`](https://github.com/mozilla/sops#using-sops-YAML-conf-to-select-kms-pgp-for-new-files) in the root of your configuration directory or repository:
+Your `age` public key or GPG fingerprint can written to your [`.sops.yaml`](https://github.com/mozilla/sops#using-sops-YAML-conf-to-select-kms-pgp-for-new-files) in the root of your configuration directory or repository:
 ```yaml
 # This example uses YAML anchors which allows reuse of multiple keys 
 # without having to repeat yourself.
@@ -247,9 +249,9 @@ creation_rules:
 <details>
 <summary><b>3. Get a public key for your target machine</b></summary>
 
-The easiest way to add new machines is using SSH host keys (this requires OpenSSH to be enabled).  
+The easiest way to add new machines is by using SSH host keys (this requires OpenSSH to be enabled).  
 
-If you are using age, the `ssh-to-age` tool can be used to convert any SSH public key to the age format:
+If you are using `age`, the `ssh-to-age` tool can be used to convert any SSH Ed25519 public key to the `age` format:
 ```console
 $ nix-shell -p ssh-to-age --run 'ssh-keyscan my-server.com | ssh-to-age'
 age1rgffpespcyjn0d8jglk7km9kfrfhdyev6camd3rck6pn8y47ze4sug23v3
@@ -257,8 +259,7 @@ $ nix-shell -p ssh-to-age --run 'cat /etc/ssh/ssh_host_ed25519_key.pub | ssh-to-
 age1rgffpespcyjn0d8jglk7km9kfrfhdyev6camd3rck6pn8y47ze4sug23v3
 ```
 
-For GPG, since sops does not natively support SSH keys yet, nix-sops supports a conversion tool (`ssh-to-pgp`)
-to store them as GPG keys:
+For GPG, since sops does not natively support SSH keys yet, sops-nix supports a conversion tool (`ssh-to-pgp`) to store them as GPG keys:
 
 ```console
 $ ssh root@server01 "cat /etc/ssh/ssh_host_rsa_key" | nix-shell -p ssh-to-pgp --run "ssh-to-pgp -o server01.asc"
@@ -344,7 +345,7 @@ mkShell {
   # $ (unset GNUPGHOME; gpg --armor --export-secret-key 0000000000000000000000000000000000000000) | gpg --import
   #sopsCreateGPGHome = true;
   # To use a different directory for gpg dirs set sopsGPGHome
-  #sopsGPGHome = "${toString ./.}/../GnuPG";
+  #sopsGPGHome = "${toString ./.}/../gnupg";
   
   nativeBuildInputs = [
     (pkgs.callPackage sops-nix {}).sops-import-keys-hook
@@ -577,7 +578,7 @@ This logic respects units that prefer to be reloaded or not to be restarted at a
 ## Symlinks to other directories
 
 Some services might expect files in certain locations.
-Using the `path` option as symlink to this directory can
+Using the `path` option a symlink to this directory can
 be created:
 
 ```nix
@@ -617,23 +618,7 @@ As users are not created yet, it's not possible to set an owner for these secret
 
 At the moment we support the following file formats: YAML, JSON, and binary.
 
-NOTE: At the moment we do not support nested data structures that
-sops support. This might change in the future.
-
-We support the following YAML:
-
-```yaml
-key: 1
-```
-
-but not:
-
-```yaml
-nested: 
-  key: 1
-```
-
-nix-sops allows to specify multiple sops files in different file formats:
+sops-nix allows specifying multiple sops files in different file formats:
 
 ```nix
 {
@@ -641,7 +626,7 @@ nix-sops allows to specify multiple sops files in different file formats:
   # The default sops file used for all secrets can be controlled using `sops.defaultSopsFile`
   sops.defaultSopsFile = ./secrets.yaml;
   # If you use something different from YAML, you can also specify it here:
-  #sops.defaultSopsFormat = "YAML";
+  #sops.defaultSopsFormat = "yaml";
   sops.secrets.github_token = {
     # The sops file can be also overwritten per secret...
     sopsFile = ./other-secrets.json;
@@ -659,11 +644,10 @@ Open a new file with sops ending in `.yaml`:
 $ sops secrets.yaml
 ```
 
-Than put in the following content:
+Then, put in the following content:
 
 ```yaml
 github_token: 4a6c73f74928a9c4c4bc47379256b72e598e2bd3
-# multi-line strings in YAML start with an |
 ssh_key: |
   -----BEGIN OPENSSH PRIVATE KEY-----
   b3BlbnNzaC1rZXktdjEAAAAABG5vbmUAAAAEbm9uZQAAAAAAAAABAAAAMwAAAAtzc2gtZW
@@ -680,9 +664,9 @@ You can include it like this in your `configuration.nix`:
 {
   sops.defaultSopsFile = ./secrets.yaml;
   # YAML is the default 
-  #sops.defaultSopsFormat = "YAML";
+  #sops.defaultSopsFormat = "yaml";
   sops.secrets.github_token = {
-    format = "YAML";
+    format = "yaml";
     # can be also set per secret
     sopsFile = ./secrets.yaml;
   };
@@ -697,7 +681,7 @@ Open a new file with sops ending in `.json`:
 $ sops secrets.json
 ```
 
-Than put in the following content:
+Then, put in the following content:
 
 ``` json
 {
@@ -723,14 +707,14 @@ You can include it like this in your `configuration.nix`:
 
 ### Binary
 
-Unlike the other two formats for binaries one file correspond to one secret.
 This format allows to encrypt an arbitrary binary format that can't be put into
-JSON/YAML files.
+JSON/YAML files. Unlike the other two formats, for binary files, one file corresponds to one secret.
 
 To encrypt an binary file use the following command:
 
 ``` console
 $ sops -e /tmp/krb5.keytab > krb5.keytab
+# an example of what this might result in:
 $ head krb5.keytab
 {
         "data": "ENC[AES256_GCM,data:bIsPHrjrl9wxvKMcQzaAbS3RXCI2h8spw2Ee+KYUTsuousUBU6OMIdyY0wqrX3eh/1BUtl8H9EZciCTW29JfEJKfi3ackGufBH+0wp6vLg7r,iv:TlKiOmQUeH3+NEdDUMImg1XuXg/Tv9L6TmPQrraPlCQ=,tag:dVeVvRM567NszsXKK9pZvg==,type:str]",
@@ -769,8 +753,8 @@ If you prefer having a separate GPG key, sops-nix also comes with a helper tool,
 ```console
 $ nix-shell -p sops-init-gpg-key
 $ sops-init-gpg-key --hostname server01 --gpghome /tmp/newkey
-You can use the following command to save it to a file:
-cat > server01.asc <<EOF
+# You can use the following command to save it to a file:
+$ cat > server01.asc <<EOF
 -----BEGIN PGP PUBLIC KEY BLOCK-----
 
 mQENBF8L/iQBCACroEaUfvPBMMorNepNQmideOtNztALejgEJ5wZmxabck+qC1Gb
@@ -790,7 +774,7 @@ CkjjwEvD5MYdGDE=
 =uvIf
 -----END PGP PUBLIC KEY BLOCK-----
 EOF
-fingerprint: E4CA86768F176AEB6C01554153AF8D7F149613B1
+# fingerprint: E4CA86768F176AEB6C01554153AF8D7F149613B1
 ```
 
 In this case, you must upload the GPG key directory `/tmp/newkey` onto the server.
@@ -816,7 +800,7 @@ more stable and predictable solution go with SSH keys or one of the KMS services
 Secrets can be shared between different users by creating different files
 pointing to the same sops key but with different permissions. In the following
 example the `drone` secret is exposed as `/run/secrets/drone-server` for
-`drone-server` and as `/run/secrets/drone-agent` for `drone-agent`
+`drone-server` and as `/run/secrets/drone-agent` for `drone-agent`:
 
 ```nix
 {
@@ -833,8 +817,8 @@ example the `drone` secret is exposed as `/run/secrets/drone-server` for
 
 ## Migrate from pass/krops
 
-If you have used [pass](https://www.passwordstore.org) before i.e. in
-[krops](https://github.com/krebs/krops) than you can use the following one-liner
+If you have used [pass](https://www.passwordstore.org) before (e.g. in
+[krops](https://github.com/krebs/krops)) than you can use the following one-liner
 to convert all your secrets to a YAML structure:
 
 ```console
