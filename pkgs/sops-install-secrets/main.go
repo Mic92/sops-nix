@@ -991,7 +991,7 @@ func installSecrets(args []string) error {
 	// No need to perform the actual symlinking, just remount as readonly
 	if isDry {
 		if err := ensureSecretFs(manifest.SecretsMountPoint, true, keysGid); err != nil {
-			return fmt.Errorf("Cannot remount secrets as readonly: %w", err)
+			fmt.Printf("warning: cannot remount the secrets readonly (maybe blocked by a process?): %s\n", err)
 		}
 		return nil
 	}
@@ -1005,7 +1005,7 @@ func installSecrets(args []string) error {
 		return fmt.Errorf("Cannot prune old secrets generations: %w", err)
 	}
 	if err := ensureSecretFs(manifest.SecretsMountPoint, true, keysGid); err != nil {
-		return fmt.Errorf("Cannot remount secrets as readonly: %w", err)
+		fmt.Printf("warning: cannot remount the secrets readonly (maybe blocked by a process?): %s\n", err)
 	}
 
 	return nil
