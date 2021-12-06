@@ -6,3 +6,4 @@ build-job:
   script:
     - nix-build -I nixpkgs=https://github.com/NixOS/nixpkgs/archive/nixpkgs-unstable.tar.gz -A sops-install-secrets.tests
     - nix-build -I nixpkgs=https://github.com/NixOS/nixpkgs/archive/nixos-21.05.tar.gz -A sops-install-secrets.tests
+    - nix-build -I nixpkgs=https://github.com/NixOS/nixpkgs/archive/nixos-21.11.tar.gz -A sops-install-secrets.tests
