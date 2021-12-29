@@ -137,7 +137,12 @@ let
       ${sopsCall}
     )
   '';
-
+  # Skip ssh keys deployed with sops to avoid a catch 22
+  defaultImportKeys = algo:
+    if config.services.openssh.enable then
+      map (e: e.path) (lib.filter (e: e.type == algo && !(lib.hasPrefix "/run/secrets" e.path)) config.services.openssh.hostKeys)
+    else
+      [];
 in {
   options.sops = {
     secrets = mkOption {
@@ -223,7 +228,7 @@ in {
 
       sshKeyPaths = mkOption {
         type = types.listOf types.path;
-        default = if config.services.openssh.enable then map (e: e.path) (lib.filter (e: e.type == "ed25519") config.services.openssh.hostKeys) else [];
+        default = defaultImportKeys "ed25519";
         description = ''
           Paths to ssh keys added as age keys during sops description.
         '';
@@ -242,9 +247,7 @@ in {
 
       sshKeyPaths = mkOption {
         type = types.listOf types.path;
-        default = if config.services.openssh.enable then
-                    map (e: e.path) (lib.filter (e: e.type == "rsa") config.services.openssh.hostKeys)
-                  else [];
+        default = defaultImportKeys "rsa";
         description = ''
           Path to ssh keys added as GPG keys during sops description.
           This option must be explicitly unset if <literal>config.sops.gnupg.sshKeyPaths</literal> is set.
