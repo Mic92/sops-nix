@@ -311,5 +311,10 @@ in {
         fi
       '');
     };
+
+    system.build =
+      (optionalAttrs (secretsForUsers != {}) { sops-nix-users-manifest = manifestForUsers; }) //
+      (optionalAttrs (regularSecrets != {}) { sops-nix-manifest = manifest; });
+
   };
 }
