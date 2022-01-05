@@ -259,62 +259,65 @@ in {
     (mkRenamedOptionModule [ "sops" "gnupgHome" ] [ "sops" "gnupg" "home" ])
     (mkRenamedOptionModule [ "sops" "sshKeyPaths" ] [ "sops" "gnupg" "sshKeyPaths" ])
   ];
-  config = mkIf (cfg.secrets != {}) {
-    assertions = [{
-      assertion = cfg.gnupg.home != null || cfg.gnupg.sshKeyPaths != [] || cfg.age.keyFile != null || cfg.age.sshKeyPaths != [];
-      message = "No key source configurated for sops";
-    } {
-      assertion = !(cfg.gnupg.home != null && cfg.gnupg.sshKeyPaths != []);
-      message = "Exactly one of sops.gnupg.home and sops.gnupg.sshKeyPaths must be set";
-    } {
-      assertion = (filterAttrs (_: v: v.owner != "root" || v.group != "root") secretsForUsers) == {};
-      message = "neededForUsers cannot be used for secrets that are not root-owned";
-    }] ++ optionals cfg.validateSopsFiles (
-      concatLists (mapAttrsToList (name: secret: [{
-        assertion = builtins.pathExists secret.sopsFile;
-        message = "Cannot find path '${secret.sopsFile}' set in sops.secrets.${strings.escapeNixIdentifier name}.sopsFile";
+  config = mkMerge [
+    (mkIf (cfg.secrets != {}) {
+      assertions = [{
+        assertion = cfg.gnupg.home != null || cfg.gnupg.sshKeyPaths != [] || cfg.age.keyFile != null || cfg.age.sshKeyPaths != [];
+        message = "No key source configurated for sops";
       } {
-        assertion =
-          builtins.isPath secret.sopsFile ||
-          (builtins.isString secret.sopsFile && hasPrefix builtins.storeDir secret.sopsFile);
-        message = "'${secret.sopsFile}' is not in the Nix store. Either add it to the Nix store or set sops.validateSopsFiles to false";
-      }]) cfg.secrets)
-    );
+        assertion = !(cfg.gnupg.home != null && cfg.gnupg.sshKeyPaths != []);
+        message = "Exactly one of sops.gnupg.home and sops.gnupg.sshKeyPaths must be set";
+      } {
+        assertion = (filterAttrs (_: v: v.owner != "root" || v.group != "root") secretsForUsers) == {};
+        message = "neededForUsers cannot be used for secrets that are not root-owned";
+      }] ++ optionals cfg.validateSopsFiles (
+        concatLists (mapAttrsToList (name: secret: [{
+          assertion = builtins.pathExists secret.sopsFile;
+          message = "Cannot find path '${secret.sopsFile}' set in sops.secrets.${strings.escapeNixIdentifier name}.sopsFile";
+        } {
+          assertion =
+            builtins.isPath secret.sopsFile ||
+            (builtins.isString secret.sopsFile && hasPrefix builtins.storeDir secret.sopsFile);
+          message = "'${secret.sopsFile}' is not in the Nix store. Either add it to the Nix store or set sops.validateSopsFiles to false";
+        }]) cfg.secrets)
+      );
 
-    sops.environment.SOPS_GPG_EXEC = mkIf (cfg.gnupg.home != null) (mkDefault "${pkgs.gnupg}/bin/gpg");
+      sops.environment.SOPS_GPG_EXEC = mkIf (cfg.gnupg.home != null) (mkDefault "${pkgs.gnupg}/bin/gpg");
 
-    system.activationScripts = {
-      setupSecretsForUsers = mkIf (secretsForUsers != {}) (stringAfter ([ "specialfs" ] ++ optional cfg.age.generateKey "generate-age-key") ''
-        [ -e /run/current-system ] || echo setting up secrets for users...
-        ${withEnvironment "${sops-install-secrets}/bin/sops-install-secrets -ignore-passwd ${manifestForUsers}"}
-      '' // lib.optionalAttrs (config.system ? dryActivationScript) {
-        supportsDryActivation = true;
-      });
+      system.activationScripts = {
+        setupSecretsForUsers = mkIf (secretsForUsers != {}) (stringAfter ([ "specialfs" ] ++ optional cfg.age.generateKey "generate-age-key") ''
+          [ -e /run/current-system ] || echo setting up secrets for users...
+          ${withEnvironment "${sops-install-secrets}/bin/sops-install-secrets -ignore-passwd ${manifestForUsers}"}
+        '' // lib.optionalAttrs (config.system ? dryActivationScript) {
+          supportsDryActivation = true;
+        });
 
-      users = mkIf (secretsForUsers != {}) {
-        deps = [ "setupSecretsForUsers" ];
+        users = mkIf (secretsForUsers != {}) {
+          deps = [ "setupSecretsForUsers" ];
+        };
+
+        setupSecrets = mkIf (regularSecrets != {}) (stringAfter ([ "specialfs" "users" "groups" ] ++ optional cfg.age.generateKey "generate-age-key") ''
+          [ -e /run/current-system ] || echo setting up secrets...
+          ${withEnvironment "${sops-install-secrets}/bin/sops-install-secrets ${manifest}"}
+        '' // lib.optionalAttrs (config.system ? dryActivationScript) {
+          supportsDryActivation = true;
+        });
+
+        generate-age-key = mkIf (cfg.age.generateKey) (stringAfter [] ''
+          if [[ ! -f '${cfg.age.keyFile}' ]]; then
+            echo generating machine-specific age key...
+            mkdir -p $(dirname ${cfg.age.keyFile})
+            # age-keygen sets 0600 by default, no need to chmod.
+            ${pkgs.age}/bin/age-keygen -o ${cfg.age.keyFile}
+          fi
+        '');
       };
-
-      setupSecrets = mkIf (regularSecrets != {}) (stringAfter ([ "specialfs" "users" "groups" ] ++ optional cfg.age.generateKey "generate-age-key") ''
-        [ -e /run/current-system ] || echo setting up secrets...
-        ${withEnvironment "${sops-install-secrets}/bin/sops-install-secrets ${manifest}"}
-      '' // lib.optionalAttrs (config.system ? dryActivationScript) {
-        supportsDryActivation = true;
-      });
-
-      generate-age-key = mkIf (cfg.age.generateKey) (stringAfter [] ''
-        if [[ ! -f '${cfg.age.keyFile}' ]]; then
-          echo generating machine-specific age key...
-          mkdir -p $(dirname ${cfg.age.keyFile})
-          # age-keygen sets 0600 by default, no need to chmod.
-          ${pkgs.age}/bin/age-keygen -o ${cfg.age.keyFile}
-        fi
-      '');
-    };
-
-    system.build =
-      (optionalAttrs (secretsForUsers != {}) { sops-nix-users-manifest = manifestForUsers; }) //
-      (optionalAttrs (regularSecrets != {}) { sops-nix-manifest = manifest; });
-
-  };
+    })
+    {
+      system.build = {
+        sops-nix-users-manifest = manifestForUsers;
+        sops-nix-manifest = manifest;
+      };
+    }
+  ];
 }
