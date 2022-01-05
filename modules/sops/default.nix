@@ -122,6 +122,7 @@ let
       secretsMountPoint = "/run/secrets.d";
       symlinkPath = "/run/secrets";
       keepGenerations = cfg.keepGenerations;
+      remountReadOnly = cfg.remountReadOnly;
       gnupgHome = cfg.gnupg.home;
       sshKeyPaths = cfg.gnupg.sshKeyPaths;
       ageKeyFile = cfg.age.keyFile;
@@ -237,6 +238,18 @@ in {
         sops-install-secrets package to use when validating configuration.
 
         Defaults to sops.package if building natively, and a native version of sops-install-secrets if cross compiling.
+      '';
+    };
+
+    remountReadOnly = mkOption {
+      type = types.bool;
+      default = false;
+      description = ''
+        Remount /run/secrets.d read-only when the secrets are provisioned and
+        remount it read-write when sops-nix is run again.
+
+        This option is only safe to use when not using RSA SSH keys as there
+        may be issues when importing them.
       '';
     };
 

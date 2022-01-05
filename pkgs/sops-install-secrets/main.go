@@ -53,6 +53,7 @@ type manifest struct {
 	SecretsMountPoint string        `json:"secretsMountPoint"`
 	SymlinkPath       string        `json:"symlinkPath"`
 	KeepGenerations   int           `json:"keepGenerations"`
+	RemountReadOnly   bool          `json:"remountReadOnly"`
 	SSHKeyPaths       []string      `json:"sshKeyPaths"`
 	GnupgHome         string        `json:"gnupgHome"`
 	AgeKeyFile        string        `json:"ageKeyFile"`
@@ -338,7 +339,7 @@ func ensureSecretFs(mountpoint string, readonly bool, keysGid int) error {
 	// Mount readonly if needed
 	if readonly {
 		if err := unix.Mount("", mountpoint, "ramfs", uintptr(mountFlags|unix.MS_RDONLY|unix.MS_REMOUNT), ""); err != nil {
-			return fmt.Errorf("Cannot mount as readonly: %s", err)
+			return fmt.Errorf("Cannot mount as readonly (maybe blocked by a process): %s", err)
 		}
 		return nil
 	}
@@ -990,7 +991,7 @@ func installSecrets(args []string) error {
 	}
 	// No need to perform the actual symlinking, just remount as readonly
 	if isDry {
-		if err := ensureSecretFs(manifest.SecretsMountPoint, true, keysGid); err != nil {
+		if err := ensureSecretFs(manifest.SecretsMountPoint, manifest.RemountReadOnly, keysGid); err != nil {
 			fmt.Printf("warning: cannot remount the secrets readonly (maybe blocked by a process?): %s\n", err)
 		}
 		return nil
@@ -1004,7 +1005,7 @@ func installSecrets(args []string) error {
 	if err := pruneGenerations(manifest.SecretsMountPoint, *secretDir, manifest.KeepGenerations); err != nil {
 		return fmt.Errorf("Cannot prune old secrets generations: %w", err)
 	}
-	if err := ensureSecretFs(manifest.SecretsMountPoint, true, keysGid); err != nil {
+	if err := ensureSecretFs(manifest.SecretsMountPoint, manifest.RemountReadOnly, keysGid); err != nil {
 		fmt.Printf("warning: cannot remount the secrets readonly (maybe blocked by a process?): %s\n", err)
 	}
 
