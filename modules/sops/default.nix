@@ -192,7 +192,7 @@ in {
     };
 
     environment = mkOption {
-      type = types.attrsOf types.str;
+      type = types.attrsOf (types.either types.str types.path);
       default = {};
       description = ''
         Environment variables to set before calling sops-install-secrets.
