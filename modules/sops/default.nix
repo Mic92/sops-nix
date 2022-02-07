@@ -14,13 +14,6 @@ let
       sopsFileHash = mkOptionDefault (optionalString cfg.validateSopsFiles "${builtins.hashFile "sha256" config.sopsFile}");
     };
     options = {
-      enable = mkOption {
-        type = types.bool;
-        default = true;
-        description = ''
-          Sops secrets
-        '';
-      };
       name = mkOption {
         type = types.str;
         default = config._module.args.name;
@@ -39,11 +32,7 @@ let
       };
       path = mkOption {
         type = types.str;
-        default = if !cfg.enable then
-          throw "`config.sops.secrets.${config.name}.path` was used but config.sops.enable is false"
-          else if config.neededForUsers
-          then "/run/secrets-for-users/${config.name}"
-          else "/run/secrets/${config.name}";
+        default = if config.neededForUsers then "/run/secrets-for-users/${config.name}" else "/run/secrets/${config.name}";
         defaultText = "/run/secrets-for-users/$name when neededForUsers is set, /run/secrets/$name when otherwise.";
         description = ''
           Path where secrets are symlinked to.
@@ -51,7 +40,7 @@ let
         '';
       };
       format = mkOption {
-        type = types.enum [ "yaml" "json" "binary" ];
+        type = types.enum ["yaml" "json" "binary"];
         default = cfg.defaultSopsFormat;
         description = ''
           File format used to decrypt the sops secret.
@@ -295,7 +284,7 @@ in {
 
       sops.environment.SOPS_GPG_EXEC = mkIf (cfg.gnupg.home != null) (mkDefault "${pkgs.gnupg}/bin/gpg");
 
-      system.activationScripts = lib.mkIf cfg.enable {
+      system.activationScripts = {
         setupSecretsForUsers = mkIf (secretsForUsers != {}) (stringAfter ([ "specialfs" ] ++ optional cfg.age.generateKey "generate-age-key") ''
           [ -e /run/current-system ] || echo setting up secrets for users...
           ${withEnvironment "${sops-install-secrets}/bin/sops-install-secrets -ignore-passwd ${manifestForUsers}"}
