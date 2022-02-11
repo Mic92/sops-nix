@@ -142,11 +142,12 @@ or with pinning:
 This key will be used for you to edit secrets.
 
 You can generate yourself a key:
+
 ```console
-# for age
+# for age..
 $ mkdir -p ~/.config/sops/age
 $ age-keygen -o ~/.config/sops/age/keys.txt
-# to convert an ssh ed25519 key to an age key
+# or to convert an ssh ed25519 key to an age key
 $ mkdir -p ~/.config/sops/age
 $ nix-shell -p ssh-to-age --run "ssh-to-age -private-key -i ~/.ssh/id_ed25519 > ~/.config/sops/age/keys.txt"
 # for GPG >= version 2.1.17
@@ -815,8 +816,9 @@ Copy the output to the editor you have opened with sops.
 
 ## Real-world examples
 
-My [personal configuration](https://github.com/Mic92/dotfiles/tree/master/nixos) makes extensive usage of sops-nix.
-Each host has a [secrets](https://github.com/Mic92/dotfiles/tree/master/nixos/eve/secrets) directory containing secrets for the host.
+My [personal configuration](https://github.com/Mic92/dotfiles/tree/master/nixos) makes extensive usage of sops-nix. 
+Each host has a [secrets](https://github.com/Mic92/dotfiles/tree/master/nixos/eve/secrets) directory containing secrets for the host. 
+Also Samuel Leathers explains his personal setup in this [blog article](https://samleathers.com/posts/2022-02-11-my-new-network-and-sops.html).
 
 ## Known limitations
 
