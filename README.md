@@ -832,3 +832,13 @@ before `nixos-rebuild switch` to provision initrd secrets
 before actually using them in the initrd.
 In the future, we hope to extend NixOS to allow keys to be
 provisioned in the bootloader install phase.
+
+### Using secrets at evaluation time
+
+It is not possible to use secrets at evaluation time of nix code. This is
+because sops-nix decrypts secrets only in the activation phase of nixos i.e. in
+`nixos-rebuild switch` on the target machine. If you rely on this feature for
+some secrets, you should also include solutions that allow secrets to be stored
+securely in your version control, e.g.
+[git-agecrypt](https://github.com/vlaci/git-agecrypt). These types of solutions
+can be used together with sops-nix.
