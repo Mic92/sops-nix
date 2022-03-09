@@ -5,6 +5,7 @@ buildGoModule {
 
   src = ../..;
 
+  proxyVendor = true;
   subPackages = [ "pkgs/sops-install-secrets" ];
 
   # requires root privileges for tests

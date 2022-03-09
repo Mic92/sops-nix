@@ -633,7 +633,7 @@ func importAgeSSHKeys(keyPaths []string, ageFile os.File) error {
 			return fmt.Errorf("Cannot read ssh key '%s': %w", p, err)
 		}
 		// Convert the key to age
-		bech32, err := agessh.SSHPrivateKeyToAge(sshKey)
+		bech32, _, err := agessh.SSHPrivateKeyToAge(sshKey)
 		if err != nil {
 			return fmt.Errorf("Cannot convert ssh key '%s': %w", p, err)
 		}
