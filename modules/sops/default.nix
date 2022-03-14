@@ -92,6 +92,15 @@ let
           This works the same way as <xref linkend="opt-systemd.services._name_.restartTriggers" />.
         '';
       };
+      reloadUnits = mkOption {
+        type = types.listOf types.str;
+        default = [ ];
+        example = [ "sshd.service" ];
+        description = ''
+          Names of units that should be reloaded when this secret changes.
+          This works the same way as <xref linkend="opt-systemd.services._name_.reloadTriggers" />.
+        '';
+      };
       neededForUsers = mkOption {
         type = types.bool;
         default = false;

@@ -562,6 +562,20 @@ the service needs a token and a SSH private key to function.</summary>
 
 </details>
 
+## Restarting/reloading systemd units on secret change
+
+**With NixOS 22.05**, it is possible to restart or reload units when a secret changes or is newly initialized.
+
+This behavior can be configured per-secret:
+```nix
+{
+  sops.secrets."home-assistant-secrets.yaml" = {
+    restartUnits = [ "home-assistant.service" ];
+    # there is also `reloadUnits` which acts like a `reloadTrigger` in a NixOS systemd service
+  };
+}
+```
+
 ## Symlinks to other directories
 
 Some services might expect files in certain locations.
