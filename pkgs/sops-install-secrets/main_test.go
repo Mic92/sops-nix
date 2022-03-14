@@ -107,6 +107,7 @@ func testGPG(t *testing.T) {
 		Path:         path.Join(testdir.path, "test-target"),
 		Mode:         "0400",
 		RestartUnits: []string{"affected-service"},
+		ReloadUnits:  []string{"affected-reload-service"},
 	}
 
 	var jsonSecret, binarySecret secret
@@ -205,6 +206,7 @@ func testSSHKey(t *testing.T) {
 		Path:         target,
 		Mode:         "0400",
 		RestartUnits: []string{"affected-service"},
+		ReloadUnits:  []string{"affected-reload-service"},
 	}
 
 	m := manifest{
@@ -237,6 +239,7 @@ func TestAge(t *testing.T) {
 		Path:         target,
 		Mode:         "0400",
 		RestartUnits: []string{"affected-service"},
+		ReloadUnits:  []string{"affected-reload-service"},
 	}
 
 	m := manifest{
@@ -269,6 +272,7 @@ func TestAgeWithSSH(t *testing.T) {
 		Path:         target,
 		Mode:         "0400",
 		RestartUnits: []string{"affected-service"},
+		ReloadUnits:  []string{"affected-reload-service"},
 	}
 
 	m := manifest{
@@ -302,6 +306,7 @@ func TestValidateManifest(t *testing.T) {
 		Path:         path.Join(testdir.path, "test-target"),
 		Mode:         "0400",
 		RestartUnits: []string{},
+		ReloadUnits:  []string{},
 	}
 
 	m := manifest{

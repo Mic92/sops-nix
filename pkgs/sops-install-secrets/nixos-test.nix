@@ -204,109 +204,119 @@
    inherit (pkgs) system;
  };
 
-} // pkgs.lib.optionalAttrs (pkgs.lib.versionAtLeast (pkgs.lib.versions.majorMinor pkgs.lib.version) "21.11") {
-  # This feature got reverted in nixpkgs...
-  #restart-and-reload = makeTest {
-  #  name = "sops-restart-and-reload";
-  #  machine = { pkgs, lib, config, ... }: {
-  #    imports = [
-  #      ../../modules/sops
-  #    ];
+} // pkgs.lib.optionalAttrs (pkgs.lib.versionAtLeast (pkgs.lib.versions.majorMinor pkgs.lib.version) "22.05") {
+  restart-and-reload = makeTest {
+    name = "sops-restart-and-reload";
+    machine = { pkgs, lib, config, ... }: {
+      imports = [
+        ../../modules/sops
+      ];
 
-  #    sops = {
-  #      age.keyFile = ./test-assets/age-keys.txt;
-  #      defaultSopsFile = ./test-assets/secrets.yaml;
-  #      secrets.test_key = {
-  #        restartUnits = [ "restart-unit.service" "reload-unit.service" ];
-  #      };
-  #    };
+      sops = {
+        age.keyFile = ./test-assets/age-keys.txt;
+        defaultSopsFile = ./test-assets/secrets.yaml;
+        secrets.test_key = {
+          restartUnits = [ "restart-unit.service" "reload-unit.service" ];
+          reloadUnits = [ "reload-trigger.service" ];
+        };
+      };
 
-  #    systemd.services."restart-unit" = {
-  #      description = "Restart unit";
-  #      # not started on boot
-  #      serviceConfig = {
-  #        ExecStart = "/bin/sh -c 'echo ok > /restarted'";
-  #      };
-  #    };
-  #    systemd.services."reload-unit" = {
-  #      description = "Restart unit";
-  #      wantedBy = [ "multi-user.target" ];
-  #      reloadIfChanged = true;
-  #      serviceConfig = {
-  #        Type = "oneshot";
-  #        RemainAfterExit = true;
-  #        ExecStart = "/bin/sh -c true";
-  #        ExecReload = "/bin/sh -c 'echo ok > /reloaded'";
-  #      };
-  #    };
-  # };
-  # testScript = ''
-  #   machine.wait_for_unit("multi-user.target")
-  #   machine.fail("test -f /restarted")
-  #   machine.fail("test -f /reloaded")
+      systemd.services."restart-unit" = {
+        description = "Restart unit";
+        # not started on boot
+        serviceConfig = {
+          ExecStart = "/bin/sh -c 'echo ok > /restarted'";
+        };
+      };
+      systemd.services."reload-unit" = {
+        description = "Reload unit";
+        wantedBy = [ "multi-user.target" ];
+        reloadIfChanged = true;
+        serviceConfig = {
+          Type = "oneshot";
+          RemainAfterExit = true;
+          ExecStart = "/bin/sh -c true";
+          ExecReload = "/bin/sh -c 'echo ok > /reloaded'";
+        };
+      };
+      systemd.services."reload-trigger" = {
+        description = "Reload trigger unit";
+        wantedBy = [ "multi-user.target" ];
+        serviceConfig = {
+          Type = "oneshot";
+          RemainAfterExit = true;
+          ExecStart = "/bin/sh -c true";
+          ExecReload = "/bin/sh -c 'echo ok > /reloaded'";
+        };
+      };
+   };
+   testScript = ''
+     machine.wait_for_unit("multi-user.target")
+     machine.fail("test -f /restarted")
+     machine.fail("test -f /reloaded")
 
-  #   # Nothing is to be restarted after boot
-  #   machine.fail("ls /run/nixos/*-list")
+     # Nothing is to be restarted after boot
+     machine.fail("ls /run/nixos/*-list")
 
-  #   # Nothing happens when the secret is not changed
-  #   machine.succeed("/run/current-system/bin/switch-to-configuration test")
-  #   machine.fail("test -f /restarted")
-  #   machine.fail("test -f /reloaded")
+     # Nothing happens when the secret is not changed
+     machine.succeed("/run/current-system/bin/switch-to-configuration test")
+     machine.fail("test -f /restarted")
+     machine.fail("test -f /reloaded")
 
-  #   # Ensure the secret is changed
-  #   machine.succeed(": > /run/secrets/test_key")
+     # Ensure the secret is changed
+     machine.succeed(": > /run/secrets/test_key")
 
-  #   # The secret is changed, now something should happen
-  #   machine.succeed("/run/current-system/bin/switch-to-configuration test")
+     # The secret is changed, now something should happen
+     machine.succeed("/run/current-system/bin/switch-to-configuration test")
 
-  #   # Ensure something happened
-  #   machine.succeed("test -f /restarted")
-  #   machine.succeed("test -f /reloaded")
+     # Ensure something happened
+     machine.succeed("test -f /restarted")
+     machine.succeed("test -f /reloaded")
 
-  #   with subtest("change detection"):
-  #      machine.succeed("rm /run/secrets/test_key")
-  #      out = machine.succeed("/run/current-system/bin/switch-to-configuration test")
-  #      if "adding secret" not in out:
-  #          raise Exception("Addition detection does not work")
+     with subtest("change detection"):
+        machine.succeed("rm /run/secrets/test_key")
+        out = machine.succeed("/run/current-system/bin/switch-to-configuration test")
+        if "adding secret" not in out:
+            raise Exception("Addition detection does not work")
 
-  #      machine.succeed(": > /run/secrets/test_key")
-  #      out = machine.succeed("/run/current-system/bin/switch-to-configuration test")
-  #      if "modifying secret" not in out:
-  #          raise Exception("Modification detection does not work")
+        machine.succeed(": > /run/secrets/test_key")
+        out = machine.succeed("/run/current-system/bin/switch-to-configuration test")
+        if "modifying secret" not in out:
+            raise Exception("Modification detection does not work")
 
-  #      machine.succeed(": > /run/secrets/another_key")
-  #      out = machine.succeed("/run/current-system/bin/switch-to-configuration test")
-  #      if "removing secret" not in out:
-  #          raise Exception("Removal detection does not work")
+        machine.succeed(": > /run/secrets/another_key")
+        out = machine.succeed("/run/current-system/bin/switch-to-configuration test")
+        if "removing secret" not in out:
+            raise Exception("Removal detection does not work")
 
-  #   with subtest("dry activation"):
-  #       machine.succeed("rm /run/secrets/test_key")
-  #       machine.succeed(": > /run/secrets/another_key")
-  #       out = machine.succeed("/run/current-system/bin/switch-to-configuration dry-activate")
-  #       if "would add secret" not in out:
-  #           raise Exception("Dry addition detection does not work")
-  #       if "would remove secret" not in out:
-  #           raise Exception("Dry removal detection does not work")
+     with subtest("dry activation"):
+         machine.succeed("rm /run/secrets/test_key")
+         machine.succeed(": > /run/secrets/another_key")
+         out = machine.succeed("/run/current-system/bin/switch-to-configuration dry-activate")
+         if "would add secret" not in out:
+             raise Exception("Dry addition detection does not work")
+         if "would remove secret" not in out:
+             raise Exception("Dry removal detection does not work")
 
-  #       machine.fail("test -f /run/secrets/test_key")
-  #       machine.succeed("test -f /run/secrets/another_key")
+         machine.fail("test -f /run/secrets/test_key")
+         machine.succeed("test -f /run/secrets/another_key")
 
-  #       machine.succeed("/run/current-system/bin/switch-to-configuration test")
-  #       machine.succeed("test -f /run/secrets/test_key")
-  #       machine.succeed("rm /restarted /reloaded")
-  #       machine.fail("test -f /run/secrets/another_key")
+         machine.succeed("/run/current-system/bin/switch-to-configuration test")
+         machine.succeed("test -f /run/secrets/test_key")
+         machine.succeed("rm /restarted /reloaded")
+         machine.fail("test -f /run/secrets/another_key")
 
-  #       machine.succeed(": > /run/secrets/test_key")
-  #       out = machine.succeed("/run/current-system/bin/switch-to-configuration dry-activate")
-  #       if "would modify secret" not in out:
-  #           raise Exception("Dry modification detection does not work")
-  #       machine.succeed("[ $(cat /run/secrets/test_key | wc -c) = 0 ]")
+         machine.succeed(": > /run/secrets/test_key")
+         out = machine.succeed("/run/current-system/bin/switch-to-configuration dry-activate")
+         if "would modify secret" not in out:
+             raise Exception("Dry modification detection does not work")
+         machine.succeed("[ $(cat /run/secrets/test_key | wc -c) = 0 ]")
 
-  #       machine.fail("test -f /restarted")  # not done in dry mode
-  #       machine.fail("test -f /reloaded")  # not done in dry mode
-  # '';
-  #} {
-  #  inherit pkgs;
-  #  inherit (pkgs) system;
-  #};
+         machine.fail("test -f /restarted")  # not done in dry mode
+         machine.fail("test -f /reloaded")  # not done in dry mode
+   '';
+  } {
+    inherit pkgs;
+    inherit (pkgs) system;
+  };
 }

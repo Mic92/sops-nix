@@ -36,6 +36,7 @@ type secret struct {
 	Format       FormatType `json:"format"`
 	Mode         string     `json:"mode"`
 	RestartUnits []string   `json:"restartUnits"`
+	ReloadUnits  []string   `json:"reloadUnits"`
 	value        []byte
 	mode         os.FileMode
 	owner        int
@@ -679,6 +680,7 @@ func symlinkWalk(filename string, linkDirname string, walkFn filepath.WalkFunc) 
 
 func handleModifications(isDry bool, logcfg loggingConfig, symlinkPath string, secretDir string, secrets []secret) error {
 	var restart []string
+	var reload []string
 
 	newSecrets := make(map[string]bool)
 	modifiedSecrets := make(map[string]bool)
@@ -702,6 +704,7 @@ func handleModifications(isDry bool, logcfg loggingConfig, symlinkPath string, s
 			if os.IsNotExist(err) {
 				// File did not exist before
 				restart = append(restart, secret.RestartUnits...)
+				reload = append(reload, secret.ReloadUnits...)
 				newSecrets[secret.Name] = true
 				continue
 			}
@@ -716,6 +719,7 @@ func handleModifications(isDry bool, logcfg loggingConfig, symlinkPath string, s
 
 		if !bytes.Equal(oldData, newData) {
 			restart = append(restart, secret.RestartUnits...)
+			reload = append(reload, secret.ReloadUnits...)
 			modifiedSecrets[secret.Name] = true
 		}
 	}
@@ -742,6 +746,9 @@ func handleModifications(isDry bool, logcfg loggingConfig, symlinkPath string, s
 		dryPrefix = "/run/nixos/activation"
 	}
 	if err := writeLines(restart, dryPrefix+"-restart-list"); err != nil {
+		return err
+	}
+	if err := writeLines(reload, dryPrefix+"-reload-list"); err != nil {
 		return err
 	}
 
