@@ -125,6 +125,7 @@ let
       sshKeyPaths = cfg.gnupg.sshKeyPaths;
       ageKeyFile = cfg.age.keyFile;
       ageSshKeyPaths = cfg.age.sshKeyPaths;
+      userMode = false;
       logging = {
         keyImport = builtins.elem "keyImport" cfg.log;
         secretChanges = builtins.elem "secretChanges" cfg.log;

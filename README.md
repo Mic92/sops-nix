@@ -19,6 +19,7 @@ environment variables that can be passed to sops.
 - Compatible with all NixOS deployment frameworks: [NixOps](https://github.com/NixOS/nixops), nixos-rebuild, [krops](https://github.com/krebs/krops/), [morph](https://github.com/DBCDK/morph), [nixus](https://github.com/Infinisil/nixus), etc.
 - Version-control friendly: Since all files are encrypted they can be directly committed to version control without worry. Diffs of the secrets are readable, and [can be shown in cleartext](https://github.com/mozilla/sops#showing-diffs-in-cleartext-in-git).
 - CI friendly: Since sops files can be added to the Nix store without leaking secrets, a machine definition can be built as a whole from a repository, without needing to rely on external secrets or services.
+- Home-manager friendly: Provides a home-manager module
 - Works well in teams: sops-nix comes with `nix-shell` hooks that allows multiple people to quickly import all GPG keys.
   The cryptography used in sops is designed to be scalable: Secrets are only encrypted once with a master key
   instead of encrypted per machine/developer key.
@@ -34,7 +35,7 @@ There is a `configuration.nix` example in the [deployment step](#deploy-example)
 
 ## Supported encryption methods
 
-sops-nix supports two basic ways of encryption, GPG and `age`. 
+sops-nix supports two basic ways of encryption, GPG and `age`.
 
 GPG is based on [GnuPG](https://gnupg.org/) and encrypts against GPG public keys. Private GPG keys may
 be used to decrypt the secrets on the target machine. The tool [`ssh-to-pgp`](https://github.com/Mic92/ssh-to-pgp) can
@@ -729,6 +730,38 @@ This is how it can be included in your `configuration.nix`:
   sops.secrets.krb5-keytab = {
     format = "binary";
     sopsFile = ./krb5.keytab;
+  };
+}
+```
+
+## Use with home manager
+
+sops-nix also provides a home-manager module.
+This module provides a subset of features provided by the system-wide sops-nix since features like the creation of the ramfs and changing the owner of the secrets are not available for non-root users.
+
+Instead of running as an activation script, sops-nix runs as a systemd user service called `sops-nix.service`.
+And instead of decrypting to `/run/secrets`, the secrets are decrypted to `$XDG_RUNTIME_DIR/secrets`.
+
+Usage example:
+```nix
+{
+  # NixOS home-manager configuration
+  home-manager.sharedModules = [
+    /path/to/sops-nix/modules/home-manager/sops.nix
+  ];
+
+  # Configuration via home.nix
+  imports = [
+    /path/to/sops-nix/modules/home-manager/sops.nix
+  ];
+
+  # Configuration of secrets
+  sops = {
+    age.sshKeyPaths = [ "/home/user/path-to-ssh-key" ]; # must have no password!
+    sops.secrets.test = {
+      sopsFile = ./secrets.yml.enc;
+      path = "%r/test.txt"; # %r gets replaced with your $XDG_RUNTIME_DIR
+    };
   };
 }
 ```

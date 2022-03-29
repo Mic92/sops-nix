@@ -57,6 +57,7 @@ type manifest struct {
 	GnupgHome         string        `json:"gnupgHome"`
 	AgeKeyFile        string        `json:"ageKeyFile"`
 	AgeSshKeyPaths    []string      `json:"ageSshKeyPaths"`
+	UserMode          bool          `json:"userMode"`
 	Logging           loggingConfig `json:"logging"`
 }
 
@@ -163,15 +164,17 @@ func linksAreEqual(linkTarget, targetFile string, info os.FileInfo, secret *secr
 	return linkTarget == targetFile && validUG
 }
 
-func symlinkSecret(targetFile string, secret *secret) error {
+func symlinkSecret(targetFile string, secret *secret, userMode bool) error {
 	for {
 		stat, err := os.Lstat(secret.Path)
 		if os.IsNotExist(err) {
 			if err := os.Symlink(targetFile, secret.Path); err != nil {
 				return fmt.Errorf("Cannot create symlink '%s': %w", secret.Path, err)
 			}
-			if err := secureSymlinkChown(secret.Path, targetFile, secret.owner, secret.group); err != nil {
-				return fmt.Errorf("Cannot chown symlink '%s': %w", secret.Path, err)
+			if !userMode {
+				if err := secureSymlinkChown(secret.Path, targetFile, secret.owner, secret.group); err != nil {
+					return fmt.Errorf("Cannot chown symlink '%s': %w", secret.Path, err)
+				}
 			}
 			return nil
 		} else if err != nil {
@@ -193,7 +196,7 @@ func symlinkSecret(targetFile string, secret *secret) error {
 	}
 }
 
-func symlinkSecrets(targetDir string, secrets []secret) error {
+func symlinkSecrets(targetDir string, secrets []secret, userMode bool) error {
 	for _, secret := range secrets {
 		targetFile := filepath.Join(targetDir, secret.Name)
 		if targetFile == secret.Path {
@@ -203,7 +206,7 @@ func symlinkSecrets(targetDir string, secrets []secret) error {
 		if err := os.MkdirAll(parent, os.ModePerm); err != nil {
 			return fmt.Errorf("Cannot create parent directory of '%s': %w", secret.Path, err)
 		}
-		if err := symlinkSecret(targetFile, &secret); err != nil {
+		if err := symlinkSecret(targetFile, &secret, userMode); err != nil {
 			return fmt.Errorf("Failed to symlink secret '%s': %w", secret.Path, err)
 		}
 	}
@@ -309,9 +312,14 @@ func decryptSecrets(secrets []secret) error {
 
 const RAMFS_MAGIC int32 = -2054924042
 
-func mountSecretFs(mountpoint string, keysGid int) error {
+func mountSecretFs(mountpoint string, keysGid int, userMode bool) error {
 	if err := os.MkdirAll(mountpoint, 0751); err != nil {
 		return fmt.Errorf("Cannot create directory '%s': %w", mountpoint, err)
+	}
+
+	// We can't create a ramfs as user
+	if userMode {
+		return nil
 	}
 
 	buf := unix.Statfs_t{}
@@ -331,7 +339,7 @@ func mountSecretFs(mountpoint string, keysGid int) error {
 	return nil
 }
 
-func prepareSecretsDir(secretMountpoint string, linkName string, keysGid int) (*string, error) {
+func prepareSecretsDir(secretMountpoint string, linkName string, keysGid int, userMode bool) (*string, error) {
 	var generation uint64
 	linkTarget, err := os.Readlink(linkName)
 	if err == nil {
@@ -355,13 +363,15 @@ func prepareSecretsDir(secretMountpoint string, linkName string, keysGid int) (*
 	if err := os.Mkdir(dir, os.FileMode(0751)); err != nil {
 		return nil, fmt.Errorf("mkdir(): %w", err)
 	}
-	if err := os.Chown(dir, 0, int(keysGid)); err != nil {
-		return nil, fmt.Errorf("Cannot change owner/group of '%s' to 0/%d: %w", dir, keysGid, err)
+	if !userMode {
+		if err := os.Chown(dir, 0, int(keysGid)); err != nil {
+			return nil, fmt.Errorf("Cannot change owner/group of '%s' to 0/%d: %w", dir, keysGid, err)
+		}
 	}
 	return &dir, nil
 }
 
-func writeSecrets(secretDir string, secrets []secret, keysGid int) error {
+func writeSecrets(secretDir string, secrets []secret, keysGid int, userMode bool) error {
 	for _, secret := range secrets {
 		fp := filepath.Join(secretDir, secret.Name)
 
@@ -372,16 +382,20 @@ func writeSecrets(secretDir string, secrets []secret, keysGid int) error {
 			if err := os.MkdirAll(pathSoFar, 0751); err != nil {
 				return fmt.Errorf("Cannot create directory '%s' for %s: %w", pathSoFar, fp, err)
 			}
-			if err := os.Chown(pathSoFar, 0, int(keysGid)); err != nil {
-				return fmt.Errorf("Cannot own directory '%s' for %s: %w", pathSoFar, fp, err)
+			if !userMode {
+				if err := os.Chown(pathSoFar, 0, int(keysGid)); err != nil {
+					return fmt.Errorf("Cannot own directory '%s' for %s: %w", pathSoFar, fp, err)
+				}
 			}
 		}
 
 		if err := ioutil.WriteFile(fp, []byte(secret.value), secret.mode); err != nil {
 			return fmt.Errorf("Cannot write %s: %w", fp, err)
 		}
-		if err := os.Chown(fp, secret.owner, secret.group); err != nil {
-			return fmt.Errorf("Cannot change owner/group of '%s' to %d/%d: %w", fp, secret.owner, secret.group, err)
+		if !userMode {
+			if err := os.Chown(fp, secret.owner, secret.group); err != nil {
+				return fmt.Errorf("Cannot change owner/group of '%s' to %d/%d: %w", fp, secret.owner, secret.group, err)
+			}
 		}
 	}
 	return nil
@@ -458,7 +472,7 @@ func (app *appContext) validateSecret(secret *secret) error {
 	if app.ignorePasswd {
 		secret.owner = 0
 		secret.group = 0
-	} else if app.checkMode == Off {
+	} else if app.checkMode == Off || app.ignorePasswd {
 		// we only access to the user/group during deployment
 		owner, err := user.Lookup(secret.Owner)
 		if err != nil {
@@ -839,7 +853,7 @@ func parseFlags(args []string) (*options, error) {
 	}
 	var checkMode string
 	fs.StringVar(&checkMode, "check-mode", "off", `Validate configuration without installing it (possible values: "manifest","sopsfile","off")`)
-	fs.BoolVar(&opts.ignorePasswd, "ignore-passwd", false, `Don't look up anything in /etc/passwd. Causes everything to be owned by root:root`)
+	fs.BoolVar(&opts.ignorePasswd, "ignore-passwd", false, `Don't look up anything in /etc/passwd. Causes everything to be owned by root:root or the user executing the tool in user mode`)
 	if err := fs.Parse(args[1:]); err != nil {
 		return nil, err
 	}
@@ -870,6 +884,21 @@ func installSecrets(args []string) error {
 		return err
 	}
 
+	if manifest.UserMode {
+		rundir, ok := os.LookupEnv("XDG_RUNTIME_DIR")
+		if !ok {
+			rundir = fmt.Sprintf("/run/user/%d", os.Getuid())
+		}
+		manifest.SecretsMountPoint = strings.ReplaceAll(manifest.SecretsMountPoint, "%r", rundir)
+		manifest.SymlinkPath = strings.ReplaceAll(manifest.SymlinkPath, "%r", rundir)
+		var newSecrets []secret
+		for _, secret := range manifest.Secrets {
+			secret.Path = strings.ReplaceAll(secret.Path, "%r", rundir)
+			newSecrets = append(newSecrets, secret)
+		}
+		manifest.Secrets = newSecrets
+	}
+
 	app := appContext{
 		manifest:     *manifest,
 		checkMode:    opts.checkMode,
@@ -897,7 +926,7 @@ func installSecrets(args []string) error {
 
 	isDry := os.Getenv("NIXOS_ACTION") == "dry-activate"
 
-	if err := mountSecretFs(manifest.SecretsMountPoint, keysGid); err != nil {
+	if err := mountSecretFs(manifest.SecretsMountPoint, keysGid, manifest.UserMode); err != nil {
 		return fmt.Errorf("Failed to mount filesystem for secrets: %w", err)
 	}
 
@@ -949,21 +978,23 @@ func installSecrets(args []string) error {
 		return err
 	}
 
-	secretDir, err := prepareSecretsDir(manifest.SecretsMountPoint, manifest.SymlinkPath, keysGid)
+	secretDir, err := prepareSecretsDir(manifest.SecretsMountPoint, manifest.SymlinkPath, keysGid, manifest.UserMode)
 	if err != nil {
 		return fmt.Errorf("Failed to prepare new secrets directory: %w", err)
 	}
-	if err := writeSecrets(*secretDir, manifest.Secrets, keysGid); err != nil {
+	if err := writeSecrets(*secretDir, manifest.Secrets, keysGid, manifest.UserMode); err != nil {
 		return fmt.Errorf("Cannot write secrets: %w", err)
 	}
-	if err := handleModifications(isDry, manifest.Logging, manifest.SymlinkPath, *secretDir, manifest.Secrets); err != nil {
-		return fmt.Errorf("Cannot request units to restart: %w", err)
+	if !manifest.UserMode {
+		if err := handleModifications(isDry, manifest.Logging, manifest.SymlinkPath, *secretDir, manifest.Secrets); err != nil {
+			return fmt.Errorf("Cannot request units to restart: %w", err)
+		}
 	}
 	// No need to perform the actual symlinking
 	if isDry {
 		return nil
 	}
-	if err := symlinkSecrets(manifest.SymlinkPath, manifest.Secrets); err != nil {
+	if err := symlinkSecrets(manifest.SymlinkPath, manifest.Secrets, manifest.UserMode); err != nil {
 		return fmt.Errorf("Failed to prepare symlinks to secret store: %w", err)
 	}
 	if err := atomicSymlink(*secretDir, manifest.SymlinkPath); err != nil {
