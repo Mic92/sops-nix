@@ -5,7 +5,7 @@ with lib;
 let
   cfg = config.sops;
   users = config.users.users;
-  sops-install-secrets = (pkgs.callPackage ../.. {}).sops-install-secrets;
+  sops-install-secrets = cfg.package;
   regularSecrets = lib.filterAttrs (_: v: !v.neededForUsers) cfg.secrets;
   secretsForUsers = lib.filterAttrs (_: v: v.neededForUsers) cfg.secrets;
   secretType = types.submodule ({ config, ... }: {
@@ -213,6 +213,15 @@ in {
 
         This will be evaluated twice when using secrets that use neededForUsers but
         in a subshell each time so the environment variables don't collide.
+      '';
+    };
+
+    package = mkOption {
+      type = types.package;
+      default = (pkgs.callPackage ../.. {}).sops-install-secrets;
+      defaultText = literalExpression "(pkgs.callPackage ../.. {}).sops-install-secrets";
+      description = ''
+        sops-install-secrets package to use.
       '';
     };
 
