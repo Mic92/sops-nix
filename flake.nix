@@ -26,6 +26,8 @@
     packages = forAllSystems (system: import ./default.nix {
       pkgs = import nixpkgs { inherit system; };
     });
+    checks = nixpkgs.lib.genAttrs [ "x86_64-linux" "aarch64-linux" ]
+      (system: self.packages.${system}.sops-install-secrets.tests);
     defaultPackage = forAllSystems (system: self.packages.${system}.sops-init-gpg-key);
   };
 }
