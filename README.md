@@ -325,13 +325,13 @@ in
 mkShell {
   # imports all files ending in .asc/.gpg
   sopsPGPKeyDirs = [ 
-    "./keys/hosts"
-    "./keys/users"
+    "${toString ./.}/keys/hosts"
+    "${toString ./.}/keys/users"
   ];
   # Also single files can be imported.
   #sopsPGPKeys = [ 
-  #  "./keys/users/mic92.asc"
-  #  "./keys/hosts/server01.asc"
+  #  "${toString ./.}/keys/users/mic92.asc"
+  #  "${toString ./.}/keys/hosts/server01.asc"
   #];
   
   # This hook can also import gpg keys into its own seperate
