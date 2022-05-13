@@ -5,35 +5,11 @@ on:
     - cron:  '51 2 * * *'
 jobs:
   tests:
-    strategy:
-      matrix:
-        nixPath:
-          - nixpkgs=https://github.com/NixOS/nixpkgs/archive/nixos-21.05.tar.gz
-          - nixpkgs=https://github.com/NixOS/nixpkgs/archive/nixos-unstable.tar.gz
-        os: [ ubuntu-latest, macos-latest ]
-    runs-on: ${{ matrix.os }}
+    runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v3
     - uses: cachix/install-nix-action@v17
-      with:
-        nix_path: "${{ matrix.nixPath }}"
-    - name: Setup cachix
-      uses: cachix/cachix-action@v10
-      with:
-        name: mic92
-        signingKey: '${{ secrets.CACHIX_SIGNING_KEY }}'
     - name: Add keys group (needed for go tests)
       run: sudo groupadd keys
-      if: matrix.os == 'ubuntu-latest'
-    - name: Run lint
-      run: nix-build --no-out-link default.nix -A lint
-      if: matrix.os == 'ubuntu-latest'
-    - name: List flake structure
-      run: nix flake show
-    - name: Run flake check (flake)
-      run: nix flake check -L
-    # this should be the same as `nix flake check`
-    - name: Build nix packages
-      run: nix-build --no-out-link release.nix
     - name: Run unit tests
-      run: nix-shell --no-out-link ./unit-tests.nix --argstr sudo "$(command -v sudo)" --pure --run 'true'
+      run: nix develop .#unit-tests --command "true"
