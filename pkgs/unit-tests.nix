@@ -1,7 +1,7 @@
 { pkgs ? import <nixpkgs> {}
 }:
 let
-  sopsPkgs = import ./. { inherit pkgs; };
+  sopsPkgs = import ../. { inherit pkgs; };
 in pkgs.stdenv.mkDerivation {
   name = "env";
   nativeBuildInputs = with pkgs; [

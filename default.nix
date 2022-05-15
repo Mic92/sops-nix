@@ -1,7 +1,9 @@
 { pkgs ? import <nixpkgs> {} }: let
   vendorSha256 = "sha256-nqA2zzCsWXCllpsss0tjjo4ivi3MVuEM3W6dEZc5KAc=";
 
+  buildGoModule = if pkgs.lib.versionOlder pkgs.go.version "1.17" then pkgs.buildGo117Module else pkgs.buildGoModule;
   sops-install-secrets = pkgs.callPackage ./pkgs/sops-install-secrets {
+    inherit buildGoModule;
     inherit vendorSha256;
   };
 in rec {
@@ -16,42 +18,18 @@ in rec {
   inherit (pkgs) ssh-to-pgp;
 
   # used in the CI only
-  sops-pgp-hook-test = pkgs.buildGoModule {
-    name = "sops-pgp-hook-test";
-    src = ./.;
+  sops-pgp-hook-test = pkgs.callPackage ./pkgs/sops-pgp-hook-test.nix {
     inherit vendorSha256;
-    buildPhase = ''
-      go test -c ./pkgs/sops-pgp-hook
-      install -D sops-pgp-hook.test $out/bin/sops-pgp-hook.test
-    '';
   };
-  unit-tests = pkgs.callPackage ./unit-tests.nix {};
+  unit-tests = pkgs.callPackage ./pkgs/unit-tests.nix {};
 } // (pkgs.lib.optionalAttrs pkgs.stdenv.isLinux {
   inherit sops-install-secrets;
 
-  lint = sops-install-secrets.overrideAttrs (old: {
-    name = "golangci-lint";
-    nativeBuildInputs = old.nativeBuildInputs ++ [ pkgs.golangci-lint ];
-    buildPhase = ''
-      HOME=$TMPDIR golangci-lint run --timeout 360s
-    '';
-    doCheck = false;
-    installPhase = ''
-      touch $out $unittest
-    '';
-    fixupPhase = ":";
-  });
+  lint = pkgs.callPackage ./pkgs/lint.nix {
+    inherit sops-install-secrets;
+  };
 
-  cross-build = sops-install-secrets.overrideAttrs (old: {
-    name = "cross-build";
-    nativeBuildInputs = old.nativeBuildInputs ++ [ pkgs.gox ];
-    buildPhase = ''
-      (cd pkgs/sops-install-secrets && gox -os linux)
-    '';
-    doCheck = false;
-    installPhase = ''
-      touch $out $unittest
-    '';
-    fixupPhase = ":";
-  });
+  cross-build = pkgs.callPackage ./pkgs/cross-build.nix {
+    inherit sops-install-secrets;
+  };
 })
