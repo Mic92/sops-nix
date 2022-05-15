@@ -40,7 +40,7 @@
         nixpkgs.legacyPackages.${system}.callPackage ./shell.nix {}
     );
     devShells = forAllSystems (system: {
-      unit-tests = nixpkgs.legacyPackages.${system}.callPackage ./unit-tests.nix {};
+      unit-tests = nixpkgs.legacyPackages.${system}.callPackage ./pkgs/unit-tests.nix {};
     });
   };
 }
