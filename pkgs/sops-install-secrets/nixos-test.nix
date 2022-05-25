@@ -25,7 +25,7 @@
 
   user-passwords = makeTest {
     name = "sops-user-passwords";
-    machine = { config, ... }: {
+    nodes.machine = { config, ... }: {
       imports = [ ../../modules/sops ];
       sops = {
         age.keyFile = ./test-assets/age-keys.txt;
@@ -58,7 +58,7 @@
 
   pruning = makeTest {
     name = "sops-pruning";
-    machine = { lib, ... }: {
+    nodes.machine = { lib, ... }: {
       imports = [ ../../modules/sops ];
       sops = {
         age.keyFile = ./test-assets/age-keys.txt;
@@ -99,7 +99,7 @@
 
  age-keys = makeTest {
    name = "sops-age-keys";
-   machine = {
+   nodes.machine = {
      imports = [ ../../modules/sops ];
      sops = {
        age.keyFile = ./test-assets/age-keys.txt;
@@ -119,7 +119,7 @@
 
   age-ssh-keys = makeTest {
   name = "sops-age-ssh-keys";
-  machine = {
+  nodes.machine = {
     imports = [ ../../modules/sops ];
     services.openssh.enable = true;
     services.openssh.hostKeys = [{
@@ -207,7 +207,7 @@
 } // pkgs.lib.optionalAttrs (pkgs.lib.versionAtLeast (pkgs.lib.versions.majorMinor pkgs.lib.version) "22.05") {
   restart-and-reload = makeTest {
     name = "sops-restart-and-reload";
-    machine = { pkgs, lib, config, ... }: {
+    nodes.machine = { pkgs, lib, config, ... }: {
       imports = [
         ../../modules/sops
       ];
