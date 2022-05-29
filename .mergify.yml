@@ -1,7 +1,7 @@
 pull_request_rules:
   - name: automatic merge on CI success
     conditions:
-      - check-success=tests (ubuntu-latest)
+      - check-success=tests
       - check-success=Evaluate flake.nix
       - check-success=package lint [x86_64-linux]
       - check-success=package cross-build [x86_64-linux]
