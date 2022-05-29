@@ -17,3 +17,5 @@ jobs:
             access-tokens = github.com=${{ secrets.GITHUB_TOKEN }}
       - name: Update flake.lock
         uses: DeterminateSystems/update-flake-lock@v9
+        with:
+          token: ${{ secrets.GH_TOKEN_FOR_UPDATES }}
