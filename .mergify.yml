@@ -1,0 +1,39 @@
+pull_request_rules:
+  - name: automatic merge on CI success
+    conditions:
+      - check-success=tests (ubuntu-latest)
+      - check-success=Evaluate flake.nix
+      - check-success=package lint [x86_64-linux]
+      - check-success=package cross-build [x86_64-linux]
+      - check-success=package ssh-to-pgp [x86_64-linux]
+      - check-success=check pgp-keys-22_05 [x86_64-linux]
+      - check-success=check age-keys [x86_64-linux]
+      - check-success=package sops-install-secrets [x86_64-linux]
+      - check-success=check sops-install-secrets-21_11 [x86_64-linux]
+      - check-success=check sops-import-keys-hook-22_05 [x86_64-linux]
+      - check-success=check lint-21_11 [x86_64-linux]
+      - check-success=check sops-import-keys-hook-21_11 [x86_64-linux]
+      - check-success=package sops-import-keys-hook [x86_64-linux]
+      - check-success=check age-keys-22_05 [x86_64-linux]
+      - check-success=check age-ssh-keys-21_11 [x86_64-linux]
+      - check-success=check age-ssh-keys [x86_64-linux]
+      - check-success=check sops-pgp-hook-test-21_11 [x86_64-linux]
+      - check-success=package sops-pgp-hook [x86_64-linux]
+      - check-success=check sops-pgp-hook-21_11 [x86_64-linux]
+      - check-success=check cross-build-21_11 [x86_64-linux]
+      - check-success=check lint-22_05 [x86_64-linux]
+      - check-success=check ssh-keys-21_11 [x86_64-linux]
+      - check-success=check sops-init-gpg-key-22_05 [x86_64-linux]
+      - check-success=check ssh-keys-22_05 [x86_64-linux]
+      - check-success=check pruning-22_05 [x86_64-linux]
+      - check-success=check age-keys-21_11 [x86_64-linux]
+      - check-success=check sops-pgp-hook-22_05 [x86_64-linux]
+      - check-success=package sops-pgp-hook-test [x86_64-linux]
+      - check-success=check pgp-keys-21_11 [x86_64-linux]
+      - check-success=check pruning [x86_64-linux]
+      - check-success=check sops-pgp-hook-test-22_05 [x86_64-linux]
+      - author=sops-nix-bot
+    actions:
+      merge:
+        method: merge
+      delete_head_branch: {}
