@@ -856,3 +856,12 @@ some secrets, you should also include solutions that allow secrets to be stored
 securely in your version control, e.g.
 [git-agecrypt](https://github.com/vlaci/git-agecrypt). These types of solutions
 can be used together with sops-nix.
+
+
+## Related projects
+
+- [agenix](https://github.com/ryantm/agenix): Similar features as sops-nix but
+  uses plan age.
+- [scapel](https://github.com/polygon/scalpel): Provides a simple template
+  mechanism to inject secrets into configuration files in the nixos activation
+  phase
