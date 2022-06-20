@@ -861,7 +861,7 @@ can be used together with sops-nix.
 ## Related projects
 
 - [agenix](https://github.com/ryantm/agenix): Similar features as sops-nix but
-  uses plan age.
+  uses age.
 - [scalpel](https://github.com/polygon/scalpel): Provides a simple template
   mechanism to inject secrets into configuration files in the nixos activation
   phase
