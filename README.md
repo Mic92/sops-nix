@@ -195,20 +195,6 @@ $ nix-shell -p ssh-to-age --run "ssh-to-age < ~/.ssh/id_ed25519.pub"
 $ nix-shell -p ssh-to-age --run "ssh-add -L | ssh-to-age"
 ```
 
-If you get this,
-
-```console
-failed to parse ssh private key: ssh: this private key is passphrase protected
-```
-
-then your SSH key is encrypted with your password and you need to create an unencrypted copy temporarily:
-
-```console
-$ cp $HOME/.ssh/id_ed25519 /tmp/id_ed25519
-$ ssh-keygen -p -N "" -f /tmp/id_ed25519
-$ nix-shell -p ssh-to-age --run "ssh-to-age -private-key -i /tmp/id_ed25519 > ~/.config/sops/age/keys.txt"
-```
-
 </details>
 
 <details>
