@@ -204,7 +204,6 @@
    inherit (pkgs) system;
  };
 
-} // pkgs.lib.optionalAttrs (pkgs.lib.versionAtLeast (pkgs.lib.versions.majorMinor pkgs.lib.version) "22.05") {
   restart-and-reload = makeTest {
     name = "sops-restart-and-reload";
     nodes.machine = { pkgs, lib, config, ... }: {
