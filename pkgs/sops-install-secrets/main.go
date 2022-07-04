@@ -907,6 +907,19 @@ func parseFlags(args []string) (*options, error) {
 	return &opts, nil
 }
 
+func replaceRuntimeDir(path, rundir string) (ret string) {
+	parts := strings.Split(path, "%%")
+	first := true
+	for _, part := range parts {
+		if !first {
+			ret += "%"
+		}
+		first = false
+		ret += strings.ReplaceAll(part, "%r", rundir)
+	}
+	return
+}
+
 func installSecrets(args []string) error {
 	opts, err := parseFlags(args)
 	if err != nil {
@@ -921,13 +934,13 @@ func installSecrets(args []string) error {
 	if manifest.UserMode {
 		rundir, ok := os.LookupEnv("XDG_RUNTIME_DIR")
 		if !ok {
-			rundir = fmt.Sprintf("/run/user/%d", os.Getuid())
+			return fmt.Errorf("$XDG_RUNTIME_DIR is not set!")
 		}
-		manifest.SecretsMountPoint = strings.ReplaceAll(manifest.SecretsMountPoint, "%r", rundir)
-		manifest.SymlinkPath = strings.ReplaceAll(manifest.SymlinkPath, "%r", rundir)
+		manifest.SecretsMountPoint = replaceRuntimeDir(manifest.SecretsMountPoint, rundir)
+		manifest.SymlinkPath = replaceRuntimeDir(manifest.SymlinkPath, rundir)
 		var newSecrets []secret
 		for _, secret := range manifest.Secrets {
-			secret.Path = strings.ReplaceAll(secret.Path, "%r", rundir)
+			secret.Path = replaceRuntimeDir(secret.Path, rundir)
 			newSecrets = append(newSecrets, secret)
 		}
 		manifest.Secrets = newSecrets

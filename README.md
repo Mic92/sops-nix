@@ -61,7 +61,7 @@ If you use experimental nix flakes support:
   inputs.sops-nix.url = github:Mic92/sops-nix;
   # optional, not necessary for the module
   #inputs.sops-nix.inputs.nixpkgs.follows = "nixpkgs";
-  
+
   outputs = { self, nixpkgs, sops-nix }: {
     # change `yourhostname` to your actual hostname
     nixosConfigurations.yourhostname = nixpkgs.lib.nixosSystem {
@@ -714,7 +714,7 @@ $ head krb5.keytab
                 "mac": "ENC[AES256_GCM,data:ISjUzaw/5mNiwypmUrOk2DAZnlkbnhURHmTTYA3705NmRsSyUh1PyQvCuwglmaHscwl4GrsnIz4rglvwx1zYa+UUwanR0+VeBqntHwzSNiWhh7qMAQwdUXmdCNiOyeGy6jcSDsXUeQmyIWH6yibr7hhzoQFkZEB7Wbvcw6Sossk=,iv:UilxNvfHN6WkEvfY8ZIJCWijSSpLk7fqSCWh6n8+7lk=,tag:HUTgyL01qfVTCNWCTBfqXw==,type:str]",
                 "pgp": [
                         {
-                        
+
 ```
 
 It can be decrypted again like this:
@@ -741,28 +741,48 @@ This module provides a subset of features provided by the system-wide sops-nix s
 
 Instead of running as an activation script, sops-nix runs as a systemd user service called `sops-nix.service`.
 And instead of decrypting to `/run/secrets`, the secrets are decrypted to `$XDG_RUNTIME_DIR/secrets`.
+**Since the secrets are decryted there, it's highly recommended to use a tmpfs for `$XDG_RUNTIME_DIR` if your distribution does not do that.**
 
-Usage example:
+Depending on whether you use home-manager system-wide or using a home.nix, you have to import it in a different way.
+This example show the `channel` approach from the usage example above for simplicity, but all other methods work as well.
+
 ```nix
 {
-  # NixOS home-manager configuration
+  # NixOS system-wide home-manager configuration
   home-manager.sharedModules = [
-    /path/to/sops-nix/modules/home-manager/sops.nix
+    <sops-nix/modules/home-manager/sops.nix>
   ];
+}
+```
 
+```nix
+{
   # Configuration via home.nix
   imports = [
-    /path/to/sops-nix/modules/home-manager/sops.nix
+    <sops-nix/modules/home-manager/sops.nix>
   ];
+}
+```
 
-  # Configuration of secrets
+The actual sops configuration is in the `sops` namespace in your home.nix (or in the `home-manager.users.<name>` namespace when using home-manager system-wide):
+```nix
+{
   sops = {
-    age.sshKeyPaths = [ "/home/user/path-to-ssh-key" ]; # must have no password!
+    age.keyFile = "/home/user/.age-key.txt" ]; # must have no password!
+    # It's alos possible to use a ssh key, but only when it has no password:
+    #age.sshKeyPaths = [ "/home/user/path-to-ssh-key" ];
     sops.secrets.test = {
       sopsFile = ./secrets.yml.enc;
-      path = "%r/test.txt"; # %r gets replaced with your $XDG_RUNTIME_DIR
+      path = "%r/test.txt"; # %r gets replaced with your $XDG_RUNTIME_DIR, use %% to specify a '%' sign
     };
   };
+}
+```
+
+The secrets are decrypted in a systemd user service called `sops-nix`, so other services needing secrets must order after it:
+```nix
+{
+  systemd.user.services.mbsync.Unit.After = [ "sops-nix.service" ];
 }
 ```
 
