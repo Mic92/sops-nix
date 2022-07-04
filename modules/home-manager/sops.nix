@@ -83,6 +83,18 @@ let
   };
 
   manifest = manifestFor "" cfg.secrets;
+
+  script = toString (pkgs.writeShellScript "sops-nix-user" ((lib.optionalString (cfg.gnupg.home != null) "export SOPS_GPG_EXEC=${pkgs.gnupg}/bin/gpg")
+    + (lib.optionalString cfg.age.generateKey ''
+    if [[ ! -f '${cfg.age.keyFile}' ]]; then
+      echo generating machine-specific age key...
+      mkdir -p $(dirname ${cfg.age.keyFile})
+      # age-keygen sets 0600 by default, no need to chmod.
+      ${pkgs.age}/bin/age-keygen -o ${cfg.age.keyFile}
+    fi
+  '' + ''
+    ${sops-install-secrets}/bin/sops-install-secrets -ignore-passwd '${manifest}'
+  '')));
 in {
   options.sops = {
     secrets = lib.mkOption {
@@ -207,20 +219,22 @@ in {
         Description = "sops-nix activation";
       };
       Service = {
-        Environment = lib.mkIf (cfg.gnupg.home != null) [ "SOPS_GPG_EXEC=${pkgs.gnupg}/bin/gpg" ];
         Type = "oneshot";
-        ExecStart = toString (pkgs.writeShellScript "sops-nix-user" (lib.optionalString cfg.age.generateKey ''
-          if [[ ! -f '${cfg.age.keyFile}' ]]; then
-            echo generating machine-specific age key...
-            mkdir -p $(dirname ${cfg.age.keyFile})
-            # age-keygen sets 0600 by default, no need to chmod.
-            ${pkgs.age}/bin/age-keygen -o ${cfg.age.keyFile}
-          fi
-        '' + ''
-          ${sops-install-secrets}/bin/sops-install-secrets -ignore-passwd '${manifest}'
-        ''));
+        ExecStart = script;
       };
       Install.WantedBy = [ "default.target" ];
+    };
+
+    launchd.agents.sops-nix = {
+      enable = true;
+      config = {
+        ProgramArguments = [ script ];
+        KeepAlive = {
+          Crashed = false;
+          SuccessfulExit = false;
+        };
+        ProcessType = "Background";
+      };
     };
   };
 }
