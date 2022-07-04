@@ -551,7 +551,7 @@ the service needs a token and a SSH private key to function.</summary>
 
 ## Restarting/reloading systemd units on secret change
 
-**With NixOS 22.05**, it is possible to restart or reload units when a secret changes or is newly initialized.
+It is possible to restart or reload units when a secret changes or is newly initialized.
 
 This behavior can be configured per-secret:
 ```nix
