@@ -147,7 +147,7 @@ in {
       keyFile = lib.mkOption {
         type = lib.types.nullOr lib.types.path;
         default = null;
-        example = "/var/lib/sops-nix/key.txt";
+        example = "/home/someuser/.age-key.txt";
         description = ''
           Path to age key file used for sops decryption.
         '';
@@ -166,7 +166,6 @@ in {
       sshKeyPaths = lib.mkOption {
         type = lib.types.listOf lib.types.path;
         default = [];
-        defaultText = lib.literalDocBook "The ed25519 keys from <option>config.services.openssh.hostKeys</option>";
         description = ''
           Paths to ssh keys added as age keys during sops description.
         '';
@@ -177,7 +176,7 @@ in {
       home = lib.mkOption {
         type = lib.types.nullOr lib.types.str;
         default = null;
-        example = "/root/.gnupg";
+        example = "/home/someuser/.gnupg";
         description = ''
           Path to gnupg database directory containing the key for decrypting the sops file.
         '';
@@ -186,7 +185,6 @@ in {
       sshKeyPaths = lib.mkOption {
         type = lib.types.listOf lib.types.path;
         default = [];
-        defaultText = lib.literalDocBook "The rsa keys from <option>config.services.openssh.hostKeys</option>";
         description = ''
           Path to ssh keys added as GPG keys during sops description.
           This option must be explicitly unset if <literal>config.sops.gnupg.sshKeyPaths</literal> is set.
