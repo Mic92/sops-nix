@@ -741,7 +741,7 @@ This module provides a subset of features provided by the system-wide sops-nix s
 
 Instead of running as an activation script, sops-nix runs as a systemd user service called `sops-nix.service`.
 And instead of decrypting to `/run/secrets`, the secrets are decrypted to `$XDG_RUNTIME_DIR/secrets`.
-**Since the secrets are decryted there, it's highly recommended to use a tmpfs for `$XDG_RUNTIME_DIR` if your distribution does not do that.**
+**Since the secrets are decrypted there, it's highly recommended to use a tmpfs for `$XDG_RUNTIME_DIR` to avoid storing secrets in plain text on persistent storage. Linux distributions using systemd-logind do that out-of-the-box.**
 
 Depending on whether you use home-manager system-wide or using a home.nix, you have to import it in a different way.
 This example show the `channel` approach from the usage example above for simplicity, but all other methods work as well.
@@ -768,11 +768,11 @@ The actual sops configuration is in the `sops` namespace in your home.nix (or in
 ```nix
 {
   sops = {
-    age.keyFile = "/home/user/.age-key.txt" ]; # must have no password!
+    age.keyFile = "/home/user/.age-key.txt"; # must have no password!
     # It's alos possible to use a ssh key, but only when it has no password:
     #age.sshKeyPaths = [ "/home/user/path-to-ssh-key" ];
     sops.secrets.test = {
-      sopsFile = ./secrets.yml.enc;
+      # sopsFile = ./secrets.yml.enc; # optionally define per-secret files
       path = "%r/test.txt"; # %r gets replaced with your $XDG_RUNTIME_DIR, use %% to specify a '%' sign
     };
   };

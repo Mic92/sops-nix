@@ -899,7 +899,7 @@ func installSecrets(args []string) error {
 
 	if manifest.UserMode {
 		rundir, ok := os.LookupEnv("XDG_RUNTIME_DIR")
-		if !ok {
+		if opts.checkMode == Off && !ok {
 			return fmt.Errorf("$XDG_RUNTIME_DIR is not set!")
 		}
 		manifest.SecretsMountPoint = replaceRuntimeDir(manifest.SecretsMountPoint, rundir)
