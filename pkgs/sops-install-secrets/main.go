@@ -619,14 +619,14 @@ func importSSHKeys(logcfg loggingConfig, keyPaths []string, gpgHome string) erro
 		}
 
 		if logcfg.KeyImport {
-			fmt.Printf("%s: Imported %s with fingerprint %s\n", path.Base(os.Args[0]), p, hex.EncodeToString(gpgKey.PrimaryKey.Fingerprint[:]))
+			fmt.Printf("%s: Imported %s as GPG key with fingerprint %s\n", path.Base(os.Args[0]), p, hex.EncodeToString(gpgKey.PrimaryKey.Fingerprint[:]))
 		}
 	}
 
 	return nil
 }
 
-func importAgeSSHKeys(keyPaths []string, ageFile os.File) error {
+func importAgeSSHKeys(logcfg loggingConfig, keyPaths []string, ageFile os.File) error {
 	for _, p := range keyPaths {
 		// Read the key
 		sshKey, err := ioutil.ReadFile(p)
@@ -634,14 +634,18 @@ func importAgeSSHKeys(keyPaths []string, ageFile os.File) error {
 			return fmt.Errorf("Cannot read ssh key '%s': %w", p, err)
 		}
 		// Convert the key to age
-		bech32, err := agessh.SSHPrivateKeyToAge(sshKey)
+		privKey, pubKey, err := agessh.SSHPrivateKeyToAge(sshKey)
 		if err != nil {
 			return fmt.Errorf("Cannot convert ssh key '%s': %w", p, err)
 		}
 		// Append it to the file
-		_, err = ageFile.WriteString(*bech32 + "\n")
+		_, err = ageFile.WriteString(*privKey + "\n")
 		if err != nil {
 			return fmt.Errorf("Cannot write key to age file: %w", err)
+		}
+
+		if logcfg.KeyImport {
+			fmt.Printf("%s: Imported %s as age key with fingerprint %s\n", path.Base(os.Args[0]), p, *pubKey)
 		}
 	}
 
@@ -925,7 +929,7 @@ func installSecrets(args []string) error {
 
 		// Import SSH keys
 		if len(manifest.AgeSshKeyPaths) != 0 {
-			err = importAgeSSHKeys(manifest.AgeSshKeyPaths, *ageFile)
+			err = importAgeSSHKeys(manifest.Logging, manifest.AgeSshKeyPaths, *ageFile)
 			if err != nil {
 				return err
 			}
