@@ -349,8 +349,8 @@ func writeSecrets(secretDir string, secrets []secret, keysGid int, userMode bool
 	return nil
 }
 
-func lookupKeysGroup() (int, error) {
-	group, err := user.LookupGroup("keys")
+func lookupGroup(groupname string) (int, error) {
+	group, err := user.LookupGroup(groupname)
 	if err != nil {
 		return 0, fmt.Errorf("Failed to lookup 'keys' group: %w", err)
 	}
@@ -359,6 +359,18 @@ func lookupKeysGroup() (int, error) {
 		return 0, fmt.Errorf("Cannot parse keys gid %s: %w", group.Gid, err)
 	}
 	return int(gid), nil
+}
+
+func lookupKeysGroup() (int, error) {
+  gid, err1 := lookupGroup("keys")
+  if err1 == nil {
+    return gid, nil
+  }
+  gid, err2 := lookupGroup("nogroup")
+  if err2 == nil {
+    return gid, nil
+  }
+  return 0, fmt.Errorf("Can't find group 'keys' nor 'nogroup' (%w).", err2)
 }
 
 func (app *appContext) loadSopsFile(s *secret) (*secretFile, error) {
