@@ -21,7 +21,6 @@ import (
 
 	"github.com/mozilla-services/yaml"
 	"go.mozilla.org/sops/v3/decrypt"
-	"golang.org/x/sys/unix"
 	"github.com/joho/godotenv"
 )
 
