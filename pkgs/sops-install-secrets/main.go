@@ -892,9 +892,9 @@ func installSecrets(args []string) error {
 	}
 
 	if manifest.UserMode {
-		rundir, ok := os.LookupEnv("XDG_RUNTIME_DIR")
-		if opts.checkMode == Off && !ok {
-			return fmt.Errorf("$XDG_RUNTIME_DIR is not set!")
+    rundir, err := RuntimeDir()
+		if opts.checkMode == Off && err != nil {
+      return fmt.Errorf("Error: %v", err)
 		}
 		manifest.SecretsMountPoint = replaceRuntimeDir(manifest.SecretsMountPoint, rundir)
 		manifest.SymlinkPath = replaceRuntimeDir(manifest.SymlinkPath, rundir)
