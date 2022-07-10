@@ -1,5 +1,3 @@
-// +build linux
-
 package main
 
 import (
@@ -23,7 +21,6 @@ import (
 
 	"github.com/mozilla-services/yaml"
 	"go.mozilla.org/sops/v3/decrypt"
-	"golang.org/x/sys/unix"
 )
 
 type secret struct {
@@ -117,28 +114,6 @@ type appContext struct {
 	ignorePasswd bool
 }
 
-func secureSymlinkChown(symlinkToCheck, expectedTarget string, owner, group int) error {
-	fd, err := unix.Open(symlinkToCheck, unix.O_CLOEXEC|unix.O_PATH|unix.O_NOFOLLOW, 0)
-	if err != nil {
-		return fmt.Errorf("Failed to open %s: %w", symlinkToCheck, err)
-	}
-	defer unix.Close(fd)
-
-	buf := make([]byte, len(expectedTarget)+1) // oversize by one to detect trunc
-	n, err := unix.Readlinkat(fd, "", buf)
-	if err != nil {
-		return fmt.Errorf("couldn't readlinkat %s", symlinkToCheck)
-	}
-	if n > len(expectedTarget) || string(buf[:n]) != expectedTarget {
-		return fmt.Errorf("symlink %s does not point to %s", symlinkToCheck, expectedTarget)
-	}
-	err = unix.Fchownat(fd, "", owner, group, unix.AT_EMPTY_PATH)
-	if err != nil {
-		return fmt.Errorf("cannot change owner of '%s' to %d/%d: %w", symlinkToCheck, owner, group, err)
-	}
-	return nil
-}
-
 func readManifest(path string) (*manifest, error) {
 	file, err := os.Open(path)
 	if err != nil {
@@ -172,7 +147,7 @@ func symlinkSecret(targetFile string, secret *secret, userMode bool) error {
 				return fmt.Errorf("Cannot create symlink '%s': %w", secret.Path, err)
 			}
 			if !userMode {
-				if err := secureSymlinkChown(secret.Path, targetFile, secret.owner, secret.group); err != nil {
+				if err := SecureSymlinkChown(secret.Path, targetFile, secret.owner, secret.group); err != nil {
 					return fmt.Errorf("Cannot chown symlink '%s': %w", secret.Path, err)
 				}
 			}
@@ -311,33 +286,6 @@ func decryptSecrets(secrets []secret) error {
 }
 
 const RAMFS_MAGIC int32 = -2054924042
-
-func mountSecretFs(mountpoint string, keysGid int, userMode bool) error {
-	if err := os.MkdirAll(mountpoint, 0751); err != nil {
-		return fmt.Errorf("Cannot create directory '%s': %w", mountpoint, err)
-	}
-
-	// We can't create a ramfs as user
-	if userMode {
-		return nil
-	}
-
-	buf := unix.Statfs_t{}
-	if err := unix.Statfs(mountpoint, &buf); err != nil {
-		return fmt.Errorf("Cannot get statfs for directory '%s': %w", mountpoint, err)
-	}
-	if int32(buf.Type) != RAMFS_MAGIC {
-		if err := unix.Mount("none", mountpoint, "ramfs", unix.MS_NODEV|unix.MS_NOSUID, "mode=0751"); err != nil {
-			return fmt.Errorf("Cannot mount: %s", err)
-		}
-	}
-
-	if err := os.Chown(mountpoint, 0, int(keysGid)); err != nil {
-		return fmt.Errorf("Cannot change owner/group of '%s' to 0/%d: %w", mountpoint, keysGid, err)
-	}
-
-	return nil
-}
 
 func prepareSecretsDir(secretMountpoint string, linkName string, keysGid int, userMode bool) (*string, error) {
 	var generation uint64
@@ -939,7 +887,7 @@ func installSecrets(args []string) error {
 
 	isDry := os.Getenv("NIXOS_ACTION") == "dry-activate"
 
-	if err := mountSecretFs(manifest.SecretsMountPoint, keysGid, manifest.UserMode); err != nil {
+	if err := MountSecretFs(manifest.SecretsMountPoint, keysGid, manifest.UserMode); err != nil {
 		return fmt.Errorf("Failed to mount filesystem for secrets: %w", err)
 	}
 

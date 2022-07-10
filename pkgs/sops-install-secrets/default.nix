@@ -33,6 +33,6 @@ buildGoModule {
     homepage = "https://github.com/Mic92/sops-nix";
     license = licenses.mit;
     maintainers = with maintainers; [ mic92 ];
-    platforms = platforms.linux;
+    platforms = platforms.linux ++ platforms.darwin;
   };
 }
