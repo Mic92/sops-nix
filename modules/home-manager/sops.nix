@@ -28,7 +28,9 @@ let
         default = "%r/secrets/${name}";
         description = ''
           Path where secrets are symlinked to.
-          If the default is kept no symlink is created.
+          If the default is kept no other symlink is created.
+          `%r` is replaced by $XDG_RUNTIME_DIR on linux or `getconf
+          DARWIN_USER_TEMP_DIR` on darwin.
         '';
       };
 
