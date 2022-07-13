@@ -6,6 +6,7 @@ let
   cfg = config.sops;
   users = config.users.users;
   sops-install-secrets = cfg.package;
+  sops-install-secrets-check = cfg.validationPackage;
   regularSecrets = lib.filterAttrs (_: v: !v.neededForUsers) cfg.secrets;
   secretsForUsers = lib.filterAttrs (_: v: v.neededForUsers) cfg.secrets;
   secretType = types.submodule ({ config, ... }: {
@@ -131,7 +132,7 @@ let
       };
     } // extraJson);
     checkPhase = ''
-      ${sops-install-secrets}/bin/sops-install-secrets -check-mode=${if cfg.validateSopsFiles then "sopsfile" else "manifest"} "$out"
+      ${sops-install-secrets-check}/bin/sops-install-secrets -check-mode=${if cfg.validateSopsFiles then "sopsfile" else "manifest"} "$out"
     '';
   };
 
@@ -222,6 +223,20 @@ in {
       defaultText = literalExpression "(pkgs.callPackage ../.. {}).sops-install-secrets";
       description = ''
         sops-install-secrets package to use.
+      '';
+    };
+
+    validationPackage = mkOption {
+      type = types.package;
+      default =
+        if pkgs.stdenv.buildPlatform == pkgs.stdenv.hostPlatform
+          then sops-install-secrets
+          else (pkgs.pkgsBuildHost.callPackage ../.. {}).sops-install-secrets;
+
+      description = ''
+        sops-install-secrets package to use when validating configuration.
+
+        Defaults to sops.package if building natively, and a native version of sops-install-secrets if cross compiling.
       '';
     };
 
