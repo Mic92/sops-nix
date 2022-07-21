@@ -232,6 +232,7 @@ in {
         if pkgs.stdenv.buildPlatform == pkgs.stdenv.hostPlatform
           then sops-install-secrets
           else (pkgs.pkgsBuildHost.callPackage ../.. {}).sops-install-secrets;
+      defaultText = literalExpression "config.sops.package";
 
       description = ''
         sops-install-secrets package to use when validating configuration.
