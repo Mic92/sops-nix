@@ -216,7 +216,7 @@ in {
       }]) cfg.secrets)
     );
 
-    systemd.user.services.sops-nix = {
+    systemd.user.services.sops-nix = lib.mkIf pkgs.stdenv.hostPlatform.isLinux {
       Unit = {
         Description = "sops-nix activation";
       };
