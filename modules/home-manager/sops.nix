@@ -236,6 +236,8 @@ in {
           SuccessfulExit = false;
         };
         ProcessType = "Background";
+        StandardOutPath = "${config.home.homeDirectory}/Library/Logs/SopsNix/stdout";
+        StandardErrorPath = "${config.home.homeDirectory}/Library/Logs/SopsNix/stderr";
       };
     };
   };
