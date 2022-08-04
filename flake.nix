@@ -27,7 +27,9 @@
       inherit (prev) ssh-to-pgp;
     };
     nixosModules.sops = import ./modules/sops;
+    homeManagerModules.sops = import ./modules/home-manager/sops.nix;
     nixosModule = self.nixosModules.sops;
+    homeManagerModule = self.homeManagerModules.sops;
     packages = forAllSystems (system:
       import ./default.nix {
         pkgs = import nixpkgs {inherit system;};
