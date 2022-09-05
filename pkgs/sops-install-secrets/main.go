@@ -455,7 +455,7 @@ func (app *appContext) validateSecret(secret *secret) error {
 	}
 	secret.mode = os.FileMode(mode)
 
-	if app.ignorePasswd {
+	if app.ignorePasswd || os.Getenv("NIXOS_ACTION") == "dry-activate" {
 		secret.owner = 0
 		secret.group = 0
 	} else if app.checkMode == Off {
