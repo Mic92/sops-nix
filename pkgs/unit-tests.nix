@@ -7,7 +7,7 @@ in pkgs.stdenv.mkDerivation {
   nativeBuildInputs = with pkgs; [
     bashInteractive
     gnupg
-    utillinux
+    util-linux
     nix
     sopsPkgs.sops-pgp-hook-test
   ] ++ pkgs.lib.optional (pkgs.stdenv.isLinux) sopsPkgs.sops-install-secrets.unittest;

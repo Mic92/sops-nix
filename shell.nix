@@ -5,7 +5,7 @@ pkgs.mkShell {
     go
     delve
     gnupg
-    utillinux
+    util-linux
     nixFlakes
     golangci-lint
   ];
