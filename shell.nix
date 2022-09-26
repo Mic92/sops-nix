@@ -6,7 +6,7 @@ pkgs.mkShell {
     delve
     gnupg
     util-linux
-    nixFlakes
+    nix
     golangci-lint
   ];
   # delve does not compile with hardening enabled
