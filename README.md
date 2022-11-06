@@ -240,7 +240,7 @@ The easiest way to add new machines is by using SSH host keys (this requires Ope
 
 If you are using `age`, the `ssh-to-age` tool can be used to convert any SSH Ed25519 public key to the `age` format:
 ```console
-$ nix-shell -p ssh-to-age --run 'ssh-keyscan my-server.com | ssh-to-age'
+$ nix-shell -p ssh-to-age --run 'ssh-keyscan example.com | ssh-to-age'
 age1rgffpespcyjn0d8jglk7km9kfrfhdyev6camd3rck6pn8y47ze4sug23v3
 $ nix-shell -p ssh-to-age --run 'cat /etc/ssh/ssh_host_ed25519_key.pub | ssh-to-age'
 age1rgffpespcyjn0d8jglk7km9kfrfhdyev6camd3rck6pn8y47ze4sug23v3
