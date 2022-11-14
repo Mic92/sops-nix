@@ -84,7 +84,9 @@ let
 
   manifest = manifestFor "" cfg.secrets;
 
-  script = toString (pkgs.writeShellScript "sops-nix-user" ((lib.optionalString (cfg.gnupg.home != null) "export SOPS_GPG_EXEC=${pkgs.gnupg}/bin/gpg")
+  script = toString (pkgs.writeShellScript "sops-nix-user" ((lib.optionalString (cfg.gnupg.home != null) ''
+    export SOPS_GPG_EXEC=${pkgs.gnupg}/bin/gpg
+  '')
     + (lib.optionalString cfg.age.generateKey ''
     if [[ ! -f '${cfg.age.keyFile}' ]]; then
       echo generating machine-specific age key...
