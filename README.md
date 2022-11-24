@@ -851,3 +851,11 @@ can be used together with sops-nix.
 - [scalpel](https://github.com/polygon/scalpel): Provides a simple template
   mechanism to inject secrets into configuration files in the nixos activation
   phase
+
+
+# Commercial support
+
+The contributors of sops-nix are trying their best to keep sops-nix a true
+opensource and community project and not turn in into a product.
+However if you need help setting up sops-nix in your infrastructure you can
+reach out to [numtide](https://numtide.com/contact) for commercial support.
