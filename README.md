@@ -855,7 +855,9 @@ can be used together with sops-nix.
 
 # Need more commercial support?
 
-The contributors of sops-nix are trying their best to keep sops-nix a true
-opensource and community project and not turn in into a product.
-However if you need help setting up sops-nix in your infrastructure you can
-reach out to [numtide](https://numtide.com/contact) for commercial support.
+
+We are building sops-nix very much as contributors to the community and are committed to keeping it open source.
+
+That said, many of us that are contributing to sops-nix also work for consultancies. If you want to contact one of those for paid-for support setting up sops-nix in your infrastructure you can do so here:
+* [Numtide](https://numtide.com/contact)
+* [Helsinki Systems](https://helsinki-systems.de/)
