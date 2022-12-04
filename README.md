@@ -853,7 +853,7 @@ can be used together with sops-nix.
   phase
 
 
-# Commercial support
+# Need more commercial support?
 
 The contributors of sops-nix are trying their best to keep sops-nix a true
 opensource and community project and not turn in into a product.
