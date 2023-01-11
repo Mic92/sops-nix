@@ -83,6 +83,9 @@ elif [[ "$KEYTYPE" == "RSA" ]]; then
 Key-Type: 1
 Key-Length: 2048
 EOF
+else
+  echo "unknown keytype '$KEYTYPE'"
+  exit 1
 fi
 
 cat >> "$GNUPGHOME/key-template" <<EOF
