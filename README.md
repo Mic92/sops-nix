@@ -764,7 +764,34 @@ EOF
 # fingerprint: E4CA86768F176AEB6C01554153AF8D7F149613B1
 ```
 
-In this case, you must upload the GPG key directory `/tmp/newkey` onto the server.
+You can choose between a RSA GPG key (default, like in the example above) or a
+Curve25519 based one by adding `--keytype Curve25519` like so:
+
+```console
+$ nix-shell -p sops-init-gpg-key
+$ sops-init-gpg-key --hostname server01 --gpghome /tmp/newkey --keytype Curve25519
+You can use the following command to save it to a file:
+cat > server01.asc <<EOF
+-----BEGIN PGP PUBLIC KEY BLOCK-----
+
+mDMEY7dJExYJKwYBBAHaRw8BAQdAloRZFyqNh3nIDtyUQKaBSMJOtLkbNeg+4TPg
+BG5TduG0OG5peC1hLmhvbWUua3VldGVtZWllci5kZSA8cm9vdEBuaXgtYS5ob21l
+Lmt1ZXRlbWVpZXIuZGU+iJMEExYKADsWIQREE2hPxiNijOo+CSmrLxbGte+J7wUC
+Y7dJEwIbAwULCQgHAgIiAgYVCgkICwIEFgIDAQIeBwIXgAAKCRCrLxbGte+J79LX
+AQDtLfQFDKm04ORIk28DrzTBbMTFQEW21dGBXk7ykBx4jQD/ZOnt1RPnB9mzMc8L
+wIS3oI8D9719DjoS9hrHnJ4xvge4OARjt0kTEgorBgEEAZdVAQUBAQdA0t1X35pN
+ic+etscIIkHjKUwrXhbTgWrARgXUuEMwwz8DAQgHiHgEGBYKACAWIQREE2hPxiNi
+jOo+CSmrLxbGte+J7wUCY7dJEwIbDAAKCRCrLxbGte+J7+0NAQCfj95TSyPEFKz3
+eLJ1aCA1bZZV/rkhHd+OwX1MFL3mKQD9GMPgvMzDIoofycDzMY2ttJgkRJfq+zOZ
+juXFQdUkMgY=
+=pf3V
+-----END PGP PUBLIC KEY BLOCK-----
+EOF
+fingerprint: 4413684FC623628CEA3E0929AB2F16C6B5EF89EF
+F0477297E369CD1D189DD901278D1535AB473B9E
+```
+
+In both cases, you must upload the GPG key directory `/tmp/newkey` onto the server.
 If you uploaded it to `/var/lib/sops` than your sops configuration will look like this:
 
 ```nix
