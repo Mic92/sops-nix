@@ -25,7 +25,7 @@ environment variables that can be passed to sops.
 - Atomic upgrades: New secrets are written to a new directory which replaces the old directory atomically.
 - Rollback support: If sops files are added to the Nix store, old secrets can be rolled back. This is optional.
 - Fast time-to-deploy: Unlike solutions implemented by NixOps, krops and morph, no extra steps are required to upload secrets.
-- A variety of storage formats: Secrets can be stored in YAML, JSON or binary.
+- A variety of storage formats: Secrets can be stored in YAML, dotenv, INI, JSON or binary.
 - Minimizes configuration errors: sops files are checked against the configuration at evaluation time.
 
 ## Demo
@@ -603,7 +603,7 @@ As users are not created yet, it's not possible to set an owner for these secret
 
 ## Different file formats
 
-At the moment we support the following file formats: YAML, JSON, and binary.
+At the moment we support the following file formats: YAML, JSON, INI, dotenv and binary.
 
 sops-nix allows specifying multiple sops files in different file formats:
 
