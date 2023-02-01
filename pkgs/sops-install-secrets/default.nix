@@ -17,7 +17,7 @@ buildGoModule {
 
   outputs = [ "out" "unittest" ];
 
-  postBuild = ''
+  postInstall = ''
     go test -c ./pkgs/sops-install-secrets
     install -D ./sops-install-secrets.test $unittest/bin/sops-install-secrets.test
     # newer versions of nixpkgs no longer require this step
