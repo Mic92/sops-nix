@@ -13,9 +13,14 @@ jobs:
         uses: cachix/install-nix-action@v18
         with:
           extra_nix_config: |
-            experimental-features = nix-command flakes
             access-tokens = github.com=${{ secrets.GITHUB_TOKEN }}
       - name: Update flake.lock
         uses: DeterminateSystems/update-flake-lock@v16
         with:
           token: ${{ secrets.GH_TOKEN_FOR_UPDATES }}
+          pr-body: |
+            Automated changes by the update-flake-lock
+            ```
+            {{ env.GIT_COMMIT_MESSAGE }}
+            ```
+            bors merge
