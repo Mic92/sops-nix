@@ -15,10 +15,13 @@ buildGoModule {
     inherit pkgs;
   };
 
-  outputs = [ "out" "unittest" ];
+  outputs = [ "out" ] ++
+  pkgs.lib.lists.optionals (pkgs.stdenv.isLinux) [ "unittest" ];
 
   postBuild = ''
     go test -c ./pkgs/sops-install-secrets
+  '' + pkgs.lib.optionalString (pkgs.stdenv.isLinux) ''
+    # *.test is only tested on linux. $unittest does not exist on darwin.
     install -D ./sops-install-secrets.test $unittest/bin/sops-install-secrets.test
     # newer versions of nixpkgs no longer require this step
     if command -v remove-references-to; then
