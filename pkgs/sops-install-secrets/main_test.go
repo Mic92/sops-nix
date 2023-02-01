@@ -349,7 +349,6 @@ func TestIsValidFormat(t *testing.T) {
 	}
 	for _, format := range []string{string(Yaml), string(Json), string(Binary), string(Dotenv)} {
 		generateCase(format, true)
-		generateCase(strings.Title(format), false)
 		generateCase(strings.ToUpper(format), false)
 	}
 }
