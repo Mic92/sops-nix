@@ -19,7 +19,6 @@ status = [
   "check ssh-keys-22_11 [x86_64-linux]",
   "check ssh-to-pgp-22_11 [x86_64-linux]",
   "check unit-tests-22_11 [x86_64-linux]",
-  "createPullRequest",
   "default devShell [x86_64-linux]",
   "default package [x86_64-linux]",
   "package cross-build [x86_64-linux]",
