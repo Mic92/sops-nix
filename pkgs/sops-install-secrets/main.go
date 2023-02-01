@@ -24,6 +24,7 @@ import (
 	"github.com/mozilla-services/yaml"
 	"go.mozilla.org/sops/v3/decrypt"
 	"golang.org/x/sys/unix"
+	"github.com/joho/godotenv"
 )
 
 type secret struct {
@@ -73,7 +74,22 @@ const (
 	Yaml   FormatType = "yaml"
 	Json   FormatType = "json"
 	Binary FormatType = "binary"
+	Dotenv FormatType = "dotenv"
+	Ini    FormatType = "ini"
 )
+
+func IsValidFormat(format string) bool {
+	switch format {
+	case string(Yaml),
+		 string(Json),
+		 string(Binary),
+		 string(Dotenv),
+		 string(Ini):
+		return true
+	default:
+		return false
+	}
+}
 
 func (f *FormatType) UnmarshalJSON(b []byte) error {
 	var s string
@@ -84,7 +100,7 @@ func (f *FormatType) UnmarshalJSON(b []byte) error {
 	switch t {
 	case "":
 		*f = Yaml
-	case Yaml, Json, Binary:
+	case Yaml, Json, Binary, Dotenv, Ini:
 		*f = t
 	}
 
@@ -270,23 +286,26 @@ func decryptSecret(s *secret, sourceFiles map[string]plainData) error {
 		if err != nil {
 			return fmt.Errorf("Failed to decrypt '%s': %w", s.SopsFile, err)
 		}
-		if s.Format == Binary {
+
+		switch s.Format {
+		case Binary, Dotenv, Ini:
 			sourceFile.binary = plain
-		} else {
-			if s.Format == Yaml {
-				if err := yaml.Unmarshal(plain, &sourceFile.data); err != nil {
-					return fmt.Errorf("Cannot parse yaml of '%s': %w", s.SopsFile, err)
-				}
-			} else {
-				if err := json.Unmarshal(plain, &sourceFile.data); err != nil {
-					return fmt.Errorf("Cannot parse json of '%s': %w", s.SopsFile, err)
-				}
+		case Yaml:
+			if err := yaml.Unmarshal(plain, &sourceFile.data); err != nil {
+				return fmt.Errorf("Cannot parse yaml of '%s': %w", s.SopsFile, err)
 			}
+		case Json:
+			if err := json.Unmarshal(plain, &sourceFile.data); err != nil {
+				return fmt.Errorf("Cannot parse json of '%s': %w", s.SopsFile, err)
+			}
+		default:
+			return fmt.Errorf("Secret of type %s in %s is not supported", s.Format, s.SopsFile)
 		}
 	}
-	if s.Format == Binary {
+	switch s.Format {
+	case Binary, Dotenv, Ini:
 		s.value = sourceFile.binary
-	} else {
+	case Yaml, Json:
 		strVal, err := recurseSecretKey(sourceFile.data, s.Key)
 		if err != nil {
 			return fmt.Errorf("secret %s in %s is not valid: %w", s.Name, s.SopsFile, err)
@@ -410,19 +429,30 @@ func (app *appContext) loadSopsFile(s *secret) (*secretFile, error) {
 	}
 
 	var keys map[string]interface{}
-	if s.Format == Binary {
+
+	switch s.Format {
+	case Binary:
 		if err := json.Unmarshal(cipherText, &keys); err != nil {
 			return nil, fmt.Errorf("Cannot parse json of '%s': %w", s.SopsFile, err)
 		}
 		return &secretFile{cipherText: cipherText, firstSecret: s}, nil
-	}
-
-	if s.Format == Yaml {
+	case Yaml:
 		if err := yaml.Unmarshal(cipherText, &keys); err != nil {
 			return nil, fmt.Errorf("Cannot parse yaml of '%s': %w", s.SopsFile, err)
 		}
-	} else if err := json.Unmarshal(cipherText, &keys); err != nil {
-		return nil, fmt.Errorf("Cannot parse json of '%s': %w", s.SopsFile, err)
+	case Dotenv:
+		env, err := godotenv.Unmarshal(string(cipherText))
+		if err != nil {
+			return nil, fmt.Errorf("Cannot parse dotenv of '%s': %w", s.SopsFile, err)
+		}
+		keys = map[string]interface{}{}
+		for k, v := range env {
+			keys[k] = v
+		}
+	case Json:
+		if err := json.Unmarshal(cipherText, &keys); err != nil {
+			return nil, fmt.Errorf("Cannot parse json of '%s': %w", s.SopsFile, err)
+		}
 	}
 
 	return &secretFile{
@@ -439,7 +469,7 @@ func (app *appContext) validateSopsFile(s *secret, file *secretFile) error {
 			s.Name, s.SopsFile, s.Format,
 			file.firstSecret.Format, file.firstSecret.Name)
 	}
-	if app.checkMode != Manifest && s.Format != Binary {
+	if app.checkMode != Manifest && (!(s.Format == Binary || s.Format == Dotenv || s.Format == Ini )) {
 		_, err := recurseSecretKey(file.keys, s.Key)
 		if err != nil {
 			return fmt.Errorf("secret %s in %s is not valid: %w", s.Name, s.SopsFile, err)
@@ -485,7 +515,7 @@ func (app *appContext) validateSecret(secret *secret) error {
 		secret.Format = "yaml"
 	}
 
-	if secret.Format != "yaml" && secret.Format != "json" && secret.Format != "binary" {
+	if !IsValidFormat(string(secret.Format)) {
 		return fmt.Errorf("Unsupported format %s for secret %s", secret.Format, secret.Name)
 	}
 

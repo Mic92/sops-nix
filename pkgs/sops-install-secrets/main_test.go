@@ -14,6 +14,7 @@ import (
 	"reflect"
 	"runtime"
 	"strconv"
+	"strings"
 	"syscall"
 	"testing"
 )
@@ -110,7 +111,7 @@ func testGPG(t *testing.T) {
 		ReloadUnits:  []string{"affected-reload-service"},
 	}
 
-	var jsonSecret, binarySecret secret
+	var jsonSecret, binarySecret, dotenvSecret, iniSecret secret
 	// should not create a symlink
 	jsonSecret = yamlSecret
 	jsonSecret.Name = "test2"
@@ -127,8 +128,25 @@ func testGPG(t *testing.T) {
 	binarySecret.SopsFile = path.Join(assets, "secrets.bin")
 	binarySecret.Path = path.Join(testdir.secretsPath, "test3")
 
+	dotenvSecret = yamlSecret
+	dotenvSecret.Name = "test4"
+	dotenvSecret.Owner = "root"
+	dotenvSecret.Group = "root"
+	dotenvSecret.Format = "dotenv"
+	dotenvSecret.SopsFile = path.Join(assets, "secrets.env")
+	dotenvSecret.Path = path.Join(testdir.secretsPath, "test4")
+
+	iniSecret = yamlSecret
+	iniSecret.Name = "test5"
+	iniSecret.Owner = "root"
+	iniSecret.Group = "root"
+	iniSecret.Format = "ini"
+	iniSecret.SopsFile = path.Join(assets, "secrets.ini")
+	iniSecret.Path = path.Join(testdir.secretsPath, "test5")
+
+
 	manifest := manifest{
-		Secrets:           []secret{yamlSecret, jsonSecret, binarySecret},
+		Secrets:           []secret{yamlSecret, jsonSecret, binarySecret, dotenvSecret, iniSecret},
 		SecretsMountPoint: testdir.secretsPath,
 		SymlinkPath:       testdir.symlinkPath,
 		GnupgHome:         gpgHome,
@@ -320,4 +338,18 @@ func TestValidateManifest(t *testing.T) {
 
 	ok(t, installSecrets([]string{"sops-install-secrets", "-check-mode=manifest", path}))
 	ok(t, installSecrets([]string{"sops-install-secrets", "-check-mode=sopsfile", path}))
+}
+
+func TestIsValidFormat(t *testing.T) {
+	generateCase := func(input string, mustBe bool) {
+		result := IsValidFormat(input)
+		if result != mustBe {
+			t.Errorf("input %s must return %v but returned %v", input, mustBe, result)
+		}
+	}
+	for _, format := range []string{string(Yaml), string(Json), string(Binary), string(Dotenv)} {
+		generateCase(format, true)
+		generateCase(strings.Title(format), false)
+		generateCase(strings.ToUpper(format), false)
+	}
 }
