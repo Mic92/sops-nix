@@ -35,7 +35,7 @@ let
       };
 
       format = lib.mkOption {
-        type = lib.types.enum [ "yaml" "json" "binary" ];
+        type = lib.types.enum [ "yaml" "json" "binary" "ini" "dotenv" ];
         default = cfg.defaultSopsFormat;
         description = ''
           File format used to decrypt the sops secret.
