@@ -19,6 +19,7 @@ environment variables that can be passed to sops.
 - Compatible with all NixOS deployment frameworks: [NixOps](https://github.com/NixOS/nixops), nixos-rebuild, [krops](https://github.com/krebs/krops/), [morph](https://github.com/DBCDK/morph), [nixus](https://github.com/Infinisil/nixus), etc.
 - Version-control friendly: Since all files are encrypted they can be directly committed to version control without worry. Diffs of the secrets are readable, and [can be shown in cleartext](https://github.com/mozilla/sops#showing-diffs-in-cleartext-in-git).
 - CI friendly: Since sops files can be added to the Nix store without leaking secrets, a machine definition can be built as a whole from a repository, without needing to rely on external secrets or services.
+- Home-manager friendly: Provides a home-manager module
 - Works well in teams: sops-nix comes with `nix-shell` hooks that allows multiple people to quickly import all GPG keys.
   The cryptography used in sops is designed to be scalable: Secrets are only encrypted once with a master key
   instead of encrypted per machine/developer key.
@@ -34,7 +35,7 @@ There is a `configuration.nix` example in the [deployment step](#deploy-example)
 
 ## Supported encryption methods
 
-sops-nix supports two basic ways of encryption, GPG and `age`. 
+sops-nix supports two basic ways of encryption, GPG and `age`.
 
 GPG is based on [GnuPG](https://gnupg.org/) and encrypts against GPG public keys. Private GPG keys may
 be used to decrypt the secrets on the target machine. The tool [`ssh-to-pgp`](https://github.com/Mic92/ssh-to-pgp) can
@@ -49,7 +50,7 @@ format to `age` keys.
 <details>
 <summary><b>1. Install sops-nix</b></summary>
 
-Choose one of the following methods:
+Choose one of the following methods. When using it non-globally with home-manager, refer to [Use with home-manager](#use-with-home-manager).
 
 #### Flakes (current recommendation)
 
@@ -60,7 +61,7 @@ If you use experimental nix flakes support:
   inputs.sops-nix.url = github:Mic92/sops-nix;
   # optional, not necessary for the module
   #inputs.sops-nix.inputs.nixpkgs.follows = "nixpkgs";
-  
+
   outputs = { self, nixpkgs, sops-nix }: {
     # change `yourhostname` to your actual hostname
     nixosConfigurations.yourhostname = nixpkgs.lib.nixosSystem {
@@ -713,7 +714,7 @@ $ head krb5.keytab
                 "mac": "ENC[AES256_GCM,data:ISjUzaw/5mNiwypmUrOk2DAZnlkbnhURHmTTYA3705NmRsSyUh1PyQvCuwglmaHscwl4GrsnIz4rglvwx1zYa+UUwanR0+VeBqntHwzSNiWhh7qMAQwdUXmdCNiOyeGy6jcSDsXUeQmyIWH6yibr7hhzoQFkZEB7Wbvcw6Sossk=,iv:UilxNvfHN6WkEvfY8ZIJCWijSSpLk7fqSCWh6n8+7lk=,tag:HUTgyL01qfVTCNWCTBfqXw==,type:str]",
                 "pgp": [
                         {
-                        
+
 ```
 
 It can be decrypted again like this:
@@ -730,6 +731,63 @@ This is how it can be included in your `configuration.nix`:
     format = "binary";
     sopsFile = ./krb5.keytab;
   };
+}
+```
+
+## Use with home manager
+
+sops-nix also provides a home-manager module.
+This module provides a subset of features provided by the system-wide sops-nix since features like the creation of the ramfs and changing the owner of the secrets are not available for non-root users.
+
+Instead of running as an activation script, sops-nix runs as a systemd user service called `sops-nix.service`.
+And instead of decrypting to `/run/secrets`, the secrets are decrypted to `$XDG_RUNTIME_DIR/secrets`.
+**Since the secrets are decrypted there, it's highly recommended to use a tmpfs for `$XDG_RUNTIME_DIR` to avoid storing secrets in plain text on persistent storage. Linux distributions using systemd-logind do that out-of-the-box.**
+
+Depending on whether you use home-manager system-wide or using a home.nix, you have to import it in a different way.
+This example show the `channel` approach from the example [Install: nix-channel](#nix-channel) for simplicity, but all other methods work as well. 
+
+```nix
+{
+  # NixOS system-wide home-manager configuration
+  home-manager.sharedModules = [
+    <sops-nix/modules/home-manager/sops.nix>
+  ];
+}
+```
+
+```nix
+{
+  # Configuration via home.nix
+  imports = [
+    <sops-nix/modules/home-manager/sops.nix>
+  ];
+}
+```
+
+The actual sops configuration is in the `sops` namespace in your home.nix (or in the `home-manager.users.<name>` namespace when using home-manager system-wide):
+```nix
+{
+  sops = {
+    age.keyFile = "/home/user/.age-key.txt"; # must have no password!
+    # It's alos possible to use a ssh key, but only when it has no password:
+    #age.sshKeyPaths = [ "/home/user/path-to-ssh-key" ];
+    defaultSopsFile = ./secrets.yaml;
+    secrets.test = {
+      # sopsFile = ./secrets.yml.enc; # optionally define per-secret files
+
+      # %r gets replaced with a runtime directory, use %% to specify a '%'
+      # sign. Runtime dir is $XDG_RUNTIME_DIR on linux and $(getconf
+      # DARWIN_USER_TEMP_DIR) on darwin.
+      path = "%r/test.txt"; 
+    };
+  };
+}
+```
+
+The secrets are decrypted in a systemd user service called `sops-nix`, so other services needing secrets must order after it:
+```nix
+{
+  systemd.user.services.mbsync.Unit.After = [ "sops-nix.service" ];
 }
 ```
 

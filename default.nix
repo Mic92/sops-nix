@@ -7,6 +7,7 @@
     inherit vendorSha256;
   };
 in rec {
+  inherit sops-install-secrets;
   sops-init-gpg-key = pkgs.callPackage ./pkgs/sops-init-gpg-key {};
   sops-pgp-hook = pkgs.lib.warn ''
     sops-pgp-hook is deprecated, use sops-import-keys-hook instead.
@@ -23,8 +24,6 @@ in rec {
   };
   unit-tests = pkgs.callPackage ./pkgs/unit-tests.nix {};
 } // (pkgs.lib.optionalAttrs pkgs.stdenv.isLinux {
-  inherit sops-install-secrets;
-
   lint = pkgs.callPackage ./pkgs/lint.nix {
     inherit sops-install-secrets;
   };
