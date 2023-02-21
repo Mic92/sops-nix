@@ -740,8 +740,7 @@ sops-nix also provides a home-manager module.
 This module provides a subset of features provided by the system-wide sops-nix since features like the creation of the ramfs and changing the owner of the secrets are not available for non-root users.
 
 Instead of running as an activation script, sops-nix runs as a systemd user service called `sops-nix.service`.
-And instead of decrypting to `/run/secrets`, the secrets are decrypted to `$XDG_RUNTIME_DIR/secrets`.
-**Since the secrets are decrypted there, it's highly recommended to use a tmpfs for `$XDG_RUNTIME_DIR` to avoid storing secrets in plain text on persistent storage. Linux distributions using systemd-logind do that out-of-the-box.**
+And instead of decrypting to `/run/secrets`, the secrets are decrypted to `$XDG_RUNTIME_DIR/secrets` that is located on a tmpfs or similar non-persistent filesystem.
 
 Depending on whether you use home-manager system-wide or using a home.nix, you have to import it in a different way.
 This example show the `channel` approach from the example [Install: nix-channel](#nix-channel) for simplicity, but all other methods work as well. 
