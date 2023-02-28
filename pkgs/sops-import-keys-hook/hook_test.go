@@ -3,7 +3,6 @@ package main
 import (
 	"bytes"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"path"
@@ -28,7 +27,7 @@ func TestShellHook(t *testing.T) {
 		_, filename, _, _ := runtime.Caller(0)
 		assets = path.Join(path.Dir(filename), "test-assets")
 	}
-	tempdir, err := ioutil.TempDir("", "testdir")
+	tempdir, err := os.MkdirTemp("", "testdir")
 	ok(t, err)
 	cmd := exec.Command("cp", "-vra", assets+"/.", tempdir)
 	fmt.Printf("$ %s\n", strings.Join(cmd.Args, " "))

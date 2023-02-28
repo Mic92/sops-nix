@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"os/user"
 	"path"
@@ -356,7 +355,7 @@ func writeSecrets(secretDir string, secrets []secret, keysGid int, userMode bool
 			}
 		}
 
-		if err := ioutil.WriteFile(fp, []byte(secret.value), secret.mode); err != nil {
+		if err := os.WriteFile(fp, []byte(secret.value), secret.mode); err != nil {
 			return fmt.Errorf("Cannot write %s: %w", fp, err)
 		}
 		if !userMode {
@@ -397,7 +396,7 @@ func (app *appContext) loadSopsFile(s *secret) (*secretFile, error) {
 		return &secretFile{firstSecret: s}, nil
 	}
 
-	cipherText, err := ioutil.ReadFile(s.SopsFile)
+	cipherText, err := os.ReadFile(s.SopsFile)
 	if err != nil {
 		return nil, fmt.Errorf("Failed reading %s: %w", s.SopsFile, err)
 	}
@@ -536,7 +535,7 @@ func atomicSymlink(oldname, newname string) error {
 
 	// We need to use ioutil.TempDir, as we cannot overwrite a ioutil.TempFile,
 	// and removing+symlinking creates a TOCTOU race.
-	d, err := ioutil.TempDir(filepath.Dir(newname), "."+filepath.Base(newname))
+	d, err := os.MkdirTemp(filepath.Dir(newname), "."+filepath.Base(newname))
 	if err != nil {
 		return err
 	}
@@ -609,7 +608,7 @@ func importSSHKeys(logcfg loggingConfig, keyPaths []string, gpgHome string) erro
 		return fmt.Errorf("Cannot create %s: %w", secringPath, err)
 	}
 	for _, p := range keyPaths {
-		sshKey, err := ioutil.ReadFile(p)
+		sshKey, err := os.ReadFile(p)
 		if err != nil {
 			return fmt.Errorf("Cannot read ssh key '%s': %w", p, err)
 		}
@@ -633,7 +632,7 @@ func importSSHKeys(logcfg loggingConfig, keyPaths []string, gpgHome string) erro
 func importAgeSSHKeys(logcfg loggingConfig, keyPaths []string, ageFile os.File) error {
 	for _, p := range keyPaths {
 		// Read the key
-		sshKey, err := ioutil.ReadFile(p)
+		sshKey, err := os.ReadFile(p)
 		if err != nil {
 			return fmt.Errorf("Cannot read ssh key '%s': %w", p, err)
 		}
@@ -707,7 +706,7 @@ func handleModifications(isDry bool, logcfg loggingConfig, symlinkPath string, s
 		newPath := filepath.Join(secretDir, secret.Name)
 
 		// Read the old file
-		oldData, err := ioutil.ReadFile(oldPath)
+		oldData, err := os.ReadFile(oldPath)
 		if err != nil {
 			if os.IsNotExist(err) {
 				// File did not exist before
@@ -720,7 +719,7 @@ func handleModifications(isDry bool, logcfg loggingConfig, symlinkPath string, s
 		}
 
 		// Read the new file
-		newData, err := ioutil.ReadFile(newPath)
+		newData, err := os.ReadFile(newPath)
 		if err != nil {
 			return err
 		}
@@ -823,7 +822,7 @@ func (k *keyring) Remove() {
 }
 
 func setupGPGKeyring(logcfg loggingConfig, sshKeys []string, parentDir string) (*keyring, error) {
-	dir, err := ioutil.TempDir(parentDir, "gpg")
+	dir, err := os.MkdirTemp(parentDir, "gpg")
 	if err != nil {
 		return nil, fmt.Errorf("Cannot create gpg home in '%s': %s", parentDir, err)
 	}
@@ -969,7 +968,7 @@ func installSecrets(args []string) error {
 		// Import the keyfile
 		if manifest.AgeKeyFile != "" {
 			// Read the keyfile
-			contents, err := ioutil.ReadFile(manifest.AgeKeyFile)
+			contents, err := os.ReadFile(manifest.AgeKeyFile)
 			if err != nil {
 				return fmt.Errorf("Cannot read keyfile '%s': %w", manifest.AgeKeyFile, err)
 			}

@@ -6,7 +6,6 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"os/user"
@@ -65,7 +64,7 @@ func (dir testDir) Remove() {
 }
 
 func newTestDir(t *testing.T) testDir {
-	tempdir, err := ioutil.TempDir("", "symlinkDir")
+	tempdir, err := os.MkdirTemp("", "symlinkDir")
 	ok(t, err)
 	return testDir{tempdir, path.Join(tempdir, "secrets.d"), path.Join(tempdir, "secrets")}
 }
@@ -173,7 +172,7 @@ func testGPG(t *testing.T) {
 	equals(t, 0400, int(yamlStat.Mode().Perm()))
 	stat, success := yamlStat.Sys().(*syscall.Stat_t)
 	equals(t, true, success)
-	content, err := ioutil.ReadFile(yamlSecret.Path)
+	content, err := os.ReadFile(yamlSecret.Path)
 	ok(t, err)
 	equals(t, "test_value", string(content))
 
@@ -194,7 +193,7 @@ func testGPG(t *testing.T) {
 		equals(t, 0, int(stat.Gid))
 	}
 
-	content, err = ioutil.ReadFile(binarySecret.Path)
+	content, err = os.ReadFile(binarySecret.Path)
 	ok(t, err)
 	equals(t, 13, len(content))
 
