@@ -1,5 +1,5 @@
 { pkgs ? import <nixpkgs> {} }: let
-  vendorSha256 = "sha256-QFvjmtCFxExFkJXZIS8Iw7WYu5WL291j3KTDVohTkqY=";
+  vendorSha256 = "sha256-LgpG8xp5dSW5PW3ZlUi88N8NcjV22pyfEJqMs+RWRpY=";
 
   buildGoModule = if pkgs.lib.versionOlder pkgs.go.version "1.18" then pkgs.buildGo118Module else pkgs.buildGoModule;
   sops-install-secrets = pkgs.callPackage ./pkgs/sops-install-secrets {
