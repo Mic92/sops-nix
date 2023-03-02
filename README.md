@@ -58,7 +58,7 @@ If you use experimental nix flakes support:
 
 ``` nix
 {
-  inputs.sops-nix.url = github:Mic92/sops-nix;
+  inputs.sops-nix.url = "github:Mic92/sops-nix";
   # optional, not necessary for the module
   #inputs.sops-nix.inputs.nixpkgs.follows = "nixpkgs";
 
