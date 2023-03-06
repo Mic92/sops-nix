@@ -5,7 +5,7 @@ go 1.17
 require (
 	github.com/Mic92/ssh-to-age v0.0.0-20220621201837-f006bbe6b80b
 	github.com/ProtonMail/go-crypto v0.0.0-20220623141421-5afb4c282135
-	github.com/joho/godotenv v1.4.0
+	github.com/joho/godotenv v1.5.1
 	github.com/mozilla-services/yaml v0.0.0-20201007153854-c369669a6625
 	go.mozilla.org/sops/v3 v3.7.3
 	golang.org/x/crypto v0.6.0
