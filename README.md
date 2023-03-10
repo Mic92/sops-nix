@@ -228,7 +228,7 @@ creation_rules:
     key_groups:
     - pgp:
       - *admin_alice
-    - age:
+      age:
       - *admin_bob
 ```
 
@@ -273,7 +273,7 @@ creation_rules:
     - pgp:
       - *admin_alice
       - *server_azmidi
-    - age:
+      age:
       - *admin_bob
       - *server_nosaxa
   - path_regex: secrets/azmidi/[^/]+\.yaml$
@@ -281,7 +281,7 @@ creation_rules:
     - pgp:
       - *admin_alice
       - *server_azmidi
-    - age:
+      age:
       - *admin_bob
 ```
 
