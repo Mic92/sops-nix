@@ -294,6 +294,7 @@ in {
     };
   };
   imports = [
+    ./templates
     (mkRenamedOptionModule [ "sops" "gnupgHome" ] [ "sops" "gnupg" "home" ])
     (mkRenamedOptionModule [ "sops" "sshKeyPaths" ] [ "sops" "gnupg" "sshKeyPaths" ])
   ];
