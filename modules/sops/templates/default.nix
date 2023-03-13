@@ -42,7 +42,7 @@ let
         type = str;
         default = "0400";
         description = ''
-          Permissions mode of the in octal.
+          Permissions mode of the rendered secret file in octal.
         '';
       };
       owner = mkOption {
