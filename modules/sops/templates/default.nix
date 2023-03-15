@@ -6,8 +6,7 @@ let
   cfg = config.sops;
   secretsForUsers = lib.filterAttrs (_: v: v.neededForUsers) cfg.secrets;
   users = config.users.users;
-  substitute = pkgs.writers.writePython3 "substitute" { }
-    (replaceStrings [ "@subst@" ] [ "${subst-pairs}" ] (readFile ./subs.py));
+  substitute = pkgs.writers.writePython3 "substitute" { } (readFile ./subs.py);
   subst-pairs = pkgs.writeText "pairs" (concatMapStringsSep "\n" (name:
     "${toString config.sops.placeholder.${name}} ${
       config.sops.secrets.${name}.path
@@ -78,10 +77,6 @@ in {
       default = { };
       visible = false;
     };
-    substituteCmd = mkOption {
-      type = types.path;
-      default = substitute;
-    };
   };
 
   config = optionalAttrs (options ? sops.secrets)
@@ -98,10 +93,10 @@ in {
               let tpl = config.sops.templates.${name};
               in ''
                 mkdir -p "${dirOf tpl.path}"
-                ${config.sops.substituteCmd} ${tpl.file} > ${tpl.path}
+                (umask 077; ${substitute} ${tpl.file} ${subst-pairs} > ${tpl.path})
                 chmod "${tpl.mode}" "${tpl.path}"
-                chown "${tpl.owner}" "${tpl.path}"
                 chgrp "${tpl.group}" "${tpl.path}"
+                chown "${tpl.owner}" "${tpl.path}"
               '') (attrNames config.sops.templates)}
           '');
     });

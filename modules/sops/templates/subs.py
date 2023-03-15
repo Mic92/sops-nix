@@ -1,17 +1,25 @@
 from sys import argv
 
-target = argv[1]
-subst = "@subst@"
 
-with open(target) as f:
-    content = f.read()
+def substitute(target: str, subst: str) -> str:
+    with open(target) as f:
+        content = f.read()
 
-with open(subst) as f:
-    subst_pairs = f.read().splitlines()
+    with open(subst) as f:
+        subst_pairs = f.read().splitlines()
 
-for pair in subst_pairs:
-    placeholder, path = pair.split()
-    with open(path) as f:
-        content = content.replace(placeholder, f.read())
+    for pair in subst_pairs:
+        placeholder, path = pair.split()
+        with open(path) as f:
+            content = content.replace(placeholder, f.read())
 
-print(content)
+    return content
+
+
+def main() -> None:
+    target = argv[1]
+    subst = argv[2]
+    print(substitute(target, subst))
+
+
+main()
