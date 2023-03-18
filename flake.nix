@@ -45,7 +45,6 @@
          (suffix-stable tests-stable) //
          (suffix-stable packages-stable));
 
-    defaultPackage = forAllSystems (system: self.packages.${system}.sops-init-gpg-key);
     devShells = forAllSystems (system: let
       pkgs = nixpkgs.legacyPackages.${system};
     in {
