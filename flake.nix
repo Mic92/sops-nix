@@ -26,9 +26,13 @@
       # backward compatibility
       inherit (prev) ssh-to-pgp;
     };
-    nixosModules.sops = import ./modules/sops;
+    nixosModules = {
+      sops = import ./modules/sops;
+      default = self.nixosModules.sops;
+    };
+    nixosModule = nixpkgs.lib.warn
+      "use sops.nixosModules.default instead of sops.nixosModule" self.nixosModules.sops;
     homeManagerModules.sops = import ./modules/home-manager/sops.nix;
-    nixosModule = self.nixosModules.sops;
     homeManagerModule = self.homeManagerModules.sops;
     packages = forAllSystems (system:
       import ./default.nix {
