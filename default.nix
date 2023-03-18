@@ -1,5 +1,5 @@
 { pkgs ? import <nixpkgs> {} }: let
-  vendorSha256 = "sha256-54xjn5zAHfwxRvJnWGQx6d/51/1cDzBwxOLtcOfhvQ8=";
+  vendorSha256 = "sha256-aPbzboKMAmrF3hb8nJ3Sy/S+HW6k8DJh8qKuT2ZXvM8=";
 
   buildGoModule = if pkgs.lib.versionOlder pkgs.go.version "1.18" then pkgs.buildGo118Module else pkgs.buildGoModule;
   sops-install-secrets = pkgs.callPackage ./pkgs/sops-install-secrets {
@@ -9,6 +9,8 @@
 in rec {
   inherit sops-install-secrets;
   sops-init-gpg-key = pkgs.callPackage ./pkgs/sops-init-gpg-key {};
+  default = sops-init-gpg-key;
+
   sops-pgp-hook = pkgs.lib.warn ''
     sops-pgp-hook is deprecated, use sops-import-keys-hook instead.
     Also see https://github.com/Mic92/sops-nix/issues/98
