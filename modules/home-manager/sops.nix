@@ -25,7 +25,7 @@ let
 
       path = lib.mkOption {
         type = lib.types.str;
-        default = "%r/secrets/${name}";
+        default = "${cfg.defaultSymlinkPath}/${name}";
         description = ''
           Path where secrets are symlinked to.
           If the default is kept no other symlink is created.
@@ -66,8 +66,8 @@ let
     name = "manifest${suffix}.json";
     text = builtins.toJSON {
       secrets = builtins.attrValues secrets;
-      secretsMountPoint = "%r/secrets.d";
-      symlinkPath = "%r/secrets";
+      secretsMountPoint = cfg.defaultSecretsMountPoint;
+      symlinkPath = cfg.defaultSymlinkPath;
       keepGenerations = cfg.keepGenerations;
       gnupgHome = cfg.gnupg.home;
       sshKeyPaths = cfg.gnupg.sshKeyPaths;
@@ -130,6 +130,23 @@ in {
       description = ''
         Check all sops files at evaluation time.
         This requires sops files to be added to the nix store.
+      '';
+    };
+
+    defaultSymlinkPath = lib.mkOption {
+      type = lib.types.str;
+      default = "%r/secrets";
+      description = ''
+        Default place where the latest generation of decrypt secrets
+        can be found.
+      '';
+    };
+
+    defaultSecretsMountPoint = lib.mkOption {
+      type = lib.types.str;
+      default = "%r/secrets.d";
+      description = ''
+        Default place where generations of decrypted secrets are stored.
       '';
     };
 
