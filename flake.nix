@@ -30,8 +30,6 @@
       sops = import ./modules/sops;
       default = self.nixosModules.sops;
     };
-    nixosModule = nixpkgs.lib.warn
-      "use sops.nixosModules.default instead of sops.nixosModule" self.nixosModules.sops;
     homeManagerModules.sops = import ./modules/home-manager/sops.nix;
     homeManagerModule = self.homeManagerModules.sops;
     packages = forAllSystems (system:
