@@ -5,12 +5,6 @@ with builtins;
 let
   cfg = config.sops;
   secretsForUsers = lib.filterAttrs (_: v: v.neededForUsers) cfg.secrets;
-  users = config.users.users;
-  substitute = pkgs.writers.writePython3 "substitute" { } (readFile ./subs.py);
-  subst-pairs = pkgs.writeText "pairs" (concatMapStringsSep "\n" (name:
-    "${toString config.sops.placeholder.${name}} ${
-      config.sops.secrets.${name}.path
-    }") (attrNames config.sops.secrets));
   coercibleToString = mkOptionType {
     name = "coercibleToString";
     description = "value that can be coerced to string";
@@ -53,7 +47,7 @@ let
       };
       group = mkOption {
         type = str;
-        default = users.${config.owner}.group;
+        default = config.users.users.${config.owner}.group;
         description = ''
           Group of the file.
         '';
@@ -90,7 +84,13 @@ in {
           ++ optional (secretsForUsers != { }) "setupSecretsForUsers") ''
             echo Setting up sops templates...
             ${concatMapStringsSep "\n" (name:
-              let tpl = config.sops.templates.${name};
+              let
+                tpl = config.sops.templates.${name};
+                substitute = pkgs.writers.writePython3 "substitute" { } (readFile ./subs.py);
+                subst-pairs = pkgs.writeText "pairs" (concatMapStringsSep "\n" (name:
+                  "${toString config.sops.placeholder.${name}} ${
+                    config.sops.secrets.${name}.path
+                  }") (attrNames config.sops.secrets));
               in ''
                 mkdir -p "${dirOf tpl.path}"
                 (umask 077; ${substitute} ${tpl.file} ${subst-pairs} > ${tpl.path})
