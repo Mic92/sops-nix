@@ -95,8 +95,7 @@ in {
                 mkdir -p "${dirOf tpl.path}"
                 (umask 077; ${substitute} ${tpl.file} ${subst-pairs} > ${tpl.path})
                 chmod "${tpl.mode}" "${tpl.path}"
-                chgrp "${tpl.group}" "${tpl.path}"
-                chown "${tpl.owner}" "${tpl.path}"
+                chown "${tpl.owner}:${tpl.group}" "${tpl.path}"
               '') (attrNames config.sops.templates)}
           '');
     });
