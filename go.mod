@@ -9,7 +9,7 @@ require (
 	github.com/mozilla-services/yaml v0.0.0-20201007153854-c369669a6625
 	go.mozilla.org/sops/v3 v3.7.3
 	golang.org/x/crypto v0.7.0
-	golang.org/x/sys v0.6.0
+	golang.org/x/sys v0.7.0
 )
 
 require (
