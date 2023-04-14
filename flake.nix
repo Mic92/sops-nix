@@ -19,16 +19,18 @@
     suffix-version = version: attrs: nixpkgs.lib.mapAttrs' (name: value: nixpkgs.lib.nameValuePair (name + version) value) attrs;
     suffix-stable = suffix-version "-22_11";
   in {
-    overlay = final: prev: let
+    overlays.default = final: prev: let
       localPkgs = import ./default.nix {pkgs = final;};
     in {
       inherit (localPkgs) sops-install-secrets sops-init-gpg-key sops-pgp-hook sops-import-keys-hook sops-ssh-to-age;
       # backward compatibility
       inherit (prev) ssh-to-pgp;
     };
-    nixosModules.sops = import ./modules/sops;
+    nixosModules = {
+      sops = import ./modules/sops;
+      default = self.nixosModules.sops;
+    };
     homeManagerModules.sops = import ./modules/home-manager/sops.nix;
-    nixosModule = self.nixosModules.sops;
     homeManagerModule = self.homeManagerModules.sops;
     packages = forAllSystems (system:
       import ./default.nix {
@@ -45,13 +47,11 @@
          (suffix-stable tests-stable) //
          (suffix-stable packages-stable));
 
-    defaultPackage = forAllSystems (system: self.packages.${system}.sops-init-gpg-key);
-    devShell = forAllSystems (
-      system:
-        nixpkgs.legacyPackages.${system}.callPackage ./shell.nix {}
-    );
-    devShells = forAllSystems (system: {
-      unit-tests = nixpkgs.legacyPackages.${system}.callPackage ./pkgs/unit-tests.nix {};
+    devShells = forAllSystems (system: let
+      pkgs = nixpkgs.legacyPackages.${system};
+    in {
+      unit-tests = pkgs.callPackage ./pkgs/unit-tests.nix {};
+      default = pkgs.callPackage ./shell.nix {};
     });
   };
 }
