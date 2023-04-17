@@ -202,6 +202,54 @@
     inherit (pkgs) system;
   };
 
+  templates = makeTest {
+    name = "sops-templates";
+    nodes.machine = { config, ... }: {
+      imports = [ ../../modules/sops ];
+      sops = {
+        age.keyFile = ./test-assets/age-keys.txt;
+        defaultSopsFile = ./test-assets/secrets.yaml;
+        secrets.test_key = { };
+      };
+
+      sops.templates.test_template = {
+        content = ''
+          This line is not modified.
+          The next value will be replaced by ${config.sops.placeholder.test_key}
+          This line is also not modified.
+        '';
+        mode = "0400";
+        owner = "someuser";
+        group = "somegroup";
+      };
+
+      users.groups.somegroup = {};
+      users.users.someuser = {
+        isSystemUser = true;
+        group = "somegroup";
+      };
+    };
+
+    testScript = ''
+      start_all()
+      machine.succeed("[ $(stat -c%U /run/secrets-rendered/test_template) = 'someuser' ]")
+      machine.succeed("[ $(stat -c%G /run/secrets-rendered/test_template) = 'somegroup' ]")
+
+      expected = """
+      This line is not modified.
+      The next value will be replaced by test_value
+      This line is also not modified.
+      """
+      rendered = machine.succeed("cat /run/secrets-rendered/test_template")
+
+      if rendered.strip() != expected.strip():
+        raise Exception("Template is not rendered correctly")
+    '';
+  } {
+    inherit pkgs;
+    inherit (pkgs) system;
+  };
+
   restart-and-reload = makeTest {
     name = "sops-restart-and-reload";
     nodes.machine = { pkgs, lib, config, ... }: {
