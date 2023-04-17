@@ -1,6 +1,6 @@
 module github.com/Mic92/sops-nix
 
-go 1.17
+go 1.18
 
 require (
 	github.com/Mic92/ssh-to-age v0.0.0-20220621201837-f006bbe6b80b
@@ -9,7 +9,7 @@ require (
 	github.com/mozilla-services/yaml v0.0.0-20201007153854-c369669a6625
 	go.mozilla.org/sops/v3 v3.7.3
 	golang.org/x/crypto v0.7.0
-	golang.org/x/sys v0.6.0
+	golang.org/x/sys v0.7.0
 )
 
 require (
