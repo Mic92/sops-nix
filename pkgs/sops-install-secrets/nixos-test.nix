@@ -222,6 +222,9 @@
         owner = "someuser";
         group = "somegroup";
       };
+      sops.templates.test_default.content = ''
+        Test value: ${config.sops.placeholder.test_key}
+      '';
 
       users.groups.somegroup = {};
       users.users.someuser = {
@@ -234,6 +237,8 @@
       start_all()
       machine.succeed("[ $(stat -c%U /run/secrets-rendered/test_template) = 'someuser' ]")
       machine.succeed("[ $(stat -c%G /run/secrets-rendered/test_template) = 'somegroup' ]")
+      machine.succeed("[ $(stat -c%U /run/secrets-rendered/test_default) = 'root' ]")
+      machine.succeed("[ $(stat -c%G /run/secrets-rendered/test_default) = 'root' ]")
 
       expected = """
       This line is not modified.
@@ -242,7 +247,12 @@
       """
       rendered = machine.succeed("cat /run/secrets-rendered/test_template")
 
-      if rendered.strip() != expected.strip():
+      expected_default = """
+      Test value: test_value
+      """
+      rendered_default = machine.succeed("cat /run/secrets-rendered/test_default")
+
+      if rendered.strip() != expected.strip() or rendered_default.strip() != expected_default.strip():
         raise Exception("Template is not rendered correctly")
     '';
   } {

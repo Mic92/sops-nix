@@ -5,6 +5,7 @@ with builtins;
 let
   cfg = config.sops;
   secretsForUsers = lib.filterAttrs (_: v: v.neededForUsers) cfg.secrets;
+  users = config.users.users;
 in {
   options.sops = {
     templates = mkOption {
@@ -44,7 +45,7 @@ in {
           };
           group = mkOption {
             type = str;
-            default = config.users.users.${config.owner}.group;
+            default = users.${config.owner}.group;
             description = ''
               Group of the file.
             '';
