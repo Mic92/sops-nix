@@ -209,7 +209,7 @@ type plainData struct {
 	binary []byte
 }
 
-func recurseSecretKey(keys map[string]interface{}, wantedKey string) (string, error) {
+func recurseSecretKey(format FormatType, keys map[string]interface{}, wantedKey string) (string, error) {
 	var val interface{}
 	var ok bool
 	currentKey := wantedKey
@@ -240,13 +240,25 @@ func recurseSecretKey(keys map[string]interface{}, wantedKey string) (string, er
 		if !ok {
 			return "", fmt.Errorf("The key '%s' cannot be found", keyUntilNow)
 		}
-		valWithWrongType, ok := val.(map[string]interface{})
-		if !ok {
-			return "", fmt.Errorf("Expected string key '%s' to refer to a dictionary; but we have map[%s][%s]", keyUntilNow, reflect.TypeOf(val).Key(), reflect.TypeOf(val).Elem())
-		}
 		currentData = make(map[string]interface{})
-		for key, value := range valWithWrongType {
-			currentData[key] = value
+		// The 'if' here is to deal with key type discrepancy between YAML and
+		// JSON.  With YAML, it is 'interface {}'; with JSON, it is 'string'.
+		if format == Json {
+			valWithWrongType, ok := val.(map[string]interface{})
+			if !ok {
+				return "", fmt.Errorf("Expected string key '%s' to refer to a dictionary; but we have map[%s][%s]", keyUntilNow, reflect.TypeOf(val).Key(), reflect.TypeOf(val).Elem())
+			}
+			for key, value := range valWithWrongType {
+				currentData[key] = value
+			}
+		} else {
+			valWithWrongType, ok :=  val.(map[interface {}]interface{})
+			if !ok {
+				return "", fmt.Errorf("Expected key '%s' to refer to a dictionary; but we have map[%s][%s]", keyUntilNow, reflect.TypeOf(val).Key(), reflect.TypeOf(val).Elem())
+			}
+			for key, value := range valWithWrongType {
+				currentData[key.(string)] = value
+			}
 		}
 	}
 
@@ -284,7 +296,7 @@ func decryptSecret(s *secret, sourceFiles map[string]plainData) error {
 	case Binary, Dotenv, Ini:
 		s.value = sourceFile.binary
 	case Yaml, Json:
-		strVal, err := recurseSecretKey(sourceFile.data, s.Key)
+		strVal, err := recurseSecretKey(s.Format, sourceFile.data, s.Key)
 		if err != nil {
 			return fmt.Errorf("secret %s in %s is not valid: %w", s.Name, s.SopsFile, err)
 		}
@@ -444,7 +456,7 @@ func (app *appContext) validateSopsFile(s *secret, file *secretFile) error {
 			file.firstSecret.Format, file.firstSecret.Name)
 	}
 	if app.checkMode != Manifest && (!(s.Format == Binary || s.Format == Dotenv || s.Format == Ini )) {
-		_, err := recurseSecretKey(file.keys, s.Key)
+		_, err := recurseSecretKey(s.Format, file.keys, s.Key)
 		if err != nil {
 			return fmt.Errorf("secret %s in %s is not valid: %w", s.Name, s.SopsFile, err)
 		}
