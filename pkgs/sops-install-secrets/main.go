@@ -242,7 +242,7 @@ func recurseSecretKey(keys map[string]interface{}, wantedKey string) (string, er
 		}
 		valWithWrongType, ok := val.(map[string]interface{})
 		if !ok {
-			return "", fmt.Errorf("Expected key '%s' to refer to a dictionary, but it is a '%s' instead", keyUntilNow, reflect.TypeOf(val).Elem())
+			return "", fmt.Errorf("Expected string key '%s' to refer to a dictionary; but we have map[%s][%s]", keyUntilNow, reflect.TypeOf(val).Key(), reflect.TypeOf(val).Elem())
 		}
 		currentData = make(map[string]interface{})
 		for key, value := range valWithWrongType {
