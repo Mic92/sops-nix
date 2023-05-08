@@ -10,6 +10,7 @@ import (
 	"os/user"
 	"path"
 	"path/filepath"
+	"reflect"
 	"strconv"
 	"strings"
 	"syscall"
@@ -239,13 +240,13 @@ func recurseSecretKey(keys map[string]interface{}, wantedKey string) (string, er
 		if !ok {
 			return "", fmt.Errorf("The key '%s' cannot be found", keyUntilNow)
 		}
-		valWithWrongType, ok := val.(map[interface{}]interface{})
+		valWithWrongType, ok := val.(map[string]interface{})
 		if !ok {
-			return "", fmt.Errorf("Key '%s' does not refer to a dictionary", keyUntilNow)
+			return "", fmt.Errorf("Expected key '%s' to refer to a dictionary, but it is a '%s' instead", keyUntilNow, reflect.TypeOf(val).Elem())
 		}
 		currentData = make(map[string]interface{})
 		for key, value := range valWithWrongType {
-			currentData[key.(string)] = value
+			currentData[key] = value
 		}
 	}
 
