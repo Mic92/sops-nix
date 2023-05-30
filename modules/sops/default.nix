@@ -29,6 +29,7 @@ let
           Key used to lookup in the sops file.
           No tested data structures are supported right now.
           This option is ignored if format is binary.
+          "" means whole file.
         '';
       };
       path = mkOption {
