@@ -1,0 +1,46 @@
+queue_rules:
+  - name: default
+    merge_conditions:
+      - check-success=Evaluate flake.nix
+      - check-success=check age-keys [x86_64-linux]
+      - check-success=check age-keys-23_05 [x86_64-linux]
+      - check-success=check age-ssh-keys [x86_64-linux]
+      - check-success=check age-ssh-keys-23_05 [x86_64-linux]
+      - check-success=check cross-build-23_05 [x86_64-linux]
+      - check-success=check default-23_05 [x86_64-linux]
+      - check-success=check lint-23_05 [x86_64-linux]
+      - check-success=check pgp-keys [x86_64-linux]
+      - check-success=check pgp-keys-23_05 [x86_64-linux]
+      - check-success=check pruning [x86_64-linux]
+      - check-success=check pruning-23_05 [x86_64-linux]
+      - check-success=check sops-init-gpg-key-23_05 [x86_64-linux]
+      - check-success=check sops-pgp-hook-23_05 [x86_64-linux]
+      - check-success=check sops-pgp-hook-test-23_05 [x86_64-linux]
+      - check-success=check ssh-keys-23_05 [x86_64-linux]
+      - check-success=check ssh-to-pgp-23_05 [x86_64-linux]
+      - check-success=check templates [x86_64-linux]
+      - check-success=check unit-tests-23_05 [x86_64-linux]
+      - check-success=check user-passwords [x86_64-linux]
+      - check-success=devShell default [x86_64-linux]
+      - check-success=package cross-build [x86_64-linux]
+      - check-success=package default [x86_64-linux]
+      - check-success=package lint [x86_64-linux]
+      - check-success=package sops-import-keys-hook [x86_64-linux]
+      - check-success=package sops-init-gpg-key [x86_64-linux]
+      - check-success=package sops-install-secrets [x86_64-linux]
+      - check-success=package sops-pgp-hook [x86_64-linux]
+      - check-success=package sops-pgp-hook-test [x86_64-linux]
+      - check-success=package unit-tests [x86_64-linux]
+      - check-success=tests
+defaults:
+  actions:
+    queue:
+      allow_merging_configuration_change: true
+      method: rebase
+pull_request_rules:
+  - name: merge using the merge queue
+    conditions:
+      - base=master
+      - label~=merge-queue|dependencies
+    actions:
+      queue: {}

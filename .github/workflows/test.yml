@@ -4,8 +4,6 @@ on:
   push:
     branches:
       - master
-      - staging
-      - release-*
   schedule:
     - cron:  '51 2 * * *'
 jobs:
