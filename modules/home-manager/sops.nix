@@ -241,7 +241,7 @@ in {
         Type = "oneshot";
         ExecStart = script;
       };
-      Install.WantedBy = [ "default.target" ];
+      Install.WantedBy = [ "graphical-session.target" ];
     };
 
     launchd.agents.sops-nix = {
