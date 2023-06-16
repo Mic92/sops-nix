@@ -1,7 +1,7 @@
 {
   description = "Integrates sops into nixos";
   inputs.nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
-  inputs.nixpkgs-stable.url = "github:NixOS/nixpkgs/release-22.11";
+  inputs.nixpkgs-stable.url = "github:NixOS/nixpkgs/release-23.05";
   nixConfig.extra-substituters = ["https://cache.garnix.io"];
   nixConfig.extra-trusted-public-keys = ["cache.garnix.io:CTFPyKSLcx5RMJKfLo5EEPUObbA78b0YQ2DTCJXqr9g="];
   outputs = {
@@ -17,7 +17,7 @@
     ];
     forAllSystems = f: nixpkgs.lib.genAttrs systems (system: f system);
     suffix-version = version: attrs: nixpkgs.lib.mapAttrs' (name: value: nixpkgs.lib.nameValuePair (name + version) value) attrs;
-    suffix-stable = suffix-version "-22_11";
+    suffix-stable = suffix-version "-23_05";
   in {
     overlays.default = final: prev: let
       localPkgs = import ./default.nix {pkgs = final;};
