@@ -241,7 +241,7 @@ in {
         Type = "oneshot";
         ExecStart = script;
       };
-      Install.WantedBy = [ "graphical-session.target" ];
+      Install.WantedBy = if cfg.gnupg.home != null then [ "graphical-session.target" ] else [ "default.target" ];
     };
 
     launchd.agents.sops-nix = {
