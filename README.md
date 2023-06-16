@@ -795,8 +795,7 @@ The secrets are decrypted in a systemd user service called `sops-nix`, so other 
 If you prefer having a separate GPG key, sops-nix also comes with a helper tool, `sops-init-gpg-key`:
 
 ```console
-$ nix-shell -p sops-init-gpg-key
-$ sops-init-gpg-key --hostname server01 --gpghome /tmp/newkey
+$ nix run github:Mic92/sops-nix#sops-init-gpg-key -- --hostname server01 --gpghome /tmp/newkey
 # You can use the following command to save it to a file:
 $ cat > server01.asc <<EOF
 -----BEGIN PGP PUBLIC KEY BLOCK-----
@@ -825,8 +824,7 @@ You can choose between a RSA GPG key (default, like in the example above) or a
 Curve25519 based one by adding `--keytype Curve25519` like so:
 
 ```console
-$ nix-shell -p sops-init-gpg-key
-$ sops-init-gpg-key --hostname server01 --gpghome /tmp/newkey --keytype Curve25519
+$ nix run github:Mic92/sops-nix#sops-init-gpg-key -- --hostname server01 --gpghome /tmp/newkey --keytype Curve25519
 You can use the following command to save it to a file:
 cat > server01.asc <<EOF
 -----BEGIN PGP PUBLIC KEY BLOCK-----
