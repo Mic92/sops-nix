@@ -65,7 +65,7 @@ let
       group = mkOption {
         type = types.str;
         default = users.${config.owner}.group;
-        defaultText = literalExpression "config.users.users.\${owner}.group";
+        defaultText = literalMD "{option}`config.users.users.\${owner}.group`";
         description = ''
           Group of the file.
         '';
@@ -265,7 +265,7 @@ in {
       sshKeyPaths = mkOption {
         type = types.listOf types.path;
         default = defaultImportKeys "ed25519";
-        defaultText = literalDocBook "The ed25519 keys from <option>config.services.openssh.hostKeys</option>";
+        defaultText = literalMD "The ed25519 keys from {option}`config.services.openssh.hostKeys`";
         description = ''
           Paths to ssh keys added as age keys during sops description.
         '';
@@ -285,7 +285,7 @@ in {
       sshKeyPaths = mkOption {
         type = types.listOf types.path;
         default = defaultImportKeys "rsa";
-        defaultText = literalDocBook "The rsa keys from <option>config.services.openssh.hostKeys</option>";
+        defaultText = literalMD "The rsa keys from {option}`config.services.openssh.hostKeys`";
         description = ''
           Path to ssh keys added as GPG keys during sops description.
           This option must be explicitly unset if <literal>config.sops.gnupg.sshKeyPaths</literal> is set.
