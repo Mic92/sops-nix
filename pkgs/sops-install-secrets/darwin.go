@@ -15,13 +15,13 @@ import (
 )
 
 func RuntimeDir() (string, error) {
-  // TODO this could be garbage collected on a 3d basis
-  out, err := exec.Command("getconf", "DARWIN_USER_TEMP_DIR").Output()
+	// TODO this could be garbage collected on a 3d basis
+	out, err := exec.Command("getconf", "DARWIN_USER_TEMP_DIR").Output()
 	rundir := strings.TrimRight(string(out[:]), " \t\n")
 	if err != nil {
-    return "", fmt.Errorf("Cannot get DARWIN_USER_TEMP_DIR: %v", err)
+		return "", fmt.Errorf("Cannot get DARWIN_USER_TEMP_DIR: %v", err)
 	}
-  return rundir, nil
+	return strings.TrimSuffix(rundir, "/"), nil
 }
 
 func SecureSymlinkChown(symlinkToCheck string, expectedTarget string, owner, group int) error {
