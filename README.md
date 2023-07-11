@@ -232,10 +232,11 @@ creation_rules:
       - *admin_bob
 ```
 
-**Note:** be sure to not include a `-` before subsequent key types under `key_groups`
-(i.e. `age` in the above example should not have a `-` in front). If you do, `sops`
-will produce [a vague error](https://github.com/getsops/sops/issues/857) when
-encrypting files.
+**Note:**
+Be sure to not include a `-` before subsequent key types under `key_groups`
+(i.e. `age` in the above example should not have a `-` in front).
+This will otherwise cause sops to require multiple keys (shamir secret sharing)
+to decrypt a secret, which breaks normal sops-nix usage.
 
 </details>
 
