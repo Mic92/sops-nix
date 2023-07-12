@@ -214,7 +214,7 @@ uid           [ unknown] root <root@localhost>
 The fingerprint here is `9F89C5F69A10281A835014B09C3DC61F752087EF`.
 </details>
 
-Your `age` public key or GPG fingerprint can written to your [`.sops.yaml`](https://github.com/mozilla/sops#using-sops-YAML-conf-to-select-kms-pgp-for-new-files) in the root of your configuration directory or repository:
+Your `age` public key or GPG fingerprint can be written to your [`.sops.yaml`](https://github.com/mozilla/sops#using-sops-YAML-conf-to-select-kms-pgp-for-new-files) in the root of your configuration directory or repository:
 ```yaml
 # This example uses YAML anchors which allows reuse of multiple keys 
 # without having to repeat yourself.
@@ -224,13 +224,19 @@ keys:
   - &admin_alice 2504791468b153b8a3963cc97ba53d1919c5dfd4
   - &admin_bob age12zlz6lvcdk6eqaewfylg35w0syh58sm7gh53q5vvn7hd7c6nngyseftjxl
 creation_rules:
-  - path_regex: secrets/[^/]+\.yaml$
+  - path_regex: secrets/[^/]+\.(yaml|json|env|ini)$
     key_groups:
     - pgp:
       - *admin_alice
       age:
       - *admin_bob
 ```
+
+**Note:**
+Be sure to not include a `-` before subsequent key types under `key_groups`
+(i.e. `age` in the above example should not have a `-` in front).
+This will otherwise cause sops to require multiple keys (shamir secret sharing)
+to decrypt a secret, which breaks normal sops-nix usage.
 
 </details>
 
@@ -268,7 +274,7 @@ keys:
   - &server_azmidi 0fd60c8c3b664aceb1796ce02b318df330331003
   - &server_nosaxa age1rgffpespcyjn0d8jglk7km9kfrfhdyev6camd3rck6pn8y47ze4sug23v3
 creation_rules:
-  - path_regex: secrets/[^/]+\.yaml$
+  - path_regex: secrets/[^/]+\.(yaml|json|env|ini)$
     key_groups:
     - pgp:
       - *admin_alice
@@ -276,7 +282,7 @@ creation_rules:
       age:
       - *admin_bob
       - *server_nosaxa
-  - path_regex: secrets/azmidi/[^/]+\.yaml$
+  - path_regex: secrets/azmidi/[^/]+\.(yaml|json|env|ini)$
     key_groups:
     - pgp:
       - *admin_alice
