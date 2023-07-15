@@ -1,4 +1,4 @@
-name: Update vendorSha256
+name: Update vendorHash
 on: pull_request
 
 permissions:
@@ -23,6 +23,8 @@ jobs:
           # git push if we have a diff
           if [[ -n $(git diff) ]]; then
             git add default.nix
+            git config --global user.email "<49699333+dependabot[bot]@users.noreply.github.com>"
+            git config --global user.name "dependabot[bot]"
             git commit -m "update vendorHash"
             git push
           fi
