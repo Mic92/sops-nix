@@ -1,0 +1,28 @@
+name: Update vendorSha256
+on: pull_request
+
+permissions:
+  contents: write
+
+jobs:
+  dependabot:
+    runs-on: ubuntu-latest
+    if: ${{ github.actor == 'dependabot[bot]' }}
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+      - name: Install Nix
+        uses: cachix/install-nix-action@v22
+        with:
+          github_access_token: ${{ secrets.GITHUB_TOKEN }}
+          nix_path: nixpkgs=channel:nixos-unstable
+      - name: Update checksum
+        run: |
+          ./scripts/update-vendor-hash.sh
+          # git push if we have a diff
+          if [[ -n $(git diff) ]]; then
+            git add default.nix
+            git commit -m "update vendorHash"
+            git push
+          fi
