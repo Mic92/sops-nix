@@ -1,8 +1,8 @@
-{ pkgs ? import <nixpkgs> {} }: let
-  vendorSha256 = "sha256-C6YyhJZyspsTQWcogDe5ERAe69KtZEv73wO76oHa8QQ=";
-
+{ pkgs ? import <nixpkgs> {}
+, vendorHash ? "sha256-C6YyhJZyspsTQWcogDe5ERAe69KtZEv73wO76oHa8QQ="
+}: let
   sops-install-secrets = pkgs.callPackage ./pkgs/sops-install-secrets {
-    inherit vendorSha256;
+    inherit vendorHash;
   };
 in rec {
   inherit sops-install-secrets;
@@ -20,7 +20,7 @@ in rec {
 
   # used in the CI only
   sops-pgp-hook-test = pkgs.callPackage ./pkgs/sops-pgp-hook-test.nix {
-    inherit vendorSha256;
+    inherit vendorHash;
   };
   unit-tests = pkgs.callPackage ./pkgs/unit-tests.nix {};
 } // (pkgs.lib.optionalAttrs pkgs.stdenv.isLinux {
