@@ -1,4 +1,4 @@
-{ stdenv, lib, buildGoModule, path, pkgs, vendorSha256, go }:
+{ lib, buildGoModule, path, pkgs, vendorHash, go }:
 buildGoModule {
   pname = "sops-install-secrets";
   version = "0.0.1";
@@ -29,7 +29,7 @@ buildGoModule {
     fi
   '';
 
-  inherit vendorSha256;
+  inherit vendorHash;
 
   meta = with lib; {
     description = "Atomic secret provisioning based on sops";
