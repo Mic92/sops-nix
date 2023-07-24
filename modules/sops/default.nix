@@ -126,6 +126,7 @@ let
       sshKeyPaths = cfg.gnupg.sshKeyPaths;
       ageKeyFile = cfg.age.keyFile;
       ageSshKeyPaths = cfg.age.sshKeyPaths;
+      useTmpfs = cfg.useTmpfs;
       userMode = false;
       logging = {
         keyImport = builtins.elem "keyImport" cfg.log;
@@ -239,6 +240,26 @@ in {
         sops-install-secrets package to use when validating configuration.
 
         Defaults to sops.package if building natively, and a native version of sops-install-secrets if cross compiling.
+      '';
+    };
+
+    useTmpfs = mkOption {
+      type = types.bool;
+      default = false;
+      description = lib.mkDoc ''
+        Use tmpfs in place of ramfs for secrets storage.
+
+        *WARNING*
+        Enabling this option has the potential to write secrets to disk unencrypted if the tmpfs volume is written to swap. Do not use unless absolutely necessary.
+        
+        When using a swap file or device, consider enabling swap encryption by setting the `randomEncryption.enable` option
+        
+        ```
+        swapDevices = [{
+          device = "/dev/sdXY";
+          randomEncryption.enable = true; 
+        }];
+        ```
       '';
     };
 
