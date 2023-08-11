@@ -1,5 +1,6 @@
 { pkgs ? import <nixpkgs> {}
-, vendorHash ? "sha256-6oK/+aOQdW+Tes1zUE65RGizeB86Wgn1hl+2lVI4YbM="
+, vendorHash ? "sha256-MKvLOkEIMh2J3cUgP9pXsMARWO00r3/Splt1oLc7TCo="
+, sops-nix-flake ? null
 }: let
   sops-install-secrets = pkgs.callPackage ./pkgs/sops-install-secrets {
     inherit vendorHash;
@@ -23,6 +24,10 @@ in rec {
     inherit vendorHash;
   };
   unit-tests = pkgs.callPackage ./pkgs/unit-tests.nix {};
+
+  sops-nixos-doc = pkgs.callPackage ./doc.nix {
+    inherit sops-nix-flake;
+  };
 } // (pkgs.lib.optionalAttrs pkgs.stdenv.isLinux {
   lint = pkgs.callPackage ./pkgs/lint.nix {
     inherit sops-install-secrets;

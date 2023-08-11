@@ -35,12 +35,14 @@
     packages = forAllSystems (system:
       import ./default.nix {
         pkgs = import nixpkgs {inherit system;};
+        sops-nix-flake = self;
       });
     checks = nixpkgs.lib.genAttrs ["x86_64-linux" "aarch64-linux"]
       (system: let
         tests = self.packages.${system}.sops-install-secrets.tests;
         packages-stable = import ./default.nix {
           pkgs = import nixpkgs-stable {inherit system;};
+          sops-nix-flake = self;
         };
         tests-stable = packages-stable.sops-install-secrets.tests;
       in tests //
