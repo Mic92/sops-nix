@@ -18,9 +18,9 @@ import (
 	"github.com/Mic92/sops-nix/pkgs/sops-install-secrets/sshkeys"
 	agessh "github.com/Mic92/ssh-to-age"
 
-	"github.com/mozilla-services/yaml"
-	"go.mozilla.org/sops/v3/decrypt"
+	"github.com/getsops/sops/v3/decrypt"
 	"github.com/joho/godotenv"
+	"github.com/mozilla-services/yaml"
 )
 
 type secret struct {
@@ -79,10 +79,10 @@ const (
 func IsValidFormat(format string) bool {
 	switch format {
 	case string(Yaml),
-		 string(Json),
-		 string(Binary),
-		 string(Dotenv),
-		 string(Ini):
+		string(Json),
+		string(Binary),
+		string(Dotenv),
+		string(Ini):
 		return true
 	default:
 		return false
@@ -94,7 +94,7 @@ func (f *FormatType) UnmarshalJSON(b []byte) error {
 	if err := json.Unmarshal(b, &s); err != nil {
 		return err
 	}
-	var t = FormatType(s)
+	t := FormatType(s)
 	switch t {
 	case "":
 		*f = Yaml
@@ -304,8 +304,10 @@ func decryptSecrets(secrets []secret) error {
 	return nil
 }
 
-const RAMFS_MAGIC int32 = -2054924042
-const TMPFS_MAGIC int32 = 16914836
+const (
+	RAMFS_MAGIC int32 = -2054924042
+	TMPFS_MAGIC int32 = 16914836
+)
 
 func prepareSecretsDir(secretMountpoint string, linkName string, keysGid int, userMode bool) (*string, error) {
 	var generation uint64
@@ -382,15 +384,15 @@ func lookupGroup(groupname string) (int, error) {
 }
 
 func lookupKeysGroup() (int, error) {
-  gid, err1 := lookupGroup("keys")
-  if err1 == nil {
-    return gid, nil
-  }
-  gid, err2 := lookupGroup("nogroup")
-  if err2 == nil {
-    return gid, nil
-  }
-  return 0, fmt.Errorf("Can't find group 'keys' nor 'nogroup' (%w).", err2)
+	gid, err1 := lookupGroup("keys")
+	if err1 == nil {
+		return gid, nil
+	}
+	gid, err2 := lookupGroup("nogroup")
+	if err2 == nil {
+		return gid, nil
+	}
+	return 0, fmt.Errorf("Can't find group 'keys' nor 'nogroup' (%w).", err2)
 }
 
 func (app *appContext) loadSopsFile(s *secret) (*secretFile, error) {
@@ -435,7 +437,6 @@ func (app *appContext) loadSopsFile(s *secret) (*secretFile, error) {
 		keys:        keys,
 		firstSecret: s,
 	}, nil
-
 }
 
 func (app *appContext) validateSopsFile(s *secret, file *secretFile) error {
@@ -444,7 +445,7 @@ func (app *appContext) validateSopsFile(s *secret, file *secretFile) error {
 			s.Name, s.SopsFile, s.Format,
 			file.firstSecret.Format, file.firstSecret.Name)
 	}
-	if app.checkMode != Manifest && (!(s.Format == Binary || s.Format == Dotenv || s.Format == Ini )) {
+	if app.checkMode != Manifest && (!(s.Format == Binary || s.Format == Dotenv || s.Format == Ini)) {
 		_, err := recurseSecretKey(file.keys, s.Key)
 		if err != nil {
 			return fmt.Errorf("secret %s in %s is not valid: %w", s.Name, s.SopsFile, err)
@@ -639,7 +640,7 @@ func importAgeSSHKeys(logcfg loggingConfig, keyPaths []string, ageFile os.File) 
 			return fmt.Errorf("Cannot read ssh key '%s': %w", p, err)
 		}
 		// Convert the key to age
-		privKey, pubKey, err := agessh.SSHPrivateKeyToAge(sshKey)
+		privKey, pubKey, err := agessh.SSHPrivateKeyToAge(sshKey, []byte{})
 		if err != nil {
 			return fmt.Errorf("Cannot convert ssh key '%s': %w", p, err)
 		}
@@ -661,7 +662,6 @@ func importAgeSSHKeys(logcfg loggingConfig, keyPaths []string, ageFile os.File) 
 // Inspired by https://github.com/facebookarchive/symwalk
 func symlinkWalk(filename string, linkDirname string, walkFn filepath.WalkFunc) error {
 	symWalkFunc := func(path string, info os.FileInfo, err error) error {
-
 		if fname, err := filepath.Rel(filename, path); err == nil {
 			path = filepath.Join(linkDirname, fname)
 		} else {
@@ -893,9 +893,9 @@ func installSecrets(args []string) error {
 	}
 
 	if manifest.UserMode {
-    rundir, err := RuntimeDir()
+		rundir, err := RuntimeDir()
 		if opts.checkMode == Off && err != nil {
-      return fmt.Errorf("Error: %v", err)
+			return fmt.Errorf("Error: %v", err)
 		}
 		manifest.SecretsMountPoint = replaceRuntimeDir(manifest.SecretsMountPoint, rundir)
 		manifest.SymlinkPath = replaceRuntimeDir(manifest.SymlinkPath, rundir)
@@ -1013,7 +1013,6 @@ func installSecrets(args []string) error {
 	}
 
 	return nil
-
 }
 
 func main() {
