@@ -54,6 +54,7 @@ type manifest struct {
 	GnupgHome         string        `json:"gnupgHome"`
 	AgeKeyFile        string        `json:"ageKeyFile"`
 	AgeSshKeyPaths    []string      `json:"ageSshKeyPaths"`
+	UseTmpfs          bool          `json:"useTmpfs"`
 	UserMode          bool          `json:"userMode"`
 	Logging           loggingConfig `json:"logging"`
 }
@@ -304,6 +305,7 @@ func decryptSecrets(secrets []secret) error {
 }
 
 const RAMFS_MAGIC int32 = -2054924042
+const TMPFS_MAGIC int32 = 16914836
 
 func prepareSecretsDir(secretMountpoint string, linkName string, keysGid int, userMode bool) (*string, error) {
 	var generation uint64
@@ -932,7 +934,7 @@ func installSecrets(args []string) error {
 
 	isDry := os.Getenv("NIXOS_ACTION") == "dry-activate"
 
-	if err := MountSecretFs(manifest.SecretsMountPoint, keysGid, manifest.UserMode); err != nil {
+	if err := MountSecretFs(manifest.SecretsMountPoint, keysGid, manifest.UseTmpfs, manifest.UserMode); err != nil {
 		return fmt.Errorf("Failed to mount filesystem for secrets: %w", err)
 	}
 

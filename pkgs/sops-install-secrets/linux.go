@@ -41,7 +41,7 @@ func SecureSymlinkChown(symlinkToCheck, expectedTarget string, owner, group int)
 	return nil
 }
 
-func MountSecretFs(mountpoint string, keysGid int, userMode bool) error {
+func MountSecretFs(mountpoint string, keysGid int, useTmpfs bool, userMode bool) error {
 	if err := os.MkdirAll(mountpoint, 0751); err != nil {
 		return fmt.Errorf("Cannot create directory '%s': %w", mountpoint, err)
 	}
@@ -51,12 +51,19 @@ func MountSecretFs(mountpoint string, keysGid int, userMode bool) error {
 		return nil
 	}
 
+	var fstype string = "ramfs"
+	var fsmagic int32 = RAMFS_MAGIC
+	if useTmpfs {
+		fstype = "tmpfs"
+		fsmagic = TMPFS_MAGIC
+	}
+
 	buf := unix.Statfs_t{}
 	if err := unix.Statfs(mountpoint, &buf); err != nil {
 		return fmt.Errorf("Cannot get statfs for directory '%s': %w", mountpoint, err)
 	}
-	if int32(buf.Type) != RAMFS_MAGIC {
-		if err := unix.Mount("none", mountpoint, "ramfs", unix.MS_NODEV|unix.MS_NOSUID, "mode=0751"); err != nil {
+	if int32(buf.Type) != fsmagic {
+		if err := unix.Mount("none", mountpoint, fstype, unix.MS_NODEV|unix.MS_NOSUID, "mode=0751"); err != nil {
 			return fmt.Errorf("Cannot mount: %s", err)
 		}
 	}

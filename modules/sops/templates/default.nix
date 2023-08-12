@@ -67,7 +67,7 @@ in {
       type = attrsOf (mkOptionType {
         name = "coercibleToString";
         description = "value that can be coerced to string";
-        check = strings.isCoercibleToString;
+        check = strings.isConvertibleWithToString;
         merge = mergeEqualOption;
       });
       default = { };
