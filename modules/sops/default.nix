@@ -246,7 +246,7 @@ in {
     useTmpfs = mkOption {
       type = types.bool;
       default = false;
-      description = lib.mkDoc ''
+      description = lib.mdDoc ''
         Use tmpfs in place of ramfs for secrets storage.
 
         *WARNING*
