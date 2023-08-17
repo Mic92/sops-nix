@@ -53,7 +53,7 @@ func SecureSymlinkChown(symlinkToCheck string, expectedTarget string, owner, gro
 // mydev=`hdiutil attach -nomount ram://$NUMSECTORS`
 // newfs_hfs $mydev
 // mount -t hfs $mydev /tmp/mymount
-func MountSecretFs(mountpoint string, keysGid int, useTmpfs bool, userMode bool) error {
+func MountSecretFs(mountpoint string, keysGid int, _useTmpfs bool, userMode bool) error {
 	if err := os.MkdirAll(mountpoint, 0751); err != nil {
 		return fmt.Errorf("Cannot create directory '%s': %w", mountpoint, err)
 	}
