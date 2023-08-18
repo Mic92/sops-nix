@@ -931,6 +931,30 @@ securely in your version control, e.g.
 [git-agecrypt](https://github.com/vlaci/git-agecrypt). These types of solutions
 can be used together with sops-nix.
 
+## Templates
+
+If you need secrets in a configuration file you can use the template feature to interpolate them:
+
+```nix
+{
+  sops.secrets.your-secret = { };
+  # At activation file, sops-nix will replace the placeholder with the configuration content
+  sops.templates."your-config-with-secrets.toml".content = ''
+    password = "${config.sops.placeholder.your-secret}"
+  '';
+  sops.templates."your-config-with-secrets.toml".owner = "servicuser";
+
+  systemd.services.myservice = {
+    # ...
+    serviceConfig = {
+      # you can refer to the rendered configuration with the secrets using the .path attribute.
+      ExecStart = "${pkgs.myservice}/bin/myservice --config ${config.sops.templates."your-config-with-secrets.toml".path}";
+      User = "serviceuser"
+    };
+  };
+}
+```
+
 
 ## Related projects
 
