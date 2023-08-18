@@ -933,28 +933,57 @@ can be used together with sops-nix.
 
 ## Templates
 
-If you need secrets in a configuration file you can use the template feature to interpolate them:
+If your setup requires embedding secrets within a configuration file, the `template` feature of `sops-nix` provides a seamless way to do this. 
 
-```nix
-{
-  sops.secrets.your-secret = { };
-  # At activation file, sops-nix will replace the placeholder with the configuration content
-  sops.templates."your-config-with-secrets.toml".content = ''
-    password = "${config.sops.placeholder.your-secret}"
-  '';
-  sops.templates."your-config-with-secrets.toml".owner = "servicuser";
+Here's how to use it:
 
-  systemd.services.myservice = {
-    # ...
-    serviceConfig = {
-      # you can refer to the rendered configuration with the secrets using the .path attribute.
-      ExecStart = "${pkgs.myservice}/bin/myservice --config ${config.sops.templates."your-config-with-secrets.toml".path}";
-      User = "serviceuser"
-    };
-  };
-}
-```
+1. **Define Your Secret**
 
+   Specify the secrets you intend to use. This will be encrypted and managed securely by `sops-nix`.
+
+   ```nix
+   {
+     sops.secrets.your-secret = { };
+   }
+   ```
+
+2. **Use Templates for Configuration with Secrets**
+
+   Create a template for your configuration file and utilize the placeholder where you'd like the secret to be inserted. 
+   During the activation phase, `sops-nix` will substitute the placeholder with the actual secret content.
+
+   ```nix
+   {
+     sops.templates."your-config-with-secrets.toml".content = ''
+       password = "${config.sops.placeholder.your-secret}"
+     '';
+   }
+   ```
+
+   You can also define ownership properties for the configuration file:
+
+   ```nix
+   { 
+     sops.templates."your-config-with-secrets.toml".owner = "serviceuser";
+   }
+   ```
+
+3. **Reference the Rendered Configuration in Services**
+
+   When defining a service (e.g., using `systemd`), refer to the rendered configuration (with secrets in place) by leveraging the `.path` attribute.
+
+   ```nix
+   {
+     systemd.services.myservice = {
+       # ... (any other service attributes)
+
+       serviceConfig = {
+         ExecStart = "${pkgs.myservice}/bin/myservice --config ${config.sops.templates."your-config-with-secrets.toml".path}";
+         User = "serviceuser";
+       };
+     };
+   }
+   ```
 
 ## Related projects
 
