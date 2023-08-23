@@ -47,7 +47,7 @@ in {
           };
           group = mkOption {
             type = singleLineStr;
-            default = users.${config.owner}.group;
+            default = config.users.users.${config.owner}.group;
             defaultText = ''config.users.users.''${cfg.owner}.group'';
             description = ''
               Group of the file.
