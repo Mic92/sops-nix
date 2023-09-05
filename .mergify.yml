@@ -9,7 +9,7 @@ defaults:
 pull_request_rules:
   - name: merge using the merge queue
     conditions:
-      - base=main
+      - base=master
       - label~=merge-queue|dependencies
     actions:
       queue:
