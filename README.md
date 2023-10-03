@@ -503,25 +503,6 @@ Consider the following nixos configuration example:
 }
 ```
 
-To access secrets each non-root process/service needs to be part of the keys group.
-For systemd services this can be achieved as following:
-
-```nix
-{
-  systemd.services.some-service = {
-    serviceConfig.SupplementaryGroups = [ config.users.groups.keys.name ];
-  };
-}
-```
-
-For login or system users this can be done like this:
-
-```nix
-{
-  users.users.example-user.extraGroups = [ config.users.groups.keys.name ];
-}
-```
-
 <details>
 <summary>This example configures secrets for buildkite, a CI agent;
 the service needs a token and a SSH private key to function.</summary>
@@ -542,10 +523,6 @@ the service needs a token and a SSH private key to function.</summary>
       pkgs.git
     ];
 
-  };
-
-  systemd.services.buildkite-agent-builder = {
-    serviceConfig.SupplementaryGroups = [ config.users.groups.keys.name ];
   };
 
   sops.secrets.buildkite-token.owner = config.users.buildkite-agent-builder.name;
