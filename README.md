@@ -495,30 +495,11 @@ Consider the following nixos configuration example:
   # 0 - none (---)
   sops.secrets.example-secret.mode = "0440";
   # Either a user id or group name representation of the secret owner
-  # It is recommended to get the user name from `config.users.<?name>.name` to avoid misconfiguration
+  # It is recommended to get the user name from `config.users.users.<?name>.name` to avoid misconfiguration
   sops.secrets.example-secret.owner = config.users.users.nobody.name;
   # Either the group id or group name representation of the secret group
-  # It is recommended to get the group name from `config.users.<?name>.group` to avoid misconfiguration
+  # It is recommended to get the group name from `config.users.users.<?name>.group` to avoid misconfiguration
   sops.secrets.example-secret.group = config.users.users.nobody.group;
-}
-```
-
-To access secrets each non-root process/service needs to be part of the keys group.
-For systemd services this can be achieved as following:
-
-```nix
-{
-  systemd.services.some-service = {
-    serviceConfig.SupplementaryGroups = [ config.users.groups.keys.name ];
-  };
-}
-```
-
-For login or system users this can be done like this:
-
-```nix
-{
-  users.users.example-user.extraGroups = [ config.users.groups.keys.name ];
 }
 ```
 
@@ -542,10 +523,6 @@ the service needs a token and a SSH private key to function.</summary>
       pkgs.git
     ];
 
-  };
-
-  systemd.services.buildkite-agent-builder = {
-    serviceConfig.SupplementaryGroups = [ config.users.groups.keys.name ];
   };
 
   sops.secrets.buildkite-token.owner = config.users.buildkite-agent-builder.name;
