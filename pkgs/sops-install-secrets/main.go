@@ -30,6 +30,7 @@ type secret struct {
 	Owner        string     `json:"owner"`
 	Group        string     `json:"group"`
 	SopsFile     string     `json:"sopsFile"`
+	SopsFiles    []string   `json:"sopsFiles"`
 	Format       FormatType `json:"format"`
 	Mode         string     `json:"mode"`
 	RestartUnits []string   `json:"restartUnits"`
@@ -257,12 +258,16 @@ func recurseSecretKey(keys map[string]interface{}, wantedKey string) (string, er
 	return strVal, nil
 }
 
-func decryptSecret(s *secret, sourceFiles map[string]plainData) error {
-	sourceFile := sourceFiles[s.SopsFile]
+func decryptSecretInner(s *secret, sopsFile *string, sourceFiles map[string]plainData) error {
+	if sopsFile == nil {
+		sopsFile = &s.SopsFile
+	}
+
+	sourceFile := sourceFiles[*sopsFile]
 	if sourceFile.data == nil || sourceFile.binary == nil {
-		plain, err := decrypt.File(s.SopsFile, string(s.Format))
+		plain, err := decrypt.File(*sopsFile, string(s.Format))
 		if err != nil {
-			return fmt.Errorf("Failed to decrypt '%s': %w", s.SopsFile, err)
+			return fmt.Errorf("Failed to decrypt '%s': %w", *sopsFile, err)
 		}
 
 		switch s.Format {
@@ -270,14 +275,14 @@ func decryptSecret(s *secret, sourceFiles map[string]plainData) error {
 			sourceFile.binary = plain
 		case Yaml:
 			if err := yaml.Unmarshal(plain, &sourceFile.data); err != nil {
-				return fmt.Errorf("Cannot parse yaml of '%s': %w", s.SopsFile, err)
+				return fmt.Errorf("Cannot parse yaml of '%s': %w", *sopsFile, err)
 			}
 		case Json:
 			if err := json.Unmarshal(plain, &sourceFile.data); err != nil {
-				return fmt.Errorf("Cannot parse json of '%s': %w", s.SopsFile, err)
+				return fmt.Errorf("Cannot parse json of '%s': %w", *sopsFile, err)
 			}
 		default:
-			return fmt.Errorf("Secret of type %s in %s is not supported", s.Format, s.SopsFile)
+			return fmt.Errorf("Secret of type %s in %s is not supported", s.Format, *sopsFile)
 		}
 	}
 	switch s.Format {
@@ -286,11 +291,35 @@ func decryptSecret(s *secret, sourceFiles map[string]plainData) error {
 	case Yaml, Json:
 		strVal, err := recurseSecretKey(sourceFile.data, s.Key)
 		if err != nil {
-			return fmt.Errorf("secret %s in %s is not valid: %w", s.Name, s.SopsFile, err)
+			return fmt.Errorf("secret %s in %s is not valid: %w", s.Name, *sopsFile, err)
 		}
 		s.value = []byte(strVal)
 	}
-	sourceFiles[s.SopsFile] = sourceFile
+	sourceFiles[*sopsFile] = sourceFile
+
+	return nil
+}
+
+func decryptSecret(s *secret, sourceFiles map[string]plainData) error {
+	if len(s.SopsFiles) == 0 {
+		if err := decryptSecretInner(s, &s.SopsFile, sourceFiles); err != nil {
+			return err
+		}
+	} else {
+		// Check SopsFiles in reverse order and use first matched secret
+		for ii := len(s.SopsFiles) - 1; ii >= 0; ii-- {
+			if err := decryptSecretInner(s, &s.SopsFiles[ii], sourceFiles); err != nil {
+				if ii == 0 {
+					// Secret not found in any of the SopsFiles
+					// TODO: print SopsFiles
+					return fmt.Errorf("secret %s not found in SopsFiles", s.Name)
+				}
+			} else {
+				// Found the secret
+				break
+			}
+		}
+	}
 	return nil
 }
 
