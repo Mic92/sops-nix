@@ -1,17 +1,20 @@
-{ config, lib, pkgs, ... }:
+{ config, options, lib, pkgs, ... }:
 
 with lib;
 
 let
   cfg = config.sops;
+  opts = options.sops;
   users = config.users.users;
   sops-install-secrets = cfg.package;
   sops-install-secrets-check = cfg.validationPackage;
-  regularSecrets = lib.filterAttrs (_: v: !v.neededForUsers) cfg.secrets;
-  secretsForUsers = lib.filterAttrs (_: v: v.neededForUsers) cfg.secrets;
-  secretType = types.submodule ({ config, ... }: {
+  secrets = mapAttrs (_: secret: removeAttrs secret ["sopsFile"]) cfg.secrets;
+  regularSecrets = lib.filterAttrs (_: v: !v.neededForUsers) secrets;
+  secretsForUsers = lib.filterAttrs (_: v: v.neededForUsers) secrets;
+  secretType = types.submodule ({ config, options, ... }: {
     config = {
-      sopsFiles = lib.mkOptionDefault cfg.defaultSopsFiles;
+      sopsFile = mkOptionDefault cfg.defaultSopsFile;
+      sopsFiles = if options.sopsFile.isDefined then warn "`sops.secrets.<name>.sopsFile` is being deprecated, use `sops.secrets.<name>.sopsFiles` instead" [ config.sopsFile ] else (lib.mkOptionDefault cfg.defaultSopsFiles);
       sopsFilesHash = mkOptionDefault (optionals cfg.validateSopsFiles (forEach config.sopsFiles (builtins.hashFile "sha256")));
     };
     options = {
@@ -68,6 +71,13 @@ let
         defaultText = literalMD "{option}`config.users.users.\${owner}.group`";
         description = ''
           Group of the file.
+        '';
+      };
+      sopsFile = mkOption {
+        type = types.path;
+        defaultText = "\${config.sops.defaultSopsFile}";
+        description = ''
+          Sops file the secret is loaded from.
         '';
       };
       sopsFiles = mkOption {
@@ -163,6 +173,13 @@ in {
       default = {};
       description = ''
         Path where the latest secrets are mounted to.
+      '';
+    };
+
+    defaultSopsFile = mkOption {
+      type = types.path;
+      description = ''
+        Default sops file used for all secrets.
       '';
     };
 
@@ -318,7 +335,6 @@ in {
     ./templates
     (mkRenamedOptionModule [ "sops" "gnupgHome" ] [ "sops" "gnupg" "home" ])
     (mkRenamedOptionModule [ "sops" "sshKeyPaths" ] [ "sops" "gnupg" "sshKeyPaths" ])
-    (mkRemovedOptionModule [ "sops" "defaultSopsFile" ] ''use `sops.defaultSopsFiles` instead'')
   ];
   config = mkMerge [
     (mkIf (cfg.secrets != {}) {
@@ -347,6 +363,8 @@ in {
               secret.sopsFiles)
           cfg.secrets)
       );
+
+      warnings = optional opts.defaultSopsFile.isDefined "`sops.defaultSopsFile` is being deprecated, use `sops.defaultSopsFiles` instead";
 
       sops.environment.SOPS_GPG_EXEC = mkIf (cfg.gnupg.home != null) (mkDefault "${pkgs.gnupg}/bin/gpg");
 
