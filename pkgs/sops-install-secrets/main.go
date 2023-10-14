@@ -287,7 +287,7 @@ func decryptSecret(s *secret, sourceFiles map[string]plainData) error {
 		case Yaml, Json:
 			strVal, err := recurseSecretKey(sourceFile.data, s.Key)
 			if err != nil {
-				continue;
+				continue
 			}
 			s.value = []byte(strVal)
 		}
@@ -511,7 +511,6 @@ func (app *appContext) validateSecret(secret *secret) error {
 				return err
 			}
 			app.secretFiles[sopsFile] = *maybeFile
-			files = append(files, *maybeFile)
 			file = *maybeFile
 		}
 		files = append(files, file)
@@ -519,11 +518,15 @@ func (app *appContext) validateSecret(secret *secret) error {
 
 	for i := len(files) - 1; i >= 0; i-- {
 		err := app.validateSopsFile(secret, &files[i])
-		if err != nil && i == 0 {
+		if err == nil {
+			// Found valid sopsFile
+			break
+		} else if i == 0 {
+			// No valid sopsFile found in sopsFiles
 			return err
 		}
 	}
-	return nil;
+	return nil
 }
 
 func (app *appContext) validateManifest() error {
