@@ -402,12 +402,12 @@ func lookupKeysGroup() (int, error) {
 	return 0, fmt.Errorf("Can't find group 'keys' nor 'nogroup' (%w).", err2)
 }
 
-func (app *appContext) loadSopsFile(s *secret, sopsFileIndex int) (*secretFile, error) {
+func (app *appContext) loadSopsFile(s *secret, sopsFile *string) (*secretFile, error) {
 	if app.checkMode == Manifest {
 		return &secretFile{firstSecret: s}, nil
 	}
 
-	cipherText, err := os.ReadFile(s.SopsFiles[sopsFileIndex])
+	cipherText, err := os.ReadFile(*sopsFile)
 	if err != nil {
 		return nil, fmt.Errorf("Failed reading %s: %w", SopsFile, err)
 	}
@@ -417,17 +417,17 @@ func (app *appContext) loadSopsFile(s *secret, sopsFileIndex int) (*secretFile, 
 	switch s.Format {
 	case Binary:
 		if err := json.Unmarshal(cipherText, &keys); err != nil {
-			return nil, fmt.Errorf("Cannot parse json of '%s': %w", s.SopsFiles[sopsFileIndex], err)
+			return nil, fmt.Errorf("Cannot parse json of '%s': %w", *sopsFile, err)
 		}
 		return &secretFile{cipherText: cipherText, firstSecret: s}, nil
 	case Yaml:
 		if err := yaml.Unmarshal(cipherText, &keys); err != nil {
-			return nil, fmt.Errorf("Cannot parse yaml of '%s': %w", s.SopsFiles[sopsFileIndex], err)
+			return nil, fmt.Errorf("Cannot parse yaml of '%s': %w", *sopsFile, err)
 		}
 	case Dotenv:
 		env, err := godotenv.Unmarshal(string(cipherText))
 		if err != nil {
-			return nil, fmt.Errorf("Cannot parse dotenv of '%s': %w", s.SopsFiles[sopsFileIndex], err)
+			return nil, fmt.Errorf("Cannot parse dotenv of '%s': %w", *sopsFile, err)
 		}
 		keys = map[string]interface{}{}
 		for k, v := range env {
@@ -435,7 +435,7 @@ func (app *appContext) loadSopsFile(s *secret, sopsFileIndex int) (*secretFile, 
 		}
 	case Json:
 		if err := json.Unmarshal(cipherText, &keys); err != nil {
-			return nil, fmt.Errorf("Cannot parse json of '%s': %w", s.SopsFiles[sopsFileIndex], err)
+			return nil, fmt.Errorf("Cannot parse json of '%s': %w", *sopsFile, err)
 		}
 	}
 
@@ -503,10 +503,10 @@ func (app *appContext) validateSecret(secret *secret) error {
 	}
 
 	files := []secretFile {};
-	for index, sopsFile := range secret.SopsFiles {
+	for _, sopsFile := range secret.SopsFiles {
 		file, ok := app.secretFiles[sopsFile]
 		if !ok {
-			maybeFile, err := app.loadSopsFile(secret, index)
+			maybeFile, err := app.loadSopsFile(secret, &sopsFile)
 			if err != nil {
 				return err
 			}
@@ -523,7 +523,7 @@ func (app *appContext) validateSecret(secret *secret) error {
 			break
 		} else if i == 0 {
 			// No valid sopsFile found in sopsFiles
-			return err
+			return fmt.Errorf("Failed to find valid secret %s in %v", secret.Name, secret.SopsFiles)
 		}
 	}
 	return nil
