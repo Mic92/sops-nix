@@ -4,7 +4,6 @@ with lib;
 
 let
   cfg = config.sops;
-  opts = options.sops;
   users = config.users.users;
   sops-install-secrets = cfg.package;
   sops-install-secrets-check = cfg.validationPackage;
@@ -12,12 +11,22 @@ let
   regularSecrets = lib.filterAttrs (_: v: !v.neededForUsers) secrets;
   secretsForUsers = lib.filterAttrs (_: v: v.neededForUsers) secrets;
   secretType = types.submodule ({ config, options, ... }: {
-    config = {
+    config = mkMerge [{
       sopsFile = mkOptionDefault cfg.defaultSopsFile;
-      sopsFiles = if options.sopsFile.isDefined then warn "`sops.secrets.<name>.sopsFile` is being deprecated, use `sops.secrets.<name>.sopsFiles` instead" [ config.sopsFile ] else (lib.mkOptionDefault cfg.defaultSopsFiles);
+      sopsFiles = mkIf (length cfg.defaultSopsFiles > 0) (mkOptionDefault cfg.defaultSopsFiles);
       sopsFilesHash = mkOptionDefault (optionals cfg.validateSopsFiles (forEach config.sopsFiles (builtins.hashFile "sha256")));
-    };
+    }
+    {
+      sopsFiles = mkIf (config.sopsFile != null) (mkOverride options.sopsFile.highestPrio (mkBefore [config.sopsFile]));
+    }];
     options = {
+      test = mkOption {
+        type = types.anything;
+        default = config._module.args.name;
+        description = ''
+          Name of the file used in /run/secrets
+        '';
+      };
       name = mkOption {
         type = types.str;
         default = config._module.args.name;
@@ -74,7 +83,7 @@ let
         '';
       };
       sopsFile = mkOption {
-        type = types.path;
+        type = types.nullOr types.path;
         defaultText = "\${config.sops.defaultSopsFile}";
         description = ''
           Sops file the secret is loaded from.
@@ -177,14 +186,16 @@ in {
     };
 
     defaultSopsFile = mkOption {
-      type = types.path;
+      type = types.nullOr types.path;
+      default = null;
       description = ''
         Default sops file used for all secrets.
       '';
     };
 
     defaultSopsFiles = mkOption {
-      type = types.nonEmptyListOf types.path;
+      type = types.listOf types.path;
+      default = [];
       description = ''
         Default sops file used for all secrets.
       '';
@@ -364,7 +375,6 @@ in {
           cfg.secrets)
       );
 
-      warnings = optional opts.defaultSopsFile.isDefined "`sops.defaultSopsFile` is being deprecated, use `sops.defaultSopsFiles` instead";
 
       sops.environment.SOPS_GPG_EXEC = mkIf (cfg.gnupg.home != null) (mkDefault "${pkgs.gnupg}/bin/gpg");
 
