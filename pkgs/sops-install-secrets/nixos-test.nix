@@ -10,7 +10,7 @@
         bits = 4096;
         path = ./test-assets/ssh-key;
       }];
-      sops.defaultSopsFiles = [ ./test-assets/secrets.yaml ];
+      sops.defaultSopsFile = ./test-assets/secrets.yaml;
       sops.secrets.test_key = { };
     };
 
@@ -29,7 +29,7 @@
       imports = [ ../../modules/sops ];
       sops = {
         age.keyFile = ./test-assets/age-keys.txt;
-        defaultSopsFiles = [ ./test-assets/secrets.yaml ];
+        defaultSopsFile = ./test-assets/secrets.yaml;
         secrets.test_key.neededForUsers = true;
         secrets."nested/test/file".owner = "example-user";
       };
@@ -69,7 +69,7 @@
       imports = [ ../../modules/sops ];
       sops = {
         age.keyFile = ./test-assets/age-keys.txt;
-        defaultSopsFiles = [ ./test-assets/secrets.yaml ];
+        defaultSopsFile = ./test-assets/secrets.yaml;
         secrets.test_key = { };
         keepGenerations = lib.mkDefault 0;
       };
@@ -110,7 +110,7 @@
       imports = [ ../../modules/sops ];
       sops = {
         age.keyFile = ./test-assets/age-keys.txt;
-        defaultSopsFiles = [ ./test-assets/secrets.yaml ];
+        defaultSopsFile = ./test-assets/secrets.yaml;
         secrets.test_key = { };
       };
     };
@@ -134,7 +134,7 @@
         path = ./test-assets/ssh-ed25519-key;
       }];
       sops = {
-        defaultSopsFiles = [ ./test-assets/secrets.yaml ];
+        defaultSopsFile = ./test-assets/secrets.yaml;
         secrets.test_key = { };
         # Generate a key and append it to make sure it appending doesn't break anything
         age = {
@@ -164,7 +164,7 @@
       };
 
       sops.gnupg.home = "/run/gpghome";
-      sops.defaultSopsFiles = [ ./test-assets/secrets.yaml ];
+      sops.defaultSopsFile = ./test-assets/secrets.yaml;
       sops.secrets.test_key.owner = config.users.users.someuser.name;
       sops.secrets."nested/test/file".owner = config.users.users.someuser.name;
       sops.secrets.existing-file = {
@@ -215,7 +215,7 @@
       imports = [ ../../modules/sops ];
       sops = {
         age.keyFile = ./test-assets/age-keys.txt;
-        defaultSopsFiles = [ ./test-assets/secrets.yaml ];
+        defaultSopsFile = ./test-assets/secrets.yaml;
         secrets.test_key = { };
       };
 
@@ -274,7 +274,7 @@
 
       sops = {
         age.keyFile = ./test-assets/age-keys.txt;
-        defaultSopsFiles = [ ./test-assets/secrets.yaml ];
+        defaultSopsFile = ./test-assets/secrets.yaml;
         secrets.test_key = {
           restartUnits = [ "restart-unit.service" "reload-unit.service" ];
           reloadUnits = [ "reload-trigger.service" ];
