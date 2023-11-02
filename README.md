@@ -684,7 +684,8 @@ JSON/YAML files. Unlike the other two formats, for binary files, one file corres
 To encrypt an binary file use the following command:
 
 ``` console
-$ sops -e /tmp/krb5.keytab > krb5.keytab
+$ cp /etc/krb5/krb5.keytab > krb5.keytab
+$ sops -e -o krb5.keytab
 # an example of what this might result in:
 $ head krb5.keytab
 {
