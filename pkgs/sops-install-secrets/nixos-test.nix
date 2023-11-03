@@ -36,7 +36,7 @@
 
       users.users.example-user = {
         isNormalUser = true;
-        passwordFile = config.sops.secrets.test_key.path;
+        hashedPasswordFile = config.sops.secrets.test_key.path;
       };
     };
 
