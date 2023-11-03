@@ -34,6 +34,15 @@ func SecureSymlinkChown(symlinkToCheck, expectedTarget string, owner, group int)
 	if n > len(expectedTarget) || string(buf[:n]) != expectedTarget {
 		return fmt.Errorf("symlink %s does not point to %s", symlinkToCheck, expectedTarget)
 	}
+	stat := unix.Stat_t{}
+	err = unix.Fstat(fd, &stat)
+	if err != nil {
+		return fmt.Errorf("cannot stat '%s': %w", symlinkToCheck, err)
+	}
+	if stat.Uid == uint32(owner) || stat.Gid == uint32(group) {
+		return nil // already correct
+	}
+
 	err = unix.Fchownat(fd, "", owner, group, unix.AT_EMPTY_PATH)
 	if err != nil {
 		return fmt.Errorf("cannot change owner of '%s' to %d/%d: %w", symlinkToCheck, owner, group, err)
