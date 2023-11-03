@@ -39,7 +39,7 @@ func SecureSymlinkChown(symlinkToCheck, expectedTarget string, owner, group int)
 	if err != nil {
 		return fmt.Errorf("cannot stat '%s': %w", symlinkToCheck, err)
 	}
-	if stat.Uid == uint32(owner) || stat.Gid == uint32(group) {
+	if stat.Uid == uint32(owner) && stat.Gid == uint32(group) {
 		return nil // already correct
 	}
 
