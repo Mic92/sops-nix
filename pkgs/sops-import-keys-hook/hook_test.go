@@ -71,5 +71,4 @@ func TestShellHook(t *testing.T) {
 	if !strings.Contains(stderr, expectedStderr) {
 		t.Fatalf("'%v' not in '%v'", expectedStderr, stdout)
 	}
-
 }

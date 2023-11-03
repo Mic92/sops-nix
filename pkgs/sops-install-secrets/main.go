@@ -18,9 +18,9 @@ import (
 	"github.com/Mic92/sops-nix/pkgs/sops-install-secrets/sshkeys"
 	agessh "github.com/Mic92/ssh-to-age"
 
+	"github.com/joho/godotenv"
 	"github.com/mozilla-services/yaml"
 	"go.mozilla.org/sops/v3/decrypt"
-	"github.com/joho/godotenv"
 )
 
 type secret struct {
@@ -79,10 +79,10 @@ const (
 func IsValidFormat(format string) bool {
 	switch format {
 	case string(Yaml),
-		 string(Json),
-		 string(Binary),
-		 string(Dotenv),
-		 string(Ini):
+		string(Json),
+		string(Binary),
+		string(Dotenv),
+		string(Ini):
 		return true
 	default:
 		return false
@@ -94,7 +94,7 @@ func (f *FormatType) UnmarshalJSON(b []byte) error {
 	if err := json.Unmarshal(b, &s); err != nil {
 		return err
 	}
-	var t = FormatType(s)
+	t := FormatType(s)
 	switch t {
 	case "":
 		*f = Yaml
@@ -304,8 +304,10 @@ func decryptSecrets(secrets []secret) error {
 	return nil
 }
 
-const RAMFS_MAGIC int32 = -2054924042
-const TMPFS_MAGIC int32 = 16914836
+const (
+	RAMFS_MAGIC int32 = -2054924042
+	TMPFS_MAGIC int32 = 16914836
+)
 
 func prepareSecretsDir(secretMountpoint string, linkName string, keysGid int, userMode bool) (*string, error) {
 	var generation uint64
@@ -328,7 +330,7 @@ func prepareSecretsDir(secretMountpoint string, linkName string, keysGid int, us
 			return nil, fmt.Errorf("Cannot remove existing %s: %w", dir, err)
 		}
 	}
-	if err := os.Mkdir(dir, os.FileMode(0751)); err != nil {
+	if err := os.Mkdir(dir, os.FileMode(0o751)); err != nil {
 		return nil, fmt.Errorf("mkdir(): %w", err)
 	}
 	if !userMode {
@@ -347,7 +349,7 @@ func writeSecrets(secretDir string, secrets []secret, keysGid int, userMode bool
 		pathSoFar := secretDir
 		for _, dir := range dirs {
 			pathSoFar = filepath.Join(pathSoFar, dir)
-			if err := os.MkdirAll(pathSoFar, 0751); err != nil {
+			if err := os.MkdirAll(pathSoFar, 0o751); err != nil {
 				return fmt.Errorf("Cannot create directory '%s' for %s: %w", pathSoFar, fp, err)
 			}
 			if !userMode {
@@ -382,15 +384,15 @@ func lookupGroup(groupname string) (int, error) {
 }
 
 func lookupKeysGroup() (int, error) {
-  gid, err1 := lookupGroup("keys")
-  if err1 == nil {
-    return gid, nil
-  }
-  gid, err2 := lookupGroup("nogroup")
-  if err2 == nil {
-    return gid, nil
-  }
-  return 0, fmt.Errorf("Can't find group 'keys' nor 'nogroup' (%w).", err2)
+	gid, err1 := lookupGroup("keys")
+	if err1 == nil {
+		return gid, nil
+	}
+	gid, err2 := lookupGroup("nogroup")
+	if err2 == nil {
+		return gid, nil
+	}
+	return 0, fmt.Errorf("Can't find group 'keys' nor 'nogroup' (%w).", err2)
 }
 
 func (app *appContext) loadSopsFile(s *secret) (*secretFile, error) {
@@ -435,7 +437,6 @@ func (app *appContext) loadSopsFile(s *secret) (*secretFile, error) {
 		keys:        keys,
 		firstSecret: s,
 	}, nil
-
 }
 
 func (app *appContext) validateSopsFile(s *secret, file *secretFile) error {
@@ -444,7 +445,7 @@ func (app *appContext) validateSopsFile(s *secret, file *secretFile) error {
 			s.Name, s.SopsFile, s.Format,
 			file.firstSecret.Format, file.firstSecret.Name)
 	}
-	if app.checkMode != Manifest && (!(s.Format == Binary || s.Format == Dotenv || s.Format == Ini )) {
+	if app.checkMode != Manifest && (!(s.Format == Binary || s.Format == Dotenv || s.Format == Ini)) {
 		_, err := recurseSecretKey(file.keys, s.Key)
 		if err != nil {
 			return fmt.Errorf("secret %s in %s is not valid: %w", s.Name, s.SopsFile, err)
@@ -605,7 +606,7 @@ func pruneGenerations(secretsMountPoint, secretsDir string, keepGenerations int)
 func importSSHKeys(logcfg loggingConfig, keyPaths []string, gpgHome string) error {
 	secringPath := filepath.Join(gpgHome, "secring.gpg")
 
-	secring, err := os.OpenFile(secringPath, os.O_WRONLY|os.O_CREATE, 0600)
+	secring, err := os.OpenFile(secringPath, os.O_WRONLY|os.O_CREATE, 0o600)
 	if err != nil {
 		return fmt.Errorf("Cannot create %s: %w", secringPath, err)
 	}
@@ -661,7 +662,6 @@ func importAgeSSHKeys(logcfg loggingConfig, keyPaths []string, ageFile os.File) 
 // Inspired by https://github.com/facebookarchive/symwalk
 func symlinkWalk(filename string, linkDirname string, walkFn filepath.WalkFunc) error {
 	symWalkFunc := func(path string, info os.FileInfo, err error) error {
-
 		if fname, err := filepath.Rel(filename, path); err == nil {
 			path = filepath.Join(linkDirname, fname)
 		} else {
@@ -735,7 +735,7 @@ func handleModifications(isDry bool, logcfg loggingConfig, symlinkPath string, s
 
 	writeLines := func(list []string, file string) error {
 		if len(list) != 0 {
-			f, err := os.OpenFile(file, os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0600)
+			f, err := os.OpenFile(file, os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0o600)
 			if err != nil {
 				return err
 			}
@@ -893,9 +893,9 @@ func installSecrets(args []string) error {
 	}
 
 	if manifest.UserMode {
-    rundir, err := RuntimeDir()
+		rundir, err := RuntimeDir()
 		if opts.checkMode == Off && err != nil {
-      return fmt.Errorf("Error: %v", err)
+			return fmt.Errorf("Error: %v", err)
 		}
 		manifest.SecretsMountPoint = replaceRuntimeDir(manifest.SecretsMountPoint, rundir)
 		manifest.SymlinkPath = replaceRuntimeDir(manifest.SymlinkPath, rundir)
@@ -953,7 +953,7 @@ func installSecrets(args []string) error {
 		keyfile := filepath.Join(manifest.SecretsMountPoint, "age-keys.txt")
 		os.Setenv("SOPS_AGE_KEY_FILE", keyfile)
 		// Create the keyfile
-		ageFile, err := os.OpenFile(keyfile, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0600)
+		ageFile, err := os.OpenFile(keyfile, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0o600)
 		if err != nil {
 			return fmt.Errorf("Cannot create '%s': %w", keyfile, err)
 		}
@@ -1013,7 +1013,6 @@ func installSecrets(args []string) error {
 	}
 
 	return nil
-
 }
 
 func main() {

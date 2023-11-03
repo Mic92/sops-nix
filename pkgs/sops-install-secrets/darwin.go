@@ -54,7 +54,7 @@ func SecureSymlinkChown(symlinkToCheck string, expectedTarget string, owner, gro
 // newfs_hfs $mydev
 // mount -t hfs $mydev /tmp/mymount
 func MountSecretFs(mountpoint string, keysGid int, _useTmpfs bool, userMode bool) error {
-	if err := os.MkdirAll(mountpoint, 0751); err != nil {
+	if err := os.MkdirAll(mountpoint, 0o751); err != nil {
 		return fmt.Errorf("Cannot create directory '%s': %w", mountpoint, err)
 	}
 	if _, err := os.Stat(mountpoint + "/sops-nix-secretfs"); !errors.Is(err, os.ErrNotExist) {
@@ -90,7 +90,7 @@ func MountSecretFs(mountpoint string, keysGid int, _useTmpfs bool, userMode bool
 	// There is no documented way to check for memfs mountpoint. Thus we place a file.
 	_, err = os.Create(mountpoint + "/sops-nix-secretfs")
 
-  // This would be the way to check on unix.
+	// This would be the way to check on unix.
 	//buf := unix.Statfs_t{}
 	//if err := unix.Statfs(mountpoint, &buf); err != nil {
 	//	return fmt.Errorf("Cannot get statfs for directory '%s': %w", mountpoint, err)

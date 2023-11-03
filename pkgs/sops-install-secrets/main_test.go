@@ -38,7 +38,7 @@ func equals(tb testing.TB, exp, act interface{}) {
 
 func writeManifest(t *testing.T, dir string, m *manifest) string {
 	filename := path.Join(dir, "manifest.json")
-	f, err := os.OpenFile(filename, os.O_RDWR|os.O_CREATE, 0755)
+	f, err := os.OpenFile(filename, os.O_RDWR|os.O_CREATE, 0o755)
 	ok(t, err)
 	encoder := json.NewEncoder(f)
 	ok(t, encoder.Encode(m))
@@ -82,7 +82,7 @@ func testGPG(t *testing.T) {
 	gpgHome := path.Join(testdir.path, "gpg-home")
 	gpgEnv := append(os.Environ(), fmt.Sprintf("GNUPGHOME=%s", gpgHome))
 
-	ok(t, os.Mkdir(gpgHome, os.FileMode(0700)))
+	ok(t, os.Mkdir(gpgHome, os.FileMode(0o700)))
 	cmd := exec.Command("gpg", "--import", path.Join(assets, "key.asc"))
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
@@ -144,7 +144,6 @@ func testGPG(t *testing.T) {
 	iniSecret.SopsFile = path.Join(assets, "secrets.ini")
 	iniSecret.Path = path.Join(testdir.secretsPath, "test5")
 
-
 	manifest := manifest{
 		Secrets:           []secret{yamlSecret, jsonSecret, binarySecret, dotenvSecret, iniSecret},
 		SecretsMountPoint: testdir.secretsPath,
@@ -169,7 +168,7 @@ func testGPG(t *testing.T) {
 	ok(t, err)
 
 	equals(t, true, yamlStat.Mode().IsRegular())
-	equals(t, 0400, int(yamlStat.Mode().Perm()))
+	equals(t, 0o400, int(yamlStat.Mode().Perm()))
 	stat, success := yamlStat.Sys().(*syscall.Stat_t)
 	equals(t, true, success)
 	content, err := os.ReadFile(yamlSecret.Path)
@@ -187,7 +186,7 @@ func testGPG(t *testing.T) {
 	jsonStat, err := os.Stat(jsonSecret.Path)
 	ok(t, err)
 	equals(t, true, jsonStat.Mode().IsRegular())
-	equals(t, 0700, int(jsonStat.Mode().Perm()))
+	equals(t, 0o700, int(jsonStat.Mode().Perm()))
 	if stat, ok := jsonStat.Sys().(*syscall.Stat_t); ok {
 		equals(t, 0, int(stat.Uid))
 		equals(t, 0, int(stat.Gid))
