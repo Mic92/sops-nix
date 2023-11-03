@@ -4,18 +4,18 @@
 package main
 
 import (
-  "fmt"
-  "os"
+	"fmt"
+	"os"
 
 	"golang.org/x/sys/unix"
 )
 
 func RuntimeDir() (string, error) {
-  rundir, ok := os.LookupEnv("XDG_RUNTIME_DIR")
-  if !ok {
-  	return "", fmt.Errorf("$XDG_RUNTIME_DIR is not set!")
-  }
-  return rundir, nil
+	rundir, ok := os.LookupEnv("XDG_RUNTIME_DIR")
+	if !ok {
+		return "", fmt.Errorf("$XDG_RUNTIME_DIR is not set!")
+	}
+	return rundir, nil
 }
 
 func SecureSymlinkChown(symlinkToCheck, expectedTarget string, owner, group int) error {
@@ -51,11 +51,11 @@ func SecureSymlinkChown(symlinkToCheck, expectedTarget string, owner, group int)
 }
 
 func MountSecretFs(mountpoint string, keysGid int, useTmpfs bool, userMode bool) error {
-	if err := os.MkdirAll(mountpoint, 0751); err != nil {
+	if err := os.MkdirAll(mountpoint, 0o751); err != nil {
 		return fmt.Errorf("Cannot create directory '%s': %w", mountpoint, err)
 	}
 
-  // We can't create a ramfs as user
+	// We can't create a ramfs as user
 	if userMode {
 		return nil
 	}
