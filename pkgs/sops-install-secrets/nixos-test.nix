@@ -25,7 +25,7 @@
 
   user-passwords = makeTest {
     name = "sops-user-passwords";
-    nodes.machine = { config, ... }: {
+    nodes.machine = { config, lib, ... }: {
       imports = [ ../../modules/sops ];
       sops = {
         age.keyFile = ./test-assets/age-keys.txt;
@@ -34,9 +34,16 @@
         secrets."nested/test/file".owner = "example-user";
       };
 
-      users.users.example-user = {
+      users.users.example-user = let
+        passwordFileKey =
+          if (lib.versionAtLeast (lib.versions.majorMinor lib.version)
+            "23.11") then
+            "hashedPasswordFile"
+          else
+            "passwordFile";
+      in {
         isNormalUser = true;
-        hashedPasswordFile = config.sops.secrets.test_key.path;
+        ${passwordFileKey} = config.sops.secrets.test_key.path;
       };
     };
 
