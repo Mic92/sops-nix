@@ -1,4 +1,4 @@
-{ config, options, lib, pkgs, ... }:
+{ config, lib, pkgs, ... }:
 
 with lib;
 
@@ -197,7 +197,7 @@ in {
       type = types.listOf types.path;
       default = [];
       description = ''
-        Default sops file used for all secrets.
+        Default sops files used for all secrets.
       '';
     };
 
