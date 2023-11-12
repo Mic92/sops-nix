@@ -502,7 +502,7 @@ func (app *appContext) validateSecret(secret *secret) error {
 		return fmt.Errorf("Unsupported format %s for secret %s", secret.Format, secret.Name)
 	}
 
-	files := []secretFile {};
+	files := []secretFile{}
 	for _, sopsFile := range secret.SopsFiles {
 		file, ok := app.secretFiles[sopsFile]
 		if !ok {
