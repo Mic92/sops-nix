@@ -3,7 +3,7 @@ buildGoModule {
   pname = "sops-install-secrets";
   version = "0.0.1";
 
-  src = ../..;
+  src = lib.sourceByRegex ../.. [ "go\.(mod|sum)" "pkgs" "pkgs/sops-install-secrets.*" ];
 
   subPackages = [ "pkgs/sops-install-secrets" ];
 
