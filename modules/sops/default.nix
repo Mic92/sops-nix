@@ -20,13 +20,6 @@ let
       sopsFiles = mkIf (config.sopsFile != null) (mkOverride options.sopsFile.highestPrio (mkBefore [config.sopsFile]));
     }];
     options = {
-      test = mkOption {
-        type = types.anything;
-        default = config._module.args.name;
-        description = ''
-          Name of the file used in /run/secrets
-        '';
-      };
       name = mkOption {
         type = types.str;
         default = config._module.args.name;
