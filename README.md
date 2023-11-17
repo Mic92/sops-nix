@@ -47,6 +47,8 @@ format to `age` keys.
 
 ## Usage example
 
+If you prefer video over the textual description below, you can also checkout this [6min tutorial](https://www.youtube.com/watch?v=G5f6GC7SnhU) by [@vimjoyer](https://github.com/vimjoyer).
+
 <details>
 <summary><b>1. Install sops-nix</b></summary>
 
