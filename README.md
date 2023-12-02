@@ -884,8 +884,8 @@ Copy the output to the editor you have opened with sops.
 
 ## Real-world examples
 
-My [personal configuration](https://github.com/Mic92/dotfiles/tree/master/nixos) makes extensive usage of sops-nix. 
-Each host has a [secrets](https://github.com/Mic92/dotfiles/tree/master/nixos/eve/secrets) directory containing secrets for the host. 
+The [nix-community infra](https://github.com/nix-community/infra) makes extensive usage of sops-nix.
+Each host has a [secrets.yaml](https://github.com/nix-community/infra/tree/master/hosts/build01) containing secrets for the host.
 Also Samuel Leathers explains his personal setup in this [blog article](https://samleathers.com/posts/2022-02-11-my-new-network-and-sops.html).
 
 ## Known limitations
