@@ -209,7 +209,7 @@ type plainData struct {
 	binary []byte
 }
 
-func recurseSecretKey(keys map[string]interface{}, wantedKey string) (string, error) {
+func recurseSecretKey(format FormatType, keys map[string]interface{}, wantedKey string) (string, error) {
 	var val interface{}
 	var ok bool
 	currentKey := wantedKey
@@ -246,15 +246,26 @@ func recurseSecretKey(keys map[string]interface{}, wantedKey string) (string, er
 		}
 		currentData = make(map[string]interface{})
 		for key, value := range valWithWrongType {
-			currentData[key.(string)] = value
+			currentData[fmt.Sprintf("%v", key)] = value
 		}
 	}
 
-	strVal, ok := val.(string)
-	if !ok {
-		return "", fmt.Errorf("The value of key '%s' is not a string", keyUntilNow)
+	var marshaller func(interface{}) ([]byte, error)
+	switch format {
+	case Json:
+		marshaller = json.Marshal
+	case Yaml:
+		marshaller = yaml.Marshal
+	default:
+		return "", fmt.Errorf("Secret of type %s is not supported", format)
 	}
-	return strVal, nil
+
+	strVal, err := marshaller(val)
+	if err != nil {
+		return "", fmt.Errorf("Cannot the value of key '%s': %w", keyUntilNow, err)
+	}
+
+	return string(strVal), nil
 }
 
 func decryptSecret(s *secret, sourceFiles map[string]plainData) error {
@@ -284,7 +295,7 @@ func decryptSecret(s *secret, sourceFiles map[string]plainData) error {
 	case Binary, Dotenv, Ini:
 		s.value = sourceFile.binary
 	case Yaml, Json:
-		strVal, err := recurseSecretKey(sourceFile.data, s.Key)
+		strVal, err := recurseSecretKey(s.Format, sourceFile.data, s.Key)
 		if err != nil {
 			return fmt.Errorf("secret %s in %s is not valid: %w", s.Name, s.SopsFile, err)
 		}
@@ -446,7 +457,7 @@ func (app *appContext) validateSopsFile(s *secret, file *secretFile) error {
 			file.firstSecret.Format, file.firstSecret.Name)
 	}
 	if app.checkMode != Manifest && (!(s.Format == Binary || s.Format == Dotenv || s.Format == Ini)) {
-		_, err := recurseSecretKey(file.keys, s.Key)
+		_, err := recurseSecretKey(s.Format, file.keys, s.Key)
 		if err != nil {
 			return fmt.Errorf("secret %s in %s is not valid: %w", s.Name, s.SopsFile, err)
 		}
