@@ -264,6 +264,7 @@ func recurseSecretKey(format FormatType, keys map[string]interface{}, wantedKey 
 	if err != nil {
 		return "", fmt.Errorf("Cannot marshal the value of key '%s': %w", keyUntilNow, err)
 	}
+	strVal = bytes.TrimSpace(strVal)
 
 	return string(strVal), nil
 }
