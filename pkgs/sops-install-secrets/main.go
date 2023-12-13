@@ -262,7 +262,7 @@ func recurseSecretKey(format FormatType, keys map[string]interface{}, wantedKey 
 
 	strVal, err := marshaller(val)
 	if err != nil {
-		return "", fmt.Errorf("Cannot the value of key '%s': %w", keyUntilNow, err)
+		return "", fmt.Errorf("Cannot marshal the value of key '%s': %w", keyUntilNow, err)
 	}
 
 	return string(strVal), nil
