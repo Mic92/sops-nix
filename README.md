@@ -180,8 +180,6 @@ $ nix-shell -p gnupg -p ssh-to-pgp --run "ssh-to-pgp -private-key -i /tmp/id_rsa
 $ rm /tmp/id_rsa
 ```
 
-You can also use an existing SSH Ed25519 key as an `age` key; to do so, see the following.
-
 <details>
 <summary> How to find the public key of an `age` key </summary>
 
