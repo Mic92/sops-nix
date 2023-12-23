@@ -727,7 +727,27 @@ Instead of running as an activation script, sops-nix runs as a systemd user serv
 And instead of decrypting to `/run/secrets`, the secrets are decrypted to `$XDG_RUNTIME_DIR/secrets` that is located on a tmpfs or similar non-persistent filesystem.
 
 Depending on whether you use home-manager system-wide or using a home.nix, you have to import it in a different way.
-This example show the `channel` approach from the example [Install: nix-channel](#nix-channel) for simplicity, but all other methods work as well. 
+This exmaple shows the `flake` approach from the recommended example [Install: Flakes (current recommendation)](#Flakes (current recommendation))
+
+```nix
+{
+  # NixOS system-wide home-manager configuration
+  home-manager.sharedModules = [
+    inputs.sops-nix.homeManagerModules.sops
+  ];
+}
+```
+
+```nix
+{
+  # Configuration via home.nix
+  imports = [
+    inputs.sops-nix.homeManagerModules.sops
+  ];
+}
+```
+
+This example show the `channel` approach from the example [Install: nix-channel](#nix-channel). All other methods work as well. 
 
 ```nix
 {
