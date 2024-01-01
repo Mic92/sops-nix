@@ -33,11 +33,12 @@ let
       };
       path = mkOption {
         type = types.str;
-        default = if config.neededForUsers then "/run/secrets-for-users/${config.name}" else "/run/secrets/${config.name}";
+        default = if config.neededForUsers then "/run/secrets-for-users/${config.name}" else "${cfg.symlinkPath}/${config.name}";
         defaultText = "/run/secrets-for-users/$name when neededForUsers is set, /run/secrets/$name when otherwise.";
         description = ''
           Path where secrets are symlinked to.
           If the default is kept no symlink is created.
+          If cfg.symlinkPath is set, /run/secrets will become that path
         '';
       };
       format = mkOption {
