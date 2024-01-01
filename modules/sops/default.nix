@@ -19,7 +19,7 @@ let
         type = types.str;
         default = config._module.args.name;
         description = ''
-          Name of the file used in /run/secrets
+          Name of the file used in /run/secrets (or your configured symlinkPath)
         '';
       };
       key = mkOption {
@@ -153,7 +153,7 @@ let
   # Skip ssh keys deployed with sops to avoid a catch 22
   defaultImportKeys = algo:
     if config.services.openssh.enable then
-      map (e: e.path) (lib.filter (e: e.type == algo && !(lib.hasPrefix "/run/secrets" e.path)) config.services.openssh.hostKeys)
+      map (e: e.path) (lib.filter (e: e.type == algo && !(lib.hasPrefix cfg.symlinkPath e.path)) config.services.openssh.hostKeys)
     else
       [ ];
 in

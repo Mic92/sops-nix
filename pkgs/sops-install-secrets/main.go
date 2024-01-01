@@ -189,6 +189,7 @@ func symlinkSecret(targetFile string, secret *secret, userMode bool) error {
 
 func symlinkSecrets(targetDir string, secrets []secret, userMode bool) error {
 	for _, secret := range secrets {
+		fmt.Errorf("target dir: %s", targetDir);
 		targetFile := filepath.Join(targetDir, secret.Name)
 		if targetFile == secret.Path {
 			continue
