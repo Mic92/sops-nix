@@ -119,7 +119,6 @@ let
     name = "manifest${suffix}.json";
     text = builtins.toJSON ({
       secrets = builtins.attrValues secrets;
-      # Does this need to be configurable?
       secretsMountPoint = cfg.secretsMountPoint;
       symlinkPath = cfg.symlinkPath;
       keepGenerations = cfg.keepGenerations;
