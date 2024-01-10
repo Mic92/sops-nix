@@ -617,7 +617,6 @@ func importSSHKeys(logcfg loggingConfig, keyPaths []string, gpgHome string) erro
 			continue
 		}
 		gpgKey, err := sshkeys.SSHPrivateKeyToPGP(sshKey)
-		fmt.Fprintf(os.Stderr, "Cannot write secring: %s\n", err)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "%s\n", err)
 			continue
