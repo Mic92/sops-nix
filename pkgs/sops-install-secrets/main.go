@@ -613,15 +613,19 @@ func importSSHKeys(logcfg loggingConfig, keyPaths []string, gpgHome string) erro
 	for _, p := range keyPaths {
 		sshKey, err := os.ReadFile(p)
 		if err != nil {
-			return fmt.Errorf("Cannot read ssh key '%s': %w", p, err)
+			fmt.Fprintf(os.Stderr, "Cannot read ssh key '%s': %s\n", p, err)
+			continue
 		}
 		gpgKey, err := sshkeys.SSHPrivateKeyToPGP(sshKey)
+		fmt.Fprintf(os.Stderr, "Cannot write secring: %s\n", err)
 		if err != nil {
-			return err
+			fmt.Fprintf(os.Stderr, "%s\n", err)
+			continue
 		}
 
 		if err := gpgKey.SerializePrivate(secring, nil); err != nil {
-			return fmt.Errorf("Cannot write secring: %w", err)
+			fmt.Fprintf(os.Stderr, "Cannot write secring: %s\n", err)
+			continue
 		}
 
 		if logcfg.KeyImport {
@@ -637,21 +641,25 @@ func importAgeSSHKeys(logcfg loggingConfig, keyPaths []string, ageFile os.File) 
 		// Read the key
 		sshKey, err := os.ReadFile(p)
 		if err != nil {
-			return fmt.Errorf("Cannot read ssh key '%s': %w", p, err)
+			fmt.Fprintf(os.Stderr, "Cannot read ssh key '%s': %s\n", p, err)
+			continue
 		}
 		// Convert the key to age
 		privKey, pubKey, err := agessh.SSHPrivateKeyToAge(sshKey)
 		if err != nil {
-			return fmt.Errorf("Cannot convert ssh key '%s': %w", p, err)
+			fmt.Fprintf(os.Stderr, "Cannot convert ssh key '%s': %s\n", p, err)
+			continue
 		}
 		// Append it to the file
 		_, err = ageFile.WriteString(*privKey + "\n")
 		if err != nil {
-			return fmt.Errorf("Cannot write key to age file: %w", err)
+			fmt.Fprintf(os.Stderr, "Cannot write key to age file: %s\n", err)
+			continue
 		}
 
 		if logcfg.KeyImport {
-			fmt.Printf("%s: Imported %s as age key with fingerprint %s\n", path.Base(os.Args[0]), p, *pubKey)
+			fmt.Fprintf(os.Stderr, "%s: Imported %s as age key with fingerprint %s\n", path.Base(os.Args[0]), p, *pubKey)
+			continue
 		}
 	}
 
