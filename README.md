@@ -727,7 +727,7 @@ Instead of running as an activation script, sops-nix runs as a systemd user serv
 And instead of decrypting to `/run/secrets`, the secrets are decrypted to `$XDG_RUNTIME_DIR/secrets` that is located on a tmpfs or similar non-persistent filesystem.
 
 Depending on whether you use home-manager system-wide or using a home.nix, you have to import it in a different way.
-This exmaple shows the `flake` approach from the recommended example [Install: Flakes (current recommendation)](#Flakes (current recommendation))
+This example shows the `flake` approach from the recommended example [Install: Flakes (current recommendation)](#Flakes (current recommendation))
 
 ```nix
 {
