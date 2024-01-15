@@ -1,8 +1,8 @@
-{ config, lib, pkgs, ... }:
+{ config, lib, activationPkgs ? pkgs, pkgs, ... }:
 
 let
   cfg = config.sops;
-  sops-install-secrets = (pkgs.callPackage ../.. {}).sops-install-secrets;
+  sops-install-secrets = (activationPkgs.callPackage ../.. {}).sops-install-secrets;
   secretType = lib.types.submodule ({ config, name, ... }: {
     options = {
       name = lib.mkOption {
