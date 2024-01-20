@@ -574,6 +574,12 @@ To work around this issue, it's possible to set `neededForUsers = true` in a sec
 This will cause the secret to be decrypted to `/run/secrets-for-users` instead of `/run/secrets` before NixOS creates users.
 As users are not created yet, it's not possible to set an owner for these secrets.
 
+The password must be stored as a hash for this to work, which can be created with the command `mkpasswd`
+```console
+$ echo "password" | mkpasswd -s
+$y$j9T$WFoiErKnEnMcGq0ruQK4K.$4nJAY3LBeBsZBTYSkdTOejKU6KlDmhnfUV3Ll1K/1b.
+```
+
 ```nix
 { config, ... }: {
   sops.secrets.my-password.neededForUsers = true;
