@@ -377,4 +377,75 @@
     inherit pkgs;
     inherit (pkgs) system;
   };
+
+  sops-files-shadowing = makeTest {
+    name = "sops-files-shadowing";
+    nodes.machine = {lib,...}:
+    let
+      inherit (lib.lists) reverseList;
+      inherit (lib.modules) mkDefault;
+
+      sopsFile = ./test-assets/secrets.yaml;
+      systemSopsFile = ./test-assets/secrets-system.yaml;
+      userSopsFile = ./test-assets/secrets-user.yaml;
+
+      sopsFiles = [ sopsFile ];
+      systemSopsFiles = sopsFiles ++ [ systemSopsFile ];
+      userSopsFiles = systemSopsFiles ++ [ userSopsFile ];
+
+      mkSecretConfig = key: sopsFiles: { inherit key sopsFiles; };
+    in {
+      imports = [ ../../modules/sops ];
+      sops = {
+        age.keyFile = ./test-assets/age-keys.txt;
+        defaultSopsFile = sopsFile;
+
+        secrets.test_key = {};
+        secrets.test_key_system = mkSecretConfig "test_key" systemSopsFiles;
+        secrets.test_key_user = mkSecretConfig "test_key" userSopsFiles;
+
+        secrets.test_key2_system = mkSecretConfig "test_key2" systemSopsFiles;
+        secrets.test_key2_user = mkSecretConfig "test_key2" userSopsFiles;
+
+        secrets.test_key3_user = mkSecretConfig "test_key3" userSopsFiles;
+
+        secrets.test_key3_user_reverse = mkSecretConfig "test_key3" (reverseList userSopsFiles);
+        secrets.test_key2_user_reverse = mkSecretConfig "test_key2" (reverseList userSopsFiles);
+        secrets.test_key_user_reverse = mkSecretConfig "test_key" (reverseList userSopsFiles);
+
+        secrets.priority_file = {
+          key = "test_key";
+          sopsFile = systemSopsFile;
+          sopsFiles = mkDefault userSopsFiles;
+        };
+        secrets.priority_same = {
+          inherit sopsFile;
+          key = "nested/test/file";
+          sopsFiles = [ systemSopsFile userSopsFile ];
+        };
+      };
+    };
+
+    testScript = ''
+      start_all()
+      machine.succeed("cat /run/secrets/test_key | grep -qw test_value")
+      machine.succeed("cat /run/secrets/test_key_system | grep -qw test_value_system")
+      machine.succeed("cat /run/secrets/test_key_user | grep -qw test_value_user")
+
+      machine.succeed("cat /run/secrets/test_key2_system | grep -qw test_value2_system")
+      machine.succeed("cat /run/secrets/test_key2_user | grep -qw test_value2_user")
+
+      machine.succeed("cat /run/secrets/test_key3_user | grep -qw test_value3_user")
+
+      machine.succeed("cat /run/secrets/test_key3_user_reverse | grep -qw test_value3_user")
+      machine.succeed("cat /run/secrets/test_key2_user_reverse | grep -qw test_value2_system")
+      machine.succeed("cat /run/secrets/test_key_user_reverse | grep -qw test_value")
+
+      machine.succeed("cat /run/secrets/priority_file | grep -qw test_value_system")
+      machine.succeed("cat /run/secrets/priority_same | grep -qw 'another value'")
+    '';
+  } {
+    inherit pkgs;
+    inherit (pkgs) system;
+  };
 }
