@@ -3,7 +3,14 @@
 let
   cfg = config.sops;
   sops-install-secrets = (pkgs.callPackage ../.. {}).sops-install-secrets;
-  secretType = lib.types.submodule ({ config, name, ... }: {
+  secretType = lib.types.submodule ({ config, options, name, ... }: {
+    config = lib.mkMerge[{
+      sopsFile = lib.mkOptionDefault cfg.defaultSopsFile;
+      sopsFiles = lib.mkIf (lib.length cfg.defaultSopsFiles > 0) (lib.mkOptionDefault cfg.defaultSopsFiles);
+    }
+    {
+      sopsFiles = lib.mkIf (config.sopsFile != null) ( lib.mkOverride options.sopsFile.highestPrio (lib.mkBefore [config.sopsFile]));
+    }];
     options = {
       name = lib.mkOption {
         type = lib.types.str;
@@ -53,10 +60,17 @@ let
 
       sopsFile = lib.mkOption {
         type = lib.types.path;
-        default = cfg.defaultSopsFile;
         defaultText = "\${config.sops.defaultSopsFile}";
         description = ''
           Sops file the secret is loaded from.
+        '';
+      };
+
+      sopsFiles = lib.mkOption {
+        type = lib.types.nonEmptyListOf lib.types.path;
+        defaultText = "\${config.sops.defaultSopsFiles}";
+        description = ''
+          Sops files the secret is loaded from.
         '';
       };
     };
@@ -110,9 +124,18 @@ in {
     };
 
     defaultSopsFile = lib.mkOption {
-      type = lib.types.path;
+      type = lib.types.nullOr lib.types.path;
+      default = null;
       description = ''
         Default sops file used for all secrets.
+      '';
+    };
+
+    defaultSopsFiles = lib.mkOption {
+      type = lib.types.listOf lib.types.path;
+      default = [];
+      description = ''
+        Default sops files used for all secrets.
       '';
     };
 
@@ -222,15 +245,20 @@ in {
       assertion = !(cfg.gnupg.home != null && cfg.gnupg.sshKeyPaths != []);
       message = "Exactly one of sops.gnupg.home and sops.gnupg.sshKeyPaths must be set";
     }] ++ lib.optionals cfg.validateSopsFiles (
-      lib.concatLists (lib.mapAttrsToList (name: secret: [{
-        assertion = builtins.pathExists secret.sopsFile;
-        message = "Cannot find path '${secret.sopsFile}' set in sops.secrets.${lib.strings.escapeNixIdentifier name}.sopsFile";
-      } {
-        assertion =
-          builtins.isPath secret.sopsFile ||
-          (builtins.isString secret.sopsFile && lib.hasPrefix builtins.storeDir secret.sopsFile);
-        message = "'${secret.sopsFile}' is not in the Nix store. Either add it to the Nix store or set sops.validateSopsFiles to false";
-      }]) cfg.secrets)
+      lib.concatLists (lib.mapAttrsToList
+        (name: secret:
+          lib.concatMap
+            (sopsFile: [{
+              assertion = builtins.pathExists sopsFile;
+              message = "Cannot find path '${sopsFile}' set in sops.secrets.${lib.strings.escapeNixIdentifier name}.sopsFiles";
+            } {
+              assertion =
+                  builtins.isPath sopsFile ||
+                  (builtins.isString sopsFile && lib.hasPrefix builtins.storeDir sopsFile);
+              message = "'${sopsFile}' is not in the Nix store. Either add it to the Nix store or set sops.validateSopsFiles to false";
+            }])
+            secret.sopsFiles)
+        cfg.secrets)
     );
 
     systemd.user.services.sops-nix = lib.mkIf pkgs.stdenv.hostPlatform.isLinux {

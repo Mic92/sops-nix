@@ -7,13 +7,18 @@ let
   users = config.users.users;
   sops-install-secrets = cfg.package;
   sops-install-secrets-check = cfg.validationPackage;
-  regularSecrets = lib.filterAttrs (_: v: !v.neededForUsers) cfg.secrets;
-  secretsForUsers = lib.filterAttrs (_: v: v.neededForUsers) cfg.secrets;
-  secretType = types.submodule ({ config, ... }: {
-    config = {
-      sopsFile = lib.mkOptionDefault cfg.defaultSopsFile;
-      sopsFileHash = mkOptionDefault (optionalString cfg.validateSopsFiles "${builtins.hashFile "sha256" config.sopsFile}");
-    };
+  secrets = mapAttrs (_: secret: removeAttrs secret ["sopsFile"]) cfg.secrets;
+  regularSecrets = lib.filterAttrs (_: v: !v.neededForUsers) secrets;
+  secretsForUsers = lib.filterAttrs (_: v: v.neededForUsers) secrets;
+  secretType = types.submodule ({ config, options, ... }: {
+    config = mkMerge [{
+      sopsFile = mkOptionDefault cfg.defaultSopsFile;
+      sopsFiles = mkIf (length cfg.defaultSopsFiles > 0) (mkOptionDefault cfg.defaultSopsFiles);
+      sopsFilesHash = mkOptionDefault (optionals cfg.validateSopsFiles (forEach config.sopsFiles (builtins.hashFile "sha256")));
+    }
+    {
+      sopsFiles = mkIf (config.sopsFile != null) (mkOverride options.sopsFile.highestPrio (mkBefore [config.sopsFile]));
+    }];
     options = {
       name = mkOption {
         type = types.str;
@@ -71,17 +76,24 @@ let
         '';
       };
       sopsFile = mkOption {
-        type = types.path;
+        type = types.nullOr types.path;
         defaultText = "\${config.sops.defaultSopsFile}";
         description = ''
           Sops file the secret is loaded from.
         '';
       };
-      sopsFileHash = mkOption {
-        type = types.str;
+      sopsFiles = mkOption {
+        type = types.nonEmptyListOf types.path;
+        defaultText = "\${config.sops.defaultSopsFiles}";
+        description = ''
+          Sops files the secret is loaded from.
+        '';
+      };
+      sopsFilesHash = mkOption {
+        type = types.nonEmptyListOf types.str;
         readOnly = true;
         description = ''
-          Hash of the sops file, useful in <xref linkend="opt-systemd.services._name_.restartTriggers" />.
+          Hash of the sops files, useful in <xref linkend="opt-systemd.services._name_.restartTriggers" />.
         '';
       };
       restartUnits = mkOption {
@@ -167,9 +179,18 @@ in {
     };
 
     defaultSopsFile = mkOption {
-      type = types.path;
+      type = types.nullOr types.path;
+      default = null;
       description = ''
         Default sops file used for all secrets.
+      '';
+    };
+
+    defaultSopsFiles = mkOption {
+      type = types.listOf types.path;
+      default = [];
+      description = ''
+        Default sops files used for all secrets.
       '';
     };
 
@@ -331,16 +352,22 @@ in {
         assertion = (filterAttrs (_: v: v.owner != "root" || v.group != "root") secretsForUsers) == {};
         message = "neededForUsers cannot be used for secrets that are not root-owned";
       }] ++ optionals cfg.validateSopsFiles (
-        concatLists (mapAttrsToList (name: secret: [{
-          assertion = builtins.pathExists secret.sopsFile;
-          message = "Cannot find path '${secret.sopsFile}' set in sops.secrets.${strings.escapeNixIdentifier name}.sopsFile";
-        } {
-          assertion =
-            builtins.isPath secret.sopsFile ||
-            (builtins.isString secret.sopsFile && hasPrefix builtins.storeDir secret.sopsFile);
-          message = "'${secret.sopsFile}' is not in the Nix store. Either add it to the Nix store or set sops.validateSopsFiles to false";
-        }]) cfg.secrets)
+        concatLists (mapAttrsToList
+          (name: secret:
+            concatMap
+              (sopsFile: [{
+                assertion = builtins.pathExists sopsFile;
+                message = "Cannot find path '${sopsFile}' set in sops.secrets.${strings.escapeNixIdentifier name}.sopsFiles";
+              } {
+                assertion =
+                    builtins.isPath sopsFile ||
+                    (builtins.isString sopsFile && hasPrefix builtins.storeDir sopsFile);
+                message = "'${sopsFile}' is not in the Nix store. Either add it to the Nix store or set sops.validateSopsFiles to false";
+              }])
+              secret.sopsFiles)
+          cfg.secrets)
       );
+
 
       sops.environment.SOPS_GPG_EXEC = mkIf (cfg.gnupg.home != null) (mkDefault "${pkgs.gnupg}/bin/gpg");
 

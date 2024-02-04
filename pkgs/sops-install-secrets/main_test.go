@@ -104,7 +104,7 @@ func testGPG(t *testing.T) {
 		Key:          "test_key",
 		Owner:        "nobody",
 		Group:        "nogroup",
-		SopsFile:     path.Join(assets, "secrets.yaml"),
+		SopsFiles:    []string{path.Join(assets, "secrets.yaml")},
 		Path:         path.Join(testdir.path, "test-target"),
 		Mode:         "0400",
 		RestartUnits: []string{"affected-service"},
@@ -118,14 +118,14 @@ func testGPG(t *testing.T) {
 	jsonSecret.Owner = "root"
 	jsonSecret.Format = "json"
 	jsonSecret.Group = "root"
-	jsonSecret.SopsFile = path.Join(assets, "secrets.json")
+	jsonSecret.SopsFiles = []string{path.Join(assets, "secrets.json")}
 	jsonSecret.Path = path.Join(testdir.secretsPath, "test2")
 	jsonSecret.Mode = "0700"
 
 	binarySecret = yamlSecret
 	binarySecret.Name = "test3"
 	binarySecret.Format = "binary"
-	binarySecret.SopsFile = path.Join(assets, "secrets.bin")
+	binarySecret.SopsFiles = []string{path.Join(assets, "secrets.bin")}
 	binarySecret.Path = path.Join(testdir.secretsPath, "test3")
 
 	dotenvSecret = yamlSecret
@@ -133,7 +133,7 @@ func testGPG(t *testing.T) {
 	dotenvSecret.Owner = "root"
 	dotenvSecret.Group = "root"
 	dotenvSecret.Format = "dotenv"
-	dotenvSecret.SopsFile = path.Join(assets, "secrets.env")
+	dotenvSecret.SopsFiles = []string{path.Join(assets, "secrets.env")}
 	dotenvSecret.Path = path.Join(testdir.secretsPath, "test4")
 
 	iniSecret = yamlSecret
@@ -141,7 +141,7 @@ func testGPG(t *testing.T) {
 	iniSecret.Owner = "root"
 	iniSecret.Group = "root"
 	iniSecret.Format = "ini"
-	iniSecret.SopsFile = path.Join(assets, "secrets.ini")
+	iniSecret.SopsFiles = []string{path.Join(assets, "secrets.ini")}
 	iniSecret.Path = path.Join(testdir.secretsPath, "test5")
 
 	manifest := manifest{
@@ -219,7 +219,7 @@ func testSSHKey(t *testing.T) {
 		Key:          "test_key",
 		Owner:        "nobody",
 		Group:        "nogroup",
-		SopsFile:     path.Join(assets, "secrets.yaml"),
+		SopsFiles:    []string{path.Join(assets, "secrets.yaml")},
 		Path:         target,
 		Mode:         "0400",
 		RestartUnits: []string{"affected-service"},
@@ -252,7 +252,7 @@ func TestAge(t *testing.T) {
 		Key:          "test_key",
 		Owner:        "nobody",
 		Group:        "nogroup",
-		SopsFile:     path.Join(assets, "secrets.yaml"),
+		SopsFiles:    []string{path.Join(assets, "secrets.yaml")},
 		Path:         target,
 		Mode:         "0400",
 		RestartUnits: []string{"affected-service"},
@@ -285,7 +285,7 @@ func TestAgeWithSSH(t *testing.T) {
 		Key:          "test_key",
 		Owner:        "nobody",
 		Group:        "nogroup",
-		SopsFile:     path.Join(assets, "secrets.yaml"),
+		SopsFiles:    []string{path.Join(assets, "secrets.yaml")},
 		Path:         target,
 		Mode:         "0400",
 		RestartUnits: []string{"affected-service"},
@@ -319,7 +319,7 @@ func TestValidateManifest(t *testing.T) {
 		Key:          "test_key",
 		Owner:        "nobody",
 		Group:        "nogroup",
-		SopsFile:     path.Join(assets, "secrets.yaml"),
+		SopsFiles:    []string{path.Join(assets, "secrets.yaml")},
 		Path:         path.Join(testdir.path, "test-target"),
 		Mode:         "0400",
 		RestartUnits: []string{},
