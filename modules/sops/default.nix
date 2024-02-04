@@ -19,7 +19,7 @@ let
         type = types.str;
         default = config._module.args.name;
         description = ''
-          Name of the file used in /run/secrets
+          Name of the file used in /run/secrets (or your configured symlinkPath)
         '';
       };
       key = mkOption {
@@ -33,15 +33,16 @@ let
       };
       path = mkOption {
         type = types.str;
-        default = if config.neededForUsers then "/run/secrets-for-users/${config.name}" else "/run/secrets/${config.name}";
+        default = if config.neededForUsers then "/run/secrets-for-users/${config.name}" else "${cfg.symlinkPath}/${config.name}";
         defaultText = "/run/secrets-for-users/$name when neededForUsers is set, /run/secrets/$name when otherwise.";
         description = ''
           Path where secrets are symlinked to.
           If the default is kept no symlink is created.
+          If cfg.symlinkPath is set, /run/secrets will become that path
         '';
       };
       format = mkOption {
-        type = types.enum ["yaml" "json" "binary" "dotenv" "ini"];
+        type = types.enum [ "yaml" "json" "binary" "dotenv" "ini" ];
         default = cfg.defaultSopsFormat;
         description = ''
           File format used to decrypt the sops secret.
@@ -118,9 +119,8 @@ let
     name = "manifest${suffix}.json";
     text = builtins.toJSON ({
       secrets = builtins.attrValues secrets;
-      # Does this need to be configurable?
-      secretsMountPoint = "/run/secrets.d";
-      symlinkPath = "/run/secrets";
+      secretsMountPoint = cfg.secretsMountPoint;
+      symlinkPath = cfg.symlinkPath;
       keepGenerations = cfg.keepGenerations;
       gnupgHome = cfg.gnupg.home;
       sshKeyPaths = cfg.gnupg.sshKeyPaths;
@@ -138,13 +138,13 @@ let
     '';
   };
 
-  manifest = manifestFor "" regularSecrets {};
+  manifest = manifestFor "" regularSecrets { };
   manifestForUsers = manifestFor "-for-users" secretsForUsers {
     secretsMountPoint = "/run/secrets-for-users.d";
     symlinkPath = "/run/secrets-for-users";
   };
 
-  withEnvironment = sopsCall: if cfg.environment == {} then sopsCall else ''
+  withEnvironment = sopsCall: if cfg.environment == { } then sopsCall else ''
     (
     ${concatStringsSep "\n" (mapAttrsToList (n: v: "  export ${n}='${v}'") cfg.environment)}
       ${sopsCall}
@@ -153,14 +153,15 @@ let
   # Skip ssh keys deployed with sops to avoid a catch 22
   defaultImportKeys = algo:
     if config.services.openssh.enable then
-      map (e: e.path) (lib.filter (e: e.type == algo && !(lib.hasPrefix "/run/secrets" e.path)) config.services.openssh.hostKeys)
+      map (e: e.path) (lib.filter (e: e.type == algo && !(lib.hasPrefix cfg.symlinkPath e.path)) config.services.openssh.hostKeys)
     else
-      [];
-in {
+      [ ];
+in
+{
   options.sops = {
     secrets = mkOption {
       type = types.attrsOf secretType;
-      default = {};
+      default = { };
       description = ''
         Path where the latest secrets are mounted to.
       '';
@@ -178,6 +179,22 @@ in {
       default = "yaml";
       description = ''
         Default sops format used for all secrets.
+      '';
+    };
+
+    secretsMountPoint = mkOption {
+      type = types.str;
+      default = "/run/secrets.d";
+      description = ''
+        The location where the secrets are stored. This is then symlinked to cfg.SymlinkPath (default: /run/secrets)
+      '';
+    };
+
+    symlinkPath = mkOption {
+      type = types.str;
+      default = "/run/secrets";
+      description = ''
+        The location where the secrets become available
       '';
     };
 
@@ -206,7 +223,7 @@ in {
 
     environment = mkOption {
       type = types.attrsOf (types.either types.str types.path);
-      default = {};
+      default = { };
       description = ''
         Environment variables to set before calling sops-install-secrets.
 
@@ -221,7 +238,7 @@ in {
 
     package = mkOption {
       type = types.package;
-      default = (pkgs.callPackage ../.. {}).sops-install-secrets;
+      default = (pkgs.callPackage ../.. { }).sops-install-secrets;
       defaultText = literalExpression "(pkgs.callPackage ../.. {}).sops-install-secrets";
       description = ''
         sops-install-secrets package to use.
@@ -232,8 +249,8 @@ in {
       type = types.package;
       default =
         if pkgs.stdenv.buildPlatform == pkgs.stdenv.hostPlatform
-          then sops-install-secrets
-          else (pkgs.pkgsBuildHost.callPackage ../.. {}).sops-install-secrets;
+        then sops-install-secrets
+        else (pkgs.pkgsBuildHost.callPackage ../.. { }).sops-install-secrets;
       defaultText = literalExpression "config.sops.package";
 
       description = ''
@@ -320,50 +337,55 @@ in {
     (mkRenamedOptionModule [ "sops" "sshKeyPaths" ] [ "sops" "gnupg" "sshKeyPaths" ])
   ];
   config = mkMerge [
-    (mkIf (cfg.secrets != {}) {
+    (mkIf (cfg.secrets != { }) {
       assertions = [{
-        assertion = cfg.gnupg.home != null || cfg.gnupg.sshKeyPaths != [] || cfg.age.keyFile != null || cfg.age.sshKeyPaths != [];
+        assertion = cfg.gnupg.home != null || cfg.gnupg.sshKeyPaths != [ ] || cfg.age.keyFile != null || cfg.age.sshKeyPaths != [ ];
         message = "No key source configured for sops. Either set services.openssh.enable or set sops.age.keyFile or sops.gnupg.home";
-      } {
-        assertion = !(cfg.gnupg.home != null && cfg.gnupg.sshKeyPaths != []);
-        message = "Exactly one of sops.gnupg.home and sops.gnupg.sshKeyPaths must be set";
-      } {
-        assertion = (filterAttrs (_: v: v.owner != "root" || v.group != "root") secretsForUsers) == {};
-        message = "neededForUsers cannot be used for secrets that are not root-owned";
-      }] ++ optionals cfg.validateSopsFiles (
-        concatLists (mapAttrsToList (name: secret: [{
-          assertion = builtins.pathExists secret.sopsFile;
-          message = "Cannot find path '${secret.sopsFile}' set in sops.secrets.${strings.escapeNixIdentifier name}.sopsFile";
-        } {
-          assertion =
-            builtins.isPath secret.sopsFile ||
-            (builtins.isString secret.sopsFile && hasPrefix builtins.storeDir secret.sopsFile);
-          message = "'${secret.sopsFile}' is not in the Nix store. Either add it to the Nix store or set sops.validateSopsFiles to false";
-        }]) cfg.secrets)
+      }
+        {
+          assertion = !(cfg.gnupg.home != null && cfg.gnupg.sshKeyPaths != [ ]);
+          message = "Exactly one of sops.gnupg.home and sops.gnupg.sshKeyPaths must be set";
+        }
+        {
+          assertion = (filterAttrs (_: v: v.owner != "root" || v.group != "root") secretsForUsers) == { };
+          message = "neededForUsers cannot be used for secrets that are not root-owned";
+        }] ++ optionals cfg.validateSopsFiles (
+        concatLists (mapAttrsToList
+          (name: secret: [{
+            assertion = builtins.pathExists secret.sopsFile;
+            message = "Cannot find path '${secret.sopsFile}' set in sops.secrets.${strings.escapeNixIdentifier name}.sopsFile";
+          }
+            {
+              assertion =
+                builtins.isPath secret.sopsFile ||
+                  (builtins.isString secret.sopsFile && hasPrefix builtins.storeDir secret.sopsFile);
+              message = "'${secret.sopsFile}' is not in the Nix store. Either add it to the Nix store or set sops.validateSopsFiles to false";
+            }])
+          cfg.secrets)
       );
 
       sops.environment.SOPS_GPG_EXEC = mkIf (cfg.gnupg.home != null) (mkDefault "${pkgs.gnupg}/bin/gpg");
 
       system.activationScripts = {
-        setupSecretsForUsers = mkIf (secretsForUsers != {}) (stringAfter ([ "specialfs" ] ++ optional cfg.age.generateKey "generate-age-key") ''
+        setupSecretsForUsers = mkIf (secretsForUsers != { }) (stringAfter ([ "specialfs" ] ++ optional cfg.age.generateKey "generate-age-key") ''
           [ -e /run/current-system ] || echo setting up secrets for users...
           ${withEnvironment "${sops-install-secrets}/bin/sops-install-secrets -ignore-passwd ${manifestForUsers}"}
         '' // lib.optionalAttrs (config.system ? dryActivationScript) {
           supportsDryActivation = true;
         });
 
-        users = mkIf (secretsForUsers != {}) {
+        users = mkIf (secretsForUsers != { }) {
           deps = [ "setupSecretsForUsers" ];
         };
 
-        setupSecrets = mkIf (regularSecrets != {}) (stringAfter ([ "specialfs" "users" "groups" ] ++ optional cfg.age.generateKey "generate-age-key") ''
+        setupSecrets = mkIf (regularSecrets != { }) (stringAfter ([ "specialfs" "users" "groups" ] ++ optional cfg.age.generateKey "generate-age-key") ''
           [ -e /run/current-system ] || echo setting up secrets...
           ${withEnvironment "${sops-install-secrets}/bin/sops-install-secrets ${manifest}"}
         '' // lib.optionalAttrs (config.system ? dryActivationScript) {
           supportsDryActivation = true;
         });
 
-        generate-age-key = mkIf (cfg.age.generateKey) (stringAfter [] ''
+        generate-age-key = mkIf (cfg.age.generateKey) (stringAfter [ ] ''
           if [[ ! -f '${cfg.age.keyFile}' ]]; then
             echo generating machine-specific age key...
             mkdir -p $(dirname ${cfg.age.keyFile})
