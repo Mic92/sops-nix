@@ -1,5 +1,47 @@
 { makeTest ? import <nixpkgs/nixos/tests/make-test-python.nix>
-, pkgs ? (import <nixpkgs> { }) }: {
+, pkgs ? (import <nixpkgs> { }) }:
+let
+  userPasswordTest = name: extraConfig: makeTest {
+    inherit name;
+    nodes.machine = { config, lib, ... }: {
+      imports = [
+        ../../modules/sops
+        extraConfig
+      ];
+      sops = {
+        age.keyFile = ./test-assets/age-keys.txt;
+        defaultSopsFile = ./test-assets/secrets.yaml;
+        secrets.test_key.neededForUsers = true;
+        secrets."nested/test/file".owner = "example-user";
+      };
+
+      users.users.example-user = {
+        isNormalUser = true;
+        hashedPasswordFile = config.sops.secrets.test_key.path;
+      };
+    };
+
+    testScript = ''
+      start_all()
+      machine.wait_for_unit("multi-user.target")
+
+      machine.succeed("getent shadow example-user | grep -q :test_value:")  # password was set
+      machine.succeed("cat /run/secrets/nested/test/file | grep -q 'another value'")  # regular secrets work...
+      user = machine.succeed("stat -c%U /run/secrets/nested/test/file").strip()  # ...and are owned...
+      assert user == "example-user", f"Expected 'example-user', got '{user}'"
+      machine.succeed("cat /run/secrets-for-users/test_key | grep -q 'test_value'")  # the user password still exists
+
+      # BUG in nixos's overlayfs... systemd crashes on switch-to-configuration test
+    '' + pkgs.lib.optionalString (!(extraConfig ? system.etc.overlay.enable)) ''
+      machine.succeed("/run/current-system/bin/switch-to-configuration test")
+      machine.succeed("cat /run/secrets/nested/test/file | grep -q 'another value'")  # the regular secrets still work after a switch
+      machine.succeed("cat /run/secrets-for-users/test_key | grep -q 'test_value'")  # the user password is still present after a switch
+    '';
+  } {
+    inherit pkgs;
+    inherit (pkgs) system;
+  };
+in {
   ssh-keys = makeTest {
     name = "sops-ssh-keys";
     nodes.server = { ... }: {
@@ -17,39 +59,6 @@
     testScript = ''
       start_all()
       server.succeed("cat /run/secrets/test_key | grep -q test_value")
-    '';
-  } {
-    inherit pkgs;
-    inherit (pkgs) system;
-  };
-
-  user-passwords = makeTest {
-    name = "sops-user-passwords";
-    nodes.machine = { config, lib, ... }: {
-      imports = [ ../../modules/sops ];
-      sops = {
-        age.keyFile = ./test-assets/age-keys.txt;
-        defaultSopsFile = ./test-assets/secrets.yaml;
-        secrets.test_key.neededForUsers = true;
-        secrets."nested/test/file".owner = "example-user";
-      };
-
-      users.users.example-user = {
-        isNormalUser = true;
-        hashedPasswordFile = config.sops.secrets.test_key.path;
-      };
-    };
-
-    testScript = ''
-      start_all()
-      machine.succeed("getent shadow example-user | grep -q :test_value:")  # password was set
-      machine.succeed("cat /run/secrets/nested/test/file | grep -q 'another value'")  # regular secrets work...
-      machine.succeed("[ $(stat -c%U /run/secrets/nested/test/file) = example-user ]")  # ...and are owned...
-      machine.succeed("cat /run/secrets-for-users/test_key | grep -q 'test_value'")  # the user password still exists
-
-      machine.succeed("/run/current-system/bin/switch-to-configuration test")
-      machine.succeed("cat /run/secrets/nested/test/file | grep -q 'another value'")  # the regular secrets still work after a switch
-      machine.succeed("cat /run/secrets-for-users/test_key | grep -q 'test_value'")  # the user password is still present after a switch
     '';
   } {
     inherit pkgs;
@@ -369,5 +378,15 @@
   } {
     inherit pkgs;
     inherit (pkgs) system;
+  };
+
+  user-passwords = userPasswordTest "sops-user-passwords" {};
+} // pkgs.lib.optionalAttrs (pkgs.lib.versionAtLeast (pkgs.lib.versions.majorMinor pkgs.lib.version) "24.05") {
+  user-passwords-sysusers = userPasswordTest "sops-user-passwords-sysusers" {
+    systemd.sysusers.enable = true;
+    users.mutableUsers = true;
+    system.etc.overlay.enable = true;
+    boot.initrd.systemd.enable = true;
+    boot.kernelPackages = pkgs.linuxPackages_latest;
   };
 }
