@@ -34,16 +34,9 @@
         secrets."nested/test/file".owner = "example-user";
       };
 
-      users.users.example-user = let
-        passwordFileKey =
-          if (lib.versionAtLeast (lib.versions.majorMinor lib.version)
-            "23.11") then
-            "hashedPasswordFile"
-          else
-            "passwordFile";
-      in {
+      users.users.example-user = {
         isNormalUser = true;
-        ${passwordFileKey} = config.sops.secrets.test_key.path;
+        hashedPasswordFile = config.sops.secrets.test_key.path;
       };
     };
 
