@@ -800,6 +800,8 @@ The secrets are decrypted in a systemd user service called `sops-nix`, so other 
 }
 ```
 
+When adding a new secret or changing a secret via the home-manager module, you will have to restart the systemd service via `systemctl --user restart sops-nix.service` for the change(s) to take effect.
+
 ## Use with GPG instead of SSH keys
 
 If you prefer having a separate GPG key, sops-nix also comes with a helper tool, `sops-init-gpg-key`:
