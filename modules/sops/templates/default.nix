@@ -56,8 +56,10 @@ in {
           file = mkOption {
             type = types.path;
             default = pkgs.writeText config.name config.content;
-            visible = false;
-            readOnly = true;
+            defaultText = ''pkgs.writeText config.name config.content'';
+            description = ''
+              File used as the template.
+            '';
           };
         };
       }));
