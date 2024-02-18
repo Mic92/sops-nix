@@ -18,9 +18,9 @@ import (
 	"github.com/Mic92/sops-nix/pkgs/sops-install-secrets/sshkeys"
 	agessh "github.com/Mic92/ssh-to-age"
 
+	"github.com/getsops/sops/v3/decrypt"
 	"github.com/joho/godotenv"
 	"github.com/mozilla-services/yaml"
-	"go.mozilla.org/sops/v3/decrypt"
 )
 
 type secret struct {
