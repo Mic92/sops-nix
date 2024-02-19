@@ -10,8 +10,9 @@ def substitute(target: str, subst: str) -> str:
 
     for pair in subst_pairs:
         placeholder, path = pair.split()
-        with open(path) as f:
-            content = content.replace(placeholder, f.read())
+        if placeholder in content:
+            with open(path) as f:
+                content = content.replace(placeholder, f.read())
 
     return content
 
