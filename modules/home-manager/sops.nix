@@ -244,18 +244,27 @@ in {
       Install.WantedBy = if cfg.gnupg.home != null then [ "graphical-session-pre.target" ] else [ "default.target" ];
     };
 
+    # Darwin: load secrets once on login
     launchd.agents.sops-nix = {
       enable = true;
       config = {
-        ProgramArguments = [ script ];
-        KeepAlive = {
-          Crashed = false;
-          SuccessfulExit = false;
-        };
-        ProcessType = "Background";
+        Program = script;
+        KeepAlive = false;
+        RunAtLoad = true;
         StandardOutPath = "${config.home.homeDirectory}/Library/Logs/SopsNix/stdout";
         StandardErrorPath = "${config.home.homeDirectory}/Library/Logs/SopsNix/stderr";
       };
     };
+
+    # darwin: [re]load secrets on home-manager activation
+    home.activation = lib.mkIf pkgs.stdenv.hostPlatform.isDarwin {
+      sops-nix = let
+        domain-target = "gui/$(id -u ${config.home.username})";
+      in ''
+        /bin/launchctl bootout ${domain-target}/org.nix-community.home.sops-nix && true
+        /bin/launchctl bootstrap ${domain-target} ${config.home.homeDirectory}/Library/LaunchAgents/org.nix-community.home.sops-nix.plist
+      '';
+    };
+
   };
 }
