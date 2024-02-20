@@ -4,7 +4,7 @@ go 1.18
 
 require (
 	github.com/Mic92/ssh-to-age v0.0.0-20220621201837-f006bbe6b80b
-	github.com/ProtonMail/go-crypto v0.0.0-20220623141421-5afb4c282135
+	github.com/ProtonMail/go-crypto v1.1.0-alpha.0
 	github.com/joho/godotenv v1.5.1
 	github.com/mozilla-services/yaml v0.0.0-20201007153854-c369669a6625
 	go.mozilla.org/sops/v3 v3.7.3
@@ -33,6 +33,7 @@ require (
 	github.com/aws/aws-sdk-go v1.44.51 // indirect
 	github.com/blang/semver v3.5.1+incompatible // indirect
 	github.com/cenkalti/backoff/v3 v3.2.2 // indirect
+	github.com/cloudflare/circl v1.3.7 // indirect
 	github.com/dimchansky/utfbom v1.1.1 // indirect
 	github.com/fatih/color v1.13.0 // indirect
 	github.com/golang-jwt/jwt/v4 v4.4.2 // indirect
