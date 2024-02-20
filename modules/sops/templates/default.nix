@@ -57,8 +57,9 @@ in {
             type = types.path;
             default = pkgs.writeText config.name config.content;
             defaultText = ''pkgs.writeText config.name config.content'';
+            example = "./configuration-template.conf";
             description = ''
-              File used as the template.
+              File used as the template. When this value is specified, `sops.templates.<name>.content` is ignored.
             '';
           };
         };
