@@ -93,12 +93,11 @@ in {
                 tpl = config.sops.templates.${name};
                 substitute = pkgs.writers.writePython3 "substitute" { }
                   (readFile ./subs.py);
-                subst-pairs = pkgs.writeText "pairs" (flip (concatMapStringsSep "\n")
-                  (attrNames (filterAttrs (n: v: v ? format && v.format != "binary") config.sops.secrets))
+                subst-pairs = pkgs.writeText "pairs" (concatMapStringsSep "\n"
                   (name:
                     "${toString config.sops.placeholder.${name}} ${
                       config.sops.secrets.${name}.path
-                    }"));
+                    }") (attrNames config.sops.secrets));
               in ''
                 mkdir -p "${dirOf tpl.path}"
                 (umask 077; ${substitute} ${tpl.file} ${subst-pairs} > ${tpl.path})
