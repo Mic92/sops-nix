@@ -281,7 +281,7 @@ in {
         defaultText = lib.literalMD "The rsa keys from {option}`config.services.openssh.hostKeys`";
         description = ''
           Path to ssh keys added as GPG keys during sops description.
-          This option must be explicitly unset if <literal>config.sops.gnupg.sshKeyPaths</literal> is set.
+          This option must be explicitly unset if <literal>config.sops.gnupg.home</literal> is set.
         '';
       };
     };
