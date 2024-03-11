@@ -591,6 +591,9 @@ $y$j9T$WFoiErKnEnMcGq0ruQK4K.$4nJAY3LBeBsZBTYSkdTOejKU6KlDmhnfUV3Ll1K/1b.
 }
 ```
 
+**Note:** If you are using Impermanence, you must set `sops.age.keyFile` to a keyfile inside your persist directory or it will not exist at boot time. 
+For example: `/nix/persist/var/lib/sops-nix/key.txt`
+
 ## Different file formats
 
 At the moment we support the following file formats: YAML, JSON, INI, dotenv and binary.
