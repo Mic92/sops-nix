@@ -605,11 +605,20 @@ func pruneGenerations(secretsMountPoint, secretsDir string, keepGenerations int)
 
 func importSSHKeys(logcfg loggingConfig, keyPaths []string, gpgHome string) error {
 	secringPath := filepath.Join(gpgHome, "secring.gpg")
+	pubringPath := filepath.Join(gpgHome, "pubring.gpg")
 
 	secring, err := os.OpenFile(secringPath, os.O_WRONLY|os.O_CREATE, 0o600)
 	if err != nil {
 		return fmt.Errorf("Cannot create %s: %w", secringPath, err)
 	}
+	defer secring.Close()
+
+	pubring, err := os.OpenFile(pubringPath, os.O_WRONLY|os.O_CREATE, 0o600)
+	if err != nil {
+		return fmt.Errorf("Cannot create %s: %w", pubringPath, err)
+	}
+	defer pubring.Close()
+
 	for _, p := range keyPaths {
 		sshKey, err := os.ReadFile(p)
 		if err != nil {
@@ -624,6 +633,11 @@ func importSSHKeys(logcfg loggingConfig, keyPaths []string, gpgHome string) erro
 
 		if err := gpgKey.SerializePrivate(secring, nil); err != nil {
 			fmt.Fprintf(os.Stderr, "Cannot write secring: %s\n", err)
+			continue
+		}
+
+		if err := gpgKey.Serialize(pubring); err != nil {
+			fmt.Fprintf(os.Stderr, "Cannot write pubring: %s\n", err)
 			continue
 		}
 
