@@ -644,7 +644,7 @@ func importAgeSSHKeys(logcfg loggingConfig, keyPaths []string, ageFile os.File) 
 			continue
 		}
 		// Convert the key to age
-		privKey, pubKey, err := agessh.SSHPrivateKeyToAge(sshKey)
+		privKey, pubKey, err := agessh.SSHPrivateKeyToAge(sshKey, []byte{})
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "Cannot convert ssh key '%s': %s\n", p, err)
 			continue
