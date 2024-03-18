@@ -31,8 +31,6 @@ let
       assert user == "example-user", f"Expected 'example-user', got '{user}'"
       machine.succeed("cat /run/secrets-for-users/test_key | grep -q 'test_value'")  # the user password still exists
 
-      # BUG in nixos's overlayfs... systemd crashes on switch-to-configuration test
-    '' + pkgs.lib.optionalString (!(extraConfig ? system.etc.overlay.enable)) ''
       machine.succeed("/run/current-system/bin/switch-to-configuration test")
       machine.succeed("cat /run/secrets/nested/test/file | grep -q 'another value'")  # the regular secrets still work after a switch
       machine.succeed("cat /run/secrets-for-users/test_key | grep -q 'test_value'")  # the user password is still present after a switch
