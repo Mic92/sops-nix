@@ -37,13 +37,13 @@ in {
             type = singleLineStr;
             default = config._module.args.name;
             description = ''
-              Name of the file used in /run/secrets-rendered
+              Name of the file used in /run/secrets/rendered
             '';
           };
           path = mkOption {
             description = "Path where the rendered file will be placed";
             type = singleLineStr;
-            default = "/run/secrets-rendered/${config.name}";
+            default = "/run/secrets/rendered/${config.name}";
           };
           content = mkOption {
             type = lines;
