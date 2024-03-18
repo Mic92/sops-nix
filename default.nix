@@ -1,5 +1,5 @@
 { pkgs ? import <nixpkgs> {}
-, vendorHash ? "sha256-BVNK9IAvVSWgbLzkGQOuNNQLXV5SCQZuaxcIPqVvghM="
+, vendorHash ? "sha256-IwPBU8fwKPFI32ZlddVytb2IQ2Ll888qhsD7TynX/wI="
 }: let
   sops-install-secrets = pkgs.callPackage ./pkgs/sops-install-secrets {
     inherit vendorHash;
@@ -23,6 +23,9 @@ in rec {
     inherit vendorHash;
   };
   unit-tests = pkgs.callPackage ./pkgs/unit-tests.nix {};
+
+  sops-yubikey = pkgs.callPackage ./pkgs/sops-yubikey {};
+
 } // (pkgs.lib.optionalAttrs pkgs.stdenv.isLinux {
   lint = pkgs.callPackage ./pkgs/lint.nix {
     inherit sops-install-secrets;
