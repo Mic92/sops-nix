@@ -26,6 +26,7 @@ in rec {
 
   sops-yubikey = pkgs.callPackage ./pkgs/sops-yubikey {};
 
+  age-yubikey = pkgs.callPackage ./pkgs/age-yubikey {};
 } // (pkgs.lib.optionalAttrs pkgs.stdenv.isLinux {
   lint = pkgs.callPackage ./pkgs/lint.nix {
     inherit sops-install-secrets;
