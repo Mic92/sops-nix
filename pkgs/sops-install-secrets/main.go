@@ -294,12 +294,20 @@ func decryptSecret(s *secret, sourceFiles map[string]plainData) error {
 		case Binary, Dotenv, Ini:
 			sourceFile.binary = plain
 		case Yaml:
-			if err := yaml.Unmarshal(plain, &sourceFile.data); err != nil {
-				return fmt.Errorf("cannot parse yaml of '%s': %w", s.SopsFile, err)
+			if s.Key == "" {
+				sourceFile.binary = plain
+			} else {
+				if err := yaml.Unmarshal(plain, &sourceFile.data); err != nil {
+					return fmt.Errorf("Cannot parse yaml of '%s': %w", s.SopsFile, err)
+				}
 			}
 		case JSON:
-			if err := json.Unmarshal(plain, &sourceFile.data); err != nil {
-				return fmt.Errorf("cannot parse json of '%s': %w", s.SopsFile, err)
+			if s.Key == "" {
+				sourceFile.binary = plain
+			} else {
+				if err := json.Unmarshal(plain, &sourceFile.data); err != nil {
+					return fmt.Errorf("Cannot parse json of '%s': %w", s.SopsFile, err)
+				}
 			}
 		default:
 			return fmt.Errorf("secret of type %s in %s is not supported", s.Format, s.SopsFile)
@@ -309,11 +317,15 @@ func decryptSecret(s *secret, sourceFiles map[string]plainData) error {
 	case Binary, Dotenv, Ini:
 		s.value = sourceFile.binary
 	case Yaml, JSON:
-		strVal, err := recurseSecretKey(sourceFile.data, s.Key)
-		if err != nil {
-			return fmt.Errorf("secret %s in %s is not valid: %w", s.Name, s.SopsFile, err)
+		if s.Key == "" {
+			s.value = sourceFile.binary
+		} else {
+			strVal, err := recurseSecretKey(sourceFile.data, s.Key)
+			if err != nil {
+				return fmt.Errorf("secret %s in %s is not valid: %w", s.Name, s.SopsFile, err)
+			}
+			s.value = []byte(strVal)
 		}
-		s.value = []byte(strVal)
 	}
 	sourceFiles[s.SopsFile] = sourceFile
 	return nil
@@ -482,7 +494,7 @@ func (app *appContext) validateSopsFile(s *secret, file *secretFile) error {
 			s.Name, s.SopsFile, s.Format,
 			file.firstSecret.Format, file.firstSecret.Name)
 	}
-	if app.checkMode != Manifest && (s.Format != Binary && s.Format != Dotenv && s.Format != Ini) {
+	if app.checkMode != Manifest && !(s.Format == Binary || s.Format == Dotenv || s.Format == Ini) && s.Key != "" {
 		_, err := recurseSecretKey(file.keys, s.Key)
 		if err != nil {
 			return fmt.Errorf("secret %s in %s is not valid: %w", s.Name, s.SopsFile, err)
