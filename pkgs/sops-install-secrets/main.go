@@ -922,6 +922,7 @@ func installSecrets(args []string) error {
 		manifest.SymlinkPath = replaceRuntimeDir(manifest.SymlinkPath, rundir)
 		var newSecrets []secret
 		for _, secret := range manifest.Secrets {
+			fmt.Printf("Replacing %s with %s\n", secret.Path, replaceRuntimeDir(secret.Path, rundir))
 			secret.Path = replaceRuntimeDir(secret.Path, rundir)
 			newSecrets = append(newSecrets, secret)
 		}
