@@ -143,7 +143,7 @@ in {
 
     defaultSymlinkPath = lib.mkOption {
       type = lib.types.str;
-      default = "%r/secrets";
+      default = "${config.xdg.configHome}/sops-nix/secrets";
       description = ''
         Default place where the latest generation of decrypt secrets
         can be found.
