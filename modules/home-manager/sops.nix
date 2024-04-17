@@ -62,6 +62,14 @@ let
     };
   });
 
+  pathNotInStore = lib.mkOptionType {
+    name = "pathNotInStore";
+    description = "path not in the Nix store";
+    descriptionClass = "noun";
+    check = x: !lib.path.hasStorePathPrefix x;
+    merge = lib.mergeEqualOption;
+  };
+
   manifestFor = suffix: secrets: pkgs.writeTextFile {
     name = "manifest${suffix}.json";
     text = builtins.toJSON {
@@ -166,7 +174,7 @@ in {
 
     age = {
       keyFile = lib.mkOption {
-        type = lib.types.nullOr lib.types.path;
+        type = lib.types.nullOr pathNotInStore;
         default = null;
         example = "/home/someuser/.age-key.txt";
         description = ''
