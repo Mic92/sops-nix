@@ -29,7 +29,7 @@ func TestShellHook(t *testing.T) {
 	}
 	tempdir, err := os.MkdirTemp("", "testdir")
 	ok(t, err)
-	cmd := exec.Command("cp", "-vra", assets+"/.", tempdir)
+	cmd := exec.Command("cp", "-vra", assets+"/.", tempdir) // nolint:gosec
 	fmt.Printf("$ %s\n", strings.Join(cmd.Args, " "))
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
@@ -37,7 +37,7 @@ func TestShellHook(t *testing.T) {
 
 	defer os.RemoveAll(tempdir)
 
-	cmd = exec.Command("nix-shell", path.Join(assets, "shell.nix"), "--run", "gpg --list-keys")
+	cmd = exec.Command("nix-shell", path.Join(assets, "shell.nix"), "--run", "gpg --list-keys") // nolint:gosec
 	var stdoutBuf, stderrBuf bytes.Buffer
 	cmd.Stdout = &stdoutBuf
 	cmd.Stderr = &stderrBuf

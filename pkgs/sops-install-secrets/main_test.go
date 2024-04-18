@@ -83,7 +83,7 @@ func testGPG(t *testing.T) {
 	gpgEnv := append(os.Environ(), fmt.Sprintf("GNUPGHOME=%s", gpgHome))
 
 	ok(t, os.Mkdir(gpgHome, os.FileMode(0o700)))
-	cmd := exec.Command("gpg", "--import", path.Join(assets, "key.asc"))
+	cmd := exec.Command("gpg", "--import", path.Join(assets, "key.asc")) // nolint:gosec
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	cmd.Env = gpgEnv
@@ -296,7 +296,7 @@ func TestAgeWithSSH(t *testing.T) {
 		Secrets:           []secret{s},
 		SecretsMountPoint: testdir.secretsPath,
 		SymlinkPath:       testdir.symlinkPath,
-		AgeSshKeyPaths:    []string{path.Join(assets, "ssh-ed25519-key")},
+		AgeSSHKeyPaths:    []string{path.Join(assets, "ssh-ed25519-key")},
 	}
 
 	testInstallSecret(t, testdir, &m)
@@ -346,7 +346,7 @@ func TestIsValidFormat(t *testing.T) {
 			t.Errorf("input %s must return %v but returned %v", input, mustBe, result)
 		}
 	}
-	for _, format := range []string{string(Yaml), string(Json), string(Binary), string(Dotenv)} {
+	for _, format := range []string{string(Yaml), string(JSON), string(Binary), string(Dotenv)} {
 		generateCase(format, true)
 		generateCase(strings.ToUpper(format), false)
 	}
