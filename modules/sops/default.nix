@@ -10,6 +10,14 @@ let
   };
   manifest = manifestFor "" regularSecrets {};
 
+  pathNotInStore = lib.mkOptionType {
+    name = "pathNotInStore";
+    description = "path not in the Nix store";
+    descriptionClass = "noun";
+    check = x: !lib.path.hasStorePathPrefix (/. + x);
+    merge = lib.mergeEqualOption;
+  };
+
   regularSecrets = lib.filterAttrs (_: v: !v.neededForUsers) cfg.secrets;
 
   sysusersEnabled = options.systemd ? sysusers && config.systemd.sysusers.enable;
@@ -237,7 +245,7 @@ in {
 
     age = {
       keyFile = lib.mkOption {
-        type = lib.types.nullOr lib.types.path;
+        type = lib.types.nullOr pathNotInStore;
         default = null;
         example = "/var/lib/sops-nix/key.txt";
         description = ''

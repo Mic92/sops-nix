@@ -9,7 +9,7 @@ let
         extraConfig
       ];
       sops = {
-        age.keyFile = ./test-assets/age-keys.txt;
+        age.keyFile = "/run/age-keys.txt";
         defaultSopsFile = ./test-assets/secrets.yaml;
         secrets.test_key.neededForUsers = true;
         secrets."nested/test/file".owner = "example-user";
@@ -70,11 +70,17 @@ in {
     nodes.machine = { lib, ... }: {
       imports = [ ../../modules/sops ];
       sops = {
-        age.keyFile = ./test-assets/age-keys.txt;
+        age.keyFile = "/run/age-keys.txt";
         defaultSopsFile = ./test-assets/secrets.yaml;
         secrets.test_key = { };
         keepGenerations = lib.mkDefault 0;
       };
+
+      # must run before sops sets up keys
+      boot.initrd.postDeviceCommands = ''
+        cp -r ${./test-assets/age-keys.txt} /run/age-keys.txt
+        chmod -R 700 /run/age-keys.txt
+      '';
 
       specialisation.pruning.configuration.sops.keepGenerations = 10;
     };
@@ -108,13 +114,19 @@ in {
 
   age-keys = makeTest {
     name = "sops-age-keys";
-    nodes.machine = {
+    nodes.machine =  { lib, ... }: {
       imports = [ ../../modules/sops ];
       sops = {
-        age.keyFile = ./test-assets/age-keys.txt;
+        age.keyFile = "/run/age-keys.txt";
         defaultSopsFile = ./test-assets/secrets.yaml;
         secrets.test_key = { };
       };
+
+      # must run before sops sets up keys
+      boot.initrd.postDeviceCommands = ''
+        cp -r ${./test-assets/age-keys.txt} /run/age-keys.txt
+        chmod -R 700 /run/age-keys.txt
+      '';
     };
 
     testScript = ''
@@ -213,13 +225,19 @@ in {
 
   templates = makeTest {
     name = "sops-templates";
-    nodes.machine = { config, ... }: {
+    nodes.machine = { config, lib, ... }: {
       imports = [ ../../modules/sops ];
       sops = {
-        age.keyFile = ./test-assets/age-keys.txt;
+        age.keyFile = "/run/age-keys.txt";
         defaultSopsFile = ./test-assets/secrets.yaml;
         secrets.test_key = { };
       };
+
+      # must run before sops sets up keys
+      boot.initrd.postDeviceCommands = ''
+        cp -r ${./test-assets/age-keys.txt} /run/age-keys.txt
+        chmod -R 700 /run/age-keys.txt
+      '';
 
       sops.templates.test_template = {
         content = ''
@@ -275,13 +293,19 @@ in {
       imports = [ ../../modules/sops ];
 
       sops = {
-        age.keyFile = ./test-assets/age-keys.txt;
+        age.keyFile = "/run/age-keys.txt";
         defaultSopsFile = ./test-assets/secrets.yaml;
         secrets.test_key = {
           restartUnits = [ "restart-unit.service" "reload-unit.service" ];
           reloadUnits = [ "reload-trigger.service" ];
         };
       };
+
+      # must run before sops sets up keys
+      boot.initrd.postDeviceCommands = ''
+        cp -r ${./test-assets/age-keys.txt} /run/age-keys.txt
+        chmod -R 700 /run/age-keys.txt
+      '';
 
       systemd.services."restart-unit" = {
         description = "Restart unit";
@@ -380,7 +404,13 @@ in {
     inherit (pkgs) system;
   };
 
-  user-passwords = userPasswordTest "sops-user-passwords" {};
+  user-passwords = userPasswordTest "sops-user-passwords" {
+    # must run before sops sets up keys
+    boot.initrd.postDeviceCommands = ''
+      cp -r ${./test-assets/age-keys.txt} /run/age-keys.txt
+      chmod -R 700 /run/age-keys.txt
+    '';
+  };
 } // pkgs.lib.optionalAttrs (pkgs.lib.versionAtLeast (pkgs.lib.versions.majorMinor pkgs.lib.version) "24.05") {
   user-passwords-sysusers = userPasswordTest "sops-user-passwords-sysusers" {
     systemd.sysusers.enable = true;
@@ -388,5 +418,11 @@ in {
     system.etc.overlay.enable = true;
     boot.initrd.systemd.enable = true;
     boot.kernelPackages = pkgs.linuxPackages_latest;
+
+    # must run before sops sets up keys
+    systemd.services."sops-install-secrets-for-users".preStart = ''
+      printf '${builtins.readFile ./test-assets/age-keys.txt}' > /run/age-keys.txt
+      chmod -R 700 /run/age-keys.txt
+    '';
   };
 }
