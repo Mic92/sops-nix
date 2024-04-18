@@ -247,6 +247,7 @@ in {
       };
       Service = {
         Type = "oneshot";
+        ExecStartPre = "${pkgs.coreutils}/bin/mkdir -p ${lib.strings.removeSuffix (builtins.baseNameOf config.sops.defaultSymlinkPath) config.sops.defaultSymlinkPath}";
         ExecStart = script;
       };
       Install.WantedBy = if cfg.gnupg.home != null then [ "graphical-session-pre.target" ] else [ "default.target" ];
