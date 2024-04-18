@@ -539,6 +539,10 @@ func (app *appContext) validateManifest() error {
 }
 
 func atomicSymlink(oldname, newname string) error {
+	if err := os.MkdirAll(filepath.Dir(newname), 0o755); err != nil {
+		return err
+	}
+
 	// Fast path: if newname does not exist yet, we can skip the whole dance
 	// below.
 	if err := os.Symlink(oldname, newname); err == nil || !os.IsExist(err) {
