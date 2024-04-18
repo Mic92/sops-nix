@@ -804,15 +804,6 @@ The secrets are decrypted in a systemd user service called `sops-nix`, so other 
 }
 ```
 
-As home-manager does not restart the `sops-nix` unit automatically instruct home-manager to do so:
-```nix
-{
-  home.activation.setupEtc = config.lib.dag.entryAfter [ "writeBoundary" ] ''
-    /run/current-system/sw/bin/systemctl start --user sops-nix
-  '';
-}
-```
-
 ## Use with GPG instead of SSH keys
 
 If you prefer having a separate GPG key, sops-nix also comes with a helper tool, `sops-init-gpg-key`:

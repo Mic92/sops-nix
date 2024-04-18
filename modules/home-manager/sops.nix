@@ -264,15 +264,29 @@ in {
       };
     };
 
-    # darwin: [re]load secrets on home-manager activation
-    home.activation = lib.mkIf pkgs.stdenv.hostPlatform.isDarwin {
-      sops-nix = let
+    # [re]load secrets on home-manager activation
+    home.activation = let 
+      darwin = let
         domain-target = "gui/$(id -u ${config.home.username})";
       in ''
         /bin/launchctl bootout ${domain-target}/org.nix-community.home.sops-nix && true
         /bin/launchctl bootstrap ${domain-target} ${config.home.homeDirectory}/Library/LaunchAgents/org.nix-community.home.sops-nix.plist
       '';
-    };
 
+      linux = let systemctl = config.systemd.user.systemctlPath; in ''
+        systemdStatus=$(${systemctl} --user is-system-running 2>&1 || true)
+
+        if [[ $systemdStatus == 'running' ]]; then
+          ${config.systemd.user.systemctlPath} restart --user sops-nix
+        else
+          echo "User systemd daemon not running. Probably executed on boot where no manual start/reload is needed."
+        fi
+
+        unset systemdStatus
+      '';
+    
+    in {
+      sops-nix = if pkgs.stdenv.isLinux then linux else darwin;
+    };
   };
 }
