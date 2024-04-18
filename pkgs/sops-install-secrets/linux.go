@@ -13,7 +13,7 @@ import (
 func RuntimeDir() (string, error) {
 	rundir, ok := os.LookupEnv("XDG_RUNTIME_DIR")
 	if !ok {
-		return "", fmt.Errorf("$XDG_RUNTIME_DIR is not set!")
+		return "", fmt.Errorf("$XDG_RUNTIME_DIR is not set")
 	}
 	return rundir, nil
 }
@@ -22,7 +22,7 @@ func SecureSymlinkChown(symlinkToCheck, expectedTarget string, owner, group int)
 	// fd, err := unix.Open(symlinkToCheck, unix.O_CLOEXEC|unix.O_PATH|unix.O_NOFOLLOW, 0)
 	fd, err := unix.Open(symlinkToCheck, unix.O_CLOEXEC|unix.O_PATH|unix.O_NOFOLLOW, 0)
 	if err != nil {
-		return fmt.Errorf("Failed to open %s: %w", symlinkToCheck, err)
+		return fmt.Errorf("failed to open %s: %w", symlinkToCheck, err)
 	}
 	defer unix.Close(fd)
 
@@ -50,9 +50,9 @@ func SecureSymlinkChown(symlinkToCheck, expectedTarget string, owner, group int)
 	return nil
 }
 
-func MountSecretFs(mountpoint string, keysGid int, useTmpfs bool, userMode bool) error {
+func MountSecretFs(mountpoint string, keysGID int, useTmpfs bool, userMode bool) error {
 	if err := os.MkdirAll(mountpoint, 0o751); err != nil {
-		return fmt.Errorf("Cannot create directory '%s': %w", mountpoint, err)
+		return fmt.Errorf("cannot create directory '%s': %w", mountpoint, err)
 	}
 
 	// We can't create a ramfs as user
@@ -60,25 +60,25 @@ func MountSecretFs(mountpoint string, keysGid int, useTmpfs bool, userMode bool)
 		return nil
 	}
 
-	var fstype string = "ramfs"
-	var fsmagic int32 = RAMFS_MAGIC
+	var fstype = "ramfs"
+	var fsmagic = RamfsMagic
 	if useTmpfs {
 		fstype = "tmpfs"
-		fsmagic = TMPFS_MAGIC
+		fsmagic = TmpfsMagic
 	}
 
 	buf := unix.Statfs_t{}
 	if err := unix.Statfs(mountpoint, &buf); err != nil {
-		return fmt.Errorf("Cannot get statfs for directory '%s': %w", mountpoint, err)
+		return fmt.Errorf("cannot get statfs for directory '%s': %w", mountpoint, err)
 	}
 	if int32(buf.Type) != fsmagic {
 		if err := unix.Mount("none", mountpoint, fstype, unix.MS_NODEV|unix.MS_NOSUID, "mode=0751"); err != nil {
-			return fmt.Errorf("Cannot mount: %s", err)
+			return fmt.Errorf("cannot mount: %w", err)
 		}
 	}
 
-	if err := os.Chown(mountpoint, 0, int(keysGid)); err != nil {
-		return fmt.Errorf("Cannot change owner/group of '%s' to 0/%d: %w", mountpoint, keysGid, err)
+	if err := os.Chown(mountpoint, 0, int(keysGID)); err != nil {
+		return fmt.Errorf("cannot change owner/group of '%s' to 0/%d: %w", mountpoint, keysGID, err)
 	}
 
 	return nil
