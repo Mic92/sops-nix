@@ -66,7 +66,7 @@ let
     name = "pathNotInStore";
     description = "path not in the Nix store";
     descriptionClass = "noun";
-    check = x: !lib.path.hasStorePathPrefix x;
+    check = x: !lib.path.hasStorePathPrefix (/. + x);
     merge = lib.mergeEqualOption;
   };
 
