@@ -100,7 +100,7 @@ let
     + (lib.optionalString cfg.age.generateKey ''
     if [[ ! -f '${cfg.age.keyFile}' ]]; then
       echo generating machine-specific age key...
-      mkdir -p $(dirname ${cfg.age.keyFile})
+      ${pkgs.coreutils}/bin/mkdir -p $(${pkgs.coreutils}/bin/dirname ${cfg.age.keyFile})
       # age-keygen sets 0600 by default, no need to chmod.
       ${pkgs.age}/bin/age-keygen -o ${cfg.age.keyFile}
     fi
