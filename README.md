@@ -93,35 +93,10 @@ $ niv add Mic92/sops-nix
 }
 ```
   
-#### `nix-channel`
-
-  As root run:
-  
-```console
-$ nix-channel --add https://github.com/Mic92/sops-nix/archive/master.tar.gz sops-nix
-$ nix-channel --update
-```
-  
-  Then add the following to your `configuration.nix` in the `imports` list:
-  
-```nix
-{
-  imports = [ <sops-nix/modules/sops> ];
-}
-```
-
 #### `fetchTarball`
 
   Add the following to your `configuration.nix`:
 
-``` nix
-{
-  imports = [ "${builtins.fetchTarball "https://github.com/Mic92/sops-nix/archive/master.tar.gz"}/modules/sops" ];
-}
-```
-  
-or with pinning:
-  
 ```nix
 {
   imports = let
