@@ -277,7 +277,7 @@ in {
         systemdStatus=$(${systemctl} --user is-system-running 2>&1 || true)
 
         if [[ $systemdStatus == 'running' ]]; then
-          ${config.systemd.user.systemctlPath} restart --user sops-nix
+          ${systemctl} restart --user sops-nix
         else
           echo "User systemd daemon not running. Probably executed on boot where no manual start/reload is needed."
         fi
