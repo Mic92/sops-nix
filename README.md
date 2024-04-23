@@ -394,6 +394,11 @@ sops:
     version: 3.7.1
 ```
 
+If you add a new host to your `.sops.yaml` file, you will need to update the keys for all secrets that are used by the new host.  This can be done like so:
+```
+$ nix-shell -p sops --run "sops updatekeys secrets/example.yaml"
+```
+
 </details>
 
 <details>
@@ -709,11 +714,11 @@ sops-nix also provides a home-manager module.
 This module provides a subset of features provided by the system-wide sops-nix since features like the creation of the ramfs and changing the owner of the secrets are not available for non-root users.
 
 Instead of running as an activation script, sops-nix runs as a systemd user service called `sops-nix.service`.
-And instead of decrypting to `/run/secrets`, the secrets are stored decrypted to `$XDG_RUNTIME_DIR/secrets` that is located on a tmpfs or similar non-persistent filesystem. Additionally secrets are symlinked to the user home-directory in the `.secrets`-directory which is used as reference 
-for the `.path` value in nix. Because of that, the home-manager option `home.homeDirectory` is used to determinate the home-directory on evaluation, 
-this has to be set manually if home-manager is used standalone or on non NixOS systems.
+While the sops-nix _system_ module decrypts secrets to the system non-persistent `/run/secrets`, the _home-manager_ module places them in the users non-persistent `$XDG_RUNTIME_DIR/secrets.d`.
+Additionally secrets are symlinked to the users home at `$HOME/.config/sops-nix/secrets` which are referenced for the `.path` value in sops-nix.
+This requires that the home-manager option `home.homeDirectory` is set to determine the home-directory on evaluation.  It will have to be manually set if home-manager is configured as stand-alone or on non NixOS systems.
 
-Depending on whether you use home-manager system-wide or using a home.nix, you have to import it in a different way.
+Depending on whether you use home-manager system-wide or stand-alone using a home.nix, you have to import it in a different way.
 This example shows the `flake` approach from the recommended example [Install: Flakes (current recommendation)](#Flakes (current recommendation))
 
 ```nix
