@@ -394,6 +394,11 @@ sops:
     version: 3.7.1
 ```
 
+If you add a new host to your `.sops.yaml` file, you will need to update the keys for all secrets that are used by the new host.  This can be done like so:
+```
+$ nix-shell -p sops --run "sops updatekeys secrets/example.yaml"
+```
+
 </details>
 
 <details>
