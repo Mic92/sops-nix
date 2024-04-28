@@ -231,13 +231,13 @@ in {
 
         *WARNING*
         Enabling this option has the potential to write secrets to disk unencrypted if the tmpfs volume is written to swap. Do not use unless absolutely necessary.
-        
+
         When using a swap file or device, consider enabling swap encryption by setting the `randomEncryption.enable` option
-        
+
         ```
         swapDevices = [{
           device = "/dev/sdXY";
-          randomEncryption.enable = true; 
+          randomEncryption.enable = true;
         }];
         ```
       '';
@@ -320,7 +320,7 @@ in {
         }]) cfg.secrets)
       );
 
-      sops.environment.SOPS_GPG_EXEC = lib.mkIf (cfg.gnupg.home != null || cfg.gnupg.sshKeyPaths != []) (lib.mkDefault "${pkgs.gnupg}/bin/gpg");
+      sops.environment.SOPS_GPG_EXEC = lib.mkIf (cfg.gnupg.home != null || cfg.gnupg.sshKeyPaths != []) (lib.mkDefault (lib.getExe (pkgs.gnupg.override { enableMinimal = true; })));
 
       # When using sysusers we no longer be started as an activation script because those are started in initrd while sysusers is started later.
       systemd.services.sops-install-secrets = lib.mkIf (regularSecrets != { } && sysusersEnabled) {
