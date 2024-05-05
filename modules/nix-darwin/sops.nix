@@ -259,7 +259,7 @@ in {
     };
 
     # [re]load secrets on home-manager activation
-    activationScripts.sops-nix.text = let
+    system.activationScripts.sops-nix.text = let
         domain-target = "system";
       in ''
         /bin/launchctl bootout ${domain-target}/org.nixos.sops-nix && true
