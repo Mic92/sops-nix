@@ -259,11 +259,11 @@ in {
     };
 
     # [re]load secrets on home-manager activation
-    # activationScripts.sops-nix.text = let
-    #     domain-target = "gui/$(id -u ${config.home.username})";
-    #   in ''
-    #     /bin/launchctl bootout ${domain-target}/org.nix-community.home.sops-nix && true
-    #     /bin/launchctl bootstrap ${domain-target} ${config.home.homeDirectory}/Library/LaunchAgents/org.nix-community.home.sops-nix.plist
-    #   '';
+    activationScripts.sops-nix.text = let
+        domain-target = "system";
+      in ''
+        /bin/launchctl bootout ${domain-target}/org.nixos.sops-nix && true
+        /bin/launchctl bootstrap ${domain-target} /Library/LaunchAgents/org.nixos.sops-nix.plist
+      '';
   };
 }
