@@ -189,7 +189,7 @@ uid           [ unknown] root <root@localhost>
 The fingerprint here is `9F89C5F69A10281A835014B09C3DC61F752087EF`.
 </details>
 
-Your `age` public key or GPG fingerprint can be written to your [`.sops.yaml`](https://github.com/getsops/sops#using-sops-yaml-conf-to-select-kms-pgp-and-age-for-new-files) in the root of your configuration directory or repository:
+Your `age` public key or GPG fingerprint can be written to your [`.sops.yaml`](https://github.com/getsops/sops#using-sopsyaml-conf-to-select-kms-pgp-and-age-for-new-files) in the root of your configuration directory or repository:
 ```yaml
 # This example uses YAML anchors which allows reuse of multiple keys 
 # without having to repeat yourself.
