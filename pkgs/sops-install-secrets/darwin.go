@@ -77,7 +77,7 @@ func MountSecretFs(mountpoint string, keysGID int, _useTmpfs bool, userMode bool
 	log.Printf("hdiutil attach ret %v. out: %s", err, diskpath)
 
 	// format as hfs
-	out, err = exec.Command("newfs_hfs", diskpath).Output()
+	out, err = exec.Command("newfs_hfs", "-s", diskpath).Output()
 	log.Printf("newfs_hfs ret %v. out: %s", err, out)
 
 	// "posix" mount takes `struct hfs_mount_args` which we dont have bindings for at hand.
