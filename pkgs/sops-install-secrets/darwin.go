@@ -77,14 +77,14 @@ func MountSecretFs(mountpoint string, keysGID int, _useTmpfs bool, userMode bool
 	log.Printf("hdiutil attach ret %v. out: %s", err, diskpath)
 
 	// format as hfs
-	out, err = exec.Command("newfs_hfs", diskpath).Output()
+	out, err = exec.Command("newfs_hfs", "-s", diskpath).Output()
 	log.Printf("newfs_hfs ret %v. out: %s", err, out)
 
 	// "posix" mount takes `struct hfs_mount_args` which we dont have bindings for at hand.
 	// See https://stackoverflow.com/a/49048846/4108673
 	// err = unix.Mount("hfs", mountpoint, unix.MNT_NOEXEC|unix.MNT_NODEV, mount_args)
 	// Instead we call:
-	out, err = exec.Command("mount", "-t", "hfs", diskpath, mountpoint).Output()
+	out, err = exec.Command("mount", "-t", "hfs", "-o", "nobrowse,nodev,nosuid,-m=0751", diskpath, mountpoint).Output()
 	log.Printf("mount ret %v. out: %s", err, out)
 
 	// There is no documented way to check for memfs mountpoint. Thus we place a file.
