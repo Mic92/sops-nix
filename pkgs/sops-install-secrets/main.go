@@ -265,28 +265,22 @@ func recurseSecretKey(format FormatType, keys map[string]interface{}, wantedKey 
 		}
 	}
 
-	var marshaller func(interface{}) ([]byte, error)
-	switch format {
-	case JSON:
-		marshaller = json.Marshal
-	case Yaml:
-		marshaller = yaml.Marshal
-	default:
-		return "", fmt.Errorf("secret of type %s is not supported", format)
-	}
-
 	// If the value is a string, do not marshal it.
 	if strVal, ok := val.(string); ok {
 		return strVal, nil
 	}
 
-	strVal, err := marshaller(val)
-	if err != nil {
-		return "", fmt.Errorf("cannot marshal the value of key '%s': %w", keyUntilNow, err)
+	switch format {
+	case JSON:
+		strVal, err := json.Marshal(val)
+		if err != nil {
+			return "", fmt.Errorf("cannot marshal the value of key '%s': %w", keyUntilNow, err)
+		}
+		strVal = bytes.Trim(strVal, "\"")
+		return string(strVal), nil
+	default:
+		return "", fmt.Errorf("nested secrets are not supported for %s", format)
 	}
-	strVal = bytes.TrimSpace(strVal)
-
-	return string(strVal), nil
 }
 
 func decryptSecret(s *secret, sourceFiles map[string]plainData) error {
