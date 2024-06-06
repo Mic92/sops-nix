@@ -242,14 +242,26 @@ func recurseSecretKey(format FormatType, keys map[string]interface{}, wantedKey 
 		if !ok {
 			return "", fmt.Errorf("the key '%s' cannot be found", keyUntilNow)
 		}
-		var valWithWrongType map[string]interface{}
-		valWithWrongType, ok = val.(map[string]interface{})
-		if !ok {
-			return "", fmt.Errorf("key '%s' does not refer to a dictionary", keyUntilNow)
-		}
-		currentData = make(map[string]interface{})
-		for key, value := range valWithWrongType {
-			currentData[fmt.Sprintf("%v", key)] = value
+		if format == JSON {
+			var valWithWrongType map[string]interface{}
+			valWithWrongType, ok = val.(map[string]interface{})
+			if !ok {
+				return "", fmt.Errorf("key '%s' does not refer to a dictionary", keyUntilNow)
+			}
+			currentData = make(map[string]interface{})
+			for key, value := range valWithWrongType {
+				currentData[fmt.Sprintf("%v", key)] = value
+			}
+		} else {
+			var valWithWrongType map[interface{}]interface{}
+			valWithWrongType, ok = val.(map[interface{}]interface{})
+			if !ok {
+				return "", fmt.Errorf("key '%s' does not refer to a dictionary", keyUntilNow)
+			}
+			currentData = make(map[string]interface{})
+			for key, value := range valWithWrongType {
+				currentData[fmt.Sprintf("%v", key)] = value
+			}
 		}
 	}
 
