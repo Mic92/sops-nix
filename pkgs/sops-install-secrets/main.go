@@ -474,7 +474,7 @@ func (app *appContext) validateSopsFile(s *secret, file *secretFile) error {
 	if app.checkMode != Manifest && (s.Format != Binary && s.Format != Dotenv && s.Format != Ini) {
 		_, err := recurseSecretKey(s.Format, file.keys, s.Key)
 		if err != nil {
-			return fmt.Errorf("secret %s in %s is not valid: %w", s.Name, s.SopsFile, err)
+			return fmt.Errorf("secret %s in %s is not valid: %w (format: %s)", s.Name, s.SopsFile, err, s.Format)
 		}
 	}
 	return nil
