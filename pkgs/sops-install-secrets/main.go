@@ -276,8 +276,6 @@ func recurseSecretKey(format FormatType, keys map[string]interface{}, wantedKey 
 		if err != nil {
 			return "", fmt.Errorf("cannot marshal the value of key '%s': %w", keyUntilNow, err)
 		}
-		strVal = bytes.Trim(strVal, "\"")
-		fmt.Println(string(strVal))
 		return string(strVal), nil
 	default:
 		return "", fmt.Errorf("nested secrets are not supported for %s", format)
