@@ -1,5 +1,47 @@
 { makeTest ? import <nixpkgs/nixos/tests/make-test-python.nix>
-, pkgs ? (import <nixpkgs> { }) }: {
+, pkgs ? (import <nixpkgs> { }) }:
+let
+  userPasswordTest = name: extraConfig: makeTest {
+    inherit name;
+    nodes.machine = { config, lib, ... }: {
+      imports = [
+        ../../modules/sops
+        extraConfig
+      ];
+      sops = {
+        age.keyFile = "/run/age-keys.txt";
+        defaultSopsFile = ./test-assets/secrets.yaml;
+        secrets.test_key.neededForUsers = true;
+        secrets."nested/test/file".owner = "example-user";
+      };
+
+      users.users.example-user = {
+        isNormalUser = true;
+        hashedPasswordFile = config.sops.secrets.test_key.path;
+      };
+    };
+
+    testScript = ''
+      start_all()
+      machine.wait_for_unit("multi-user.target")
+
+      machine.succeed("getent shadow example-user | grep -q :test_value:")  # password was set
+      machine.succeed("cat /run/secrets/nested/test/file | grep -q 'another value'")  # regular secrets work...
+      user = machine.succeed("stat -c%U /run/secrets/nested/test/file").strip()  # ...and are owned...
+      assert user == "example-user", f"Expected 'example-user', got '{user}'"
+      machine.succeed("cat /run/secrets-for-users/test_key | grep -q 'test_value'")  # the user password still exists
+
+      # BUG in nixos's overlayfs... systemd crashes on switch-to-configuration test
+    '' + pkgs.lib.optionalString (!(extraConfig ? system.etc.overlay.enable)) ''
+      machine.succeed("/run/current-system/bin/switch-to-configuration test")
+      machine.succeed("cat /run/secrets/nested/test/file | grep -q 'another value'")  # the regular secrets still work after a switch
+      machine.succeed("cat /run/secrets-for-users/test_key | grep -q 'test_value'")  # the user password is still present after a switch
+    '';
+  } {
+    inherit pkgs;
+    inherit (pkgs) system;
+  };
+in {
   ssh-keys = makeTest {
     name = "sops-ssh-keys";
     nodes.server = { ... }: {
@@ -23,56 +65,22 @@
     inherit (pkgs) system;
   };
 
-  user-passwords = makeTest {
-    name = "sops-user-passwords";
-    nodes.machine = { config, lib, ... }: {
-      imports = [ ../../modules/sops ];
-      sops = {
-        age.keyFile = ./test-assets/age-keys.txt;
-        defaultSopsFile = ./test-assets/secrets.yaml;
-        secrets.test_key.neededForUsers = true;
-        secrets."nested/test/file".owner = "example-user";
-      };
-
-      users.users.example-user = let
-        passwordFileKey =
-          if (lib.versionAtLeast (lib.versions.majorMinor lib.version)
-            "23.11") then
-            "hashedPasswordFile"
-          else
-            "passwordFile";
-      in {
-        isNormalUser = true;
-        ${passwordFileKey} = config.sops.secrets.test_key.path;
-      };
-    };
-
-    testScript = ''
-      start_all()
-      machine.succeed("getent shadow example-user | grep -q :test_value:")  # password was set
-      machine.succeed("cat /run/secrets/nested/test/file | grep -q 'another value'")  # regular secrets work...
-      machine.succeed("[ $(stat -c%U /run/secrets/nested/test/file) = example-user ]")  # ...and are owned...
-      machine.succeed("cat /run/secrets-for-users/test_key | grep -q 'test_value'")  # the user password still exists
-
-      machine.succeed("/run/current-system/bin/switch-to-configuration test")
-      machine.succeed("cat /run/secrets/nested/test/file | grep -q 'another value'")  # the regular secrets still work after a switch
-      machine.succeed("cat /run/secrets-for-users/test_key | grep -q 'test_value'")  # the user password is still present after a switch
-    '';
-  } {
-    inherit pkgs;
-    inherit (pkgs) system;
-  };
-
   pruning = makeTest {
     name = "sops-pruning";
     nodes.machine = { lib, ... }: {
       imports = [ ../../modules/sops ];
       sops = {
-        age.keyFile = ./test-assets/age-keys.txt;
+        age.keyFile = "/run/age-keys.txt";
         defaultSopsFile = ./test-assets/secrets.yaml;
         secrets.test_key = { };
         keepGenerations = lib.mkDefault 0;
       };
+
+      # must run before sops sets up keys
+      boot.initrd.postDeviceCommands = ''
+        cp -r ${./test-assets/age-keys.txt} /run/age-keys.txt
+        chmod -R 700 /run/age-keys.txt
+      '';
 
       specialisation.pruning.configuration.sops.keepGenerations = 10;
     };
@@ -106,13 +114,19 @@
 
   age-keys = makeTest {
     name = "sops-age-keys";
-    nodes.machine = {
+    nodes.machine =  { lib, ... }: {
       imports = [ ../../modules/sops ];
       sops = {
-        age.keyFile = ./test-assets/age-keys.txt;
+        age.keyFile = "/run/age-keys.txt";
         defaultSopsFile = ./test-assets/secrets.yaml;
         secrets.test_key = { };
       };
+
+      # must run before sops sets up keys
+      boot.initrd.postDeviceCommands = ''
+        cp -r ${./test-assets/age-keys.txt} /run/age-keys.txt
+        chmod -R 700 /run/age-keys.txt
+      '';
     };
 
     testScript = ''
@@ -211,13 +225,19 @@
 
   templates = makeTest {
     name = "sops-templates";
-    nodes.machine = { config, ... }: {
+    nodes.machine = { config, lib, ... }: {
       imports = [ ../../modules/sops ];
       sops = {
-        age.keyFile = ./test-assets/age-keys.txt;
+        age.keyFile = "/run/age-keys.txt";
         defaultSopsFile = ./test-assets/secrets.yaml;
         secrets.test_key = { };
       };
+
+      # must run before sops sets up keys
+      boot.initrd.postDeviceCommands = ''
+        cp -r ${./test-assets/age-keys.txt} /run/age-keys.txt
+        chmod -R 700 /run/age-keys.txt
+      '';
 
       sops.templates.test_template = {
         content = ''
@@ -273,13 +293,19 @@
       imports = [ ../../modules/sops ];
 
       sops = {
-        age.keyFile = ./test-assets/age-keys.txt;
+        age.keyFile = "/run/age-keys.txt";
         defaultSopsFile = ./test-assets/secrets.yaml;
         secrets.test_key = {
           restartUnits = [ "restart-unit.service" "reload-unit.service" ];
           reloadUnits = [ "reload-trigger.service" ];
         };
       };
+
+      # must run before sops sets up keys
+      boot.initrd.postDeviceCommands = ''
+        cp -r ${./test-assets/age-keys.txt} /run/age-keys.txt
+        chmod -R 700 /run/age-keys.txt
+      '';
 
       systemd.services."restart-unit" = {
         description = "Restart unit";
@@ -376,5 +402,27 @@
   } {
     inherit pkgs;
     inherit (pkgs) system;
+  };
+
+  user-passwords = userPasswordTest "sops-user-passwords" {
+    # must run before sops sets up keys
+    boot.initrd.postDeviceCommands = ''
+      cp -r ${./test-assets/age-keys.txt} /run/age-keys.txt
+      chmod -R 700 /run/age-keys.txt
+    '';
+  };
+} // pkgs.lib.optionalAttrs (pkgs.lib.versionAtLeast (pkgs.lib.versions.majorMinor pkgs.lib.version) "24.05") {
+  user-passwords-sysusers = userPasswordTest "sops-user-passwords-sysusers" {
+    systemd.sysusers.enable = true;
+    users.mutableUsers = true;
+    system.etc.overlay.enable = true;
+    boot.initrd.systemd.enable = true;
+    boot.kernelPackages = pkgs.linuxPackages_latest;
+
+    # must run before sops sets up keys
+    systemd.services."sops-install-secrets-for-users".preStart = ''
+      printf '${builtins.readFile ./test-assets/age-keys.txt}' > /run/age-keys.txt
+      chmod -R 700 /run/age-keys.txt
+    '';
   };
 }

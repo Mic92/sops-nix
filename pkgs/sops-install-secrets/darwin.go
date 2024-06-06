@@ -19,7 +19,7 @@ func RuntimeDir() (string, error) {
 	out, err := exec.Command("getconf", "DARWIN_USER_TEMP_DIR").Output()
 	rundir := strings.TrimRight(string(out[:]), " \t\n")
 	if err != nil {
-		return "", fmt.Errorf("Cannot get DARWIN_USER_TEMP_DIR: %v", err)
+		return "", fmt.Errorf("cannot get DARWIN_USER_TEMP_DIR: %v", err)
 	}
 	return strings.TrimSuffix(rundir, "/"), nil
 }
@@ -28,7 +28,7 @@ func SecureSymlinkChown(symlinkToCheck string, expectedTarget string, owner, gro
 	// not sure what O_PATH is needed for anyways
 	fd, err := unix.Open(symlinkToCheck, unix.O_CLOEXEC|unix.O_SYMLINK|unix.O_NOFOLLOW, 0)
 	if err != nil {
-		return fmt.Errorf("Failed to open %s: %w", symlinkToCheck, err)
+		return fmt.Errorf("failed to open %s: %w", symlinkToCheck, err)
 	}
 	defer unix.Close(fd)
 
@@ -53,9 +53,9 @@ func SecureSymlinkChown(symlinkToCheck string, expectedTarget string, owner, gro
 // mydev=`hdiutil attach -nomount ram://$NUMSECTORS`
 // newfs_hfs $mydev
 // mount -t hfs $mydev /tmp/mymount
-func MountSecretFs(mountpoint string, keysGid int, _useTmpfs bool, userMode bool) error {
+func MountSecretFs(mountpoint string, keysGID int, _useTmpfs bool, userMode bool) error {
 	if err := os.MkdirAll(mountpoint, 0o751); err != nil {
-		return fmt.Errorf("Cannot create directory '%s': %w", mountpoint, err)
+		return fmt.Errorf("cannot create directory '%s': %w", mountpoint, err)
 	}
 	if _, err := os.Stat(mountpoint + "/sops-nix-secretfs"); !errors.Is(err, os.ErrNotExist) {
 		return nil // secret fs already exists
@@ -77,18 +77,22 @@ func MountSecretFs(mountpoint string, keysGid int, _useTmpfs bool, userMode bool
 	log.Printf("hdiutil attach ret %v. out: %s", err, diskpath)
 
 	// format as hfs
-	out, err = exec.Command("newfs_hfs", diskpath).Output()
+	out, err = exec.Command("newfs_hfs", "-s", diskpath).Output()
 	log.Printf("newfs_hfs ret %v. out: %s", err, out)
 
 	// "posix" mount takes `struct hfs_mount_args` which we dont have bindings for at hand.
 	// See https://stackoverflow.com/a/49048846/4108673
 	// err = unix.Mount("hfs", mountpoint, unix.MNT_NOEXEC|unix.MNT_NODEV, mount_args)
 	// Instead we call:
-	out, err = exec.Command("mount", "-t", "hfs", diskpath, mountpoint).Output()
+	out, err = exec.Command("mount", "-t", "hfs", "-o", "nobrowse,nodev,nosuid,-m=0751", diskpath, mountpoint).Output()
 	log.Printf("mount ret %v. out: %s", err, out)
 
 	// There is no documented way to check for memfs mountpoint. Thus we place a file.
-	_, err = os.Create(mountpoint + "/sops-nix-secretfs")
+	path := mountpoint + "/sops-nix-secretfs"
+	_, err = os.Create(path)
+	if err != nil {
+		return fmt.Errorf("cannot create file '%s': %w", path, err)
+	}
 
 	// This would be the way to check on unix.
 	//buf := unix.Statfs_t{}
@@ -103,8 +107,8 @@ func MountSecretFs(mountpoint string, keysGid int, _useTmpfs bool, userMode bool
 	//}
 
 	if !userMode {
-		if err := os.Chown(mountpoint, 0, int(keysGid)); err != nil {
-			return fmt.Errorf("Cannot change owner/group of '%s' to 0/%d: %w", mountpoint, keysGid, err)
+		if err := os.Chown(mountpoint, 0, int(keysGID)); err != nil {
+			return fmt.Errorf("cannot change owner/group of '%s' to 0/%d: %w", mountpoint, keysGID, err)
 		}
 	}
 

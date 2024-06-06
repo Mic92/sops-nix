@@ -21,7 +21,7 @@ func parsePrivateKey(sshPrivateKey []byte) (*rsa.PrivateKey, error) {
 	rsaKey, ok := privateKey.(*rsa.PrivateKey)
 
 	if !ok {
-		return nil, fmt.Errorf("Only RSA keys are supported right now, got: %s", reflect.TypeOf(privateKey))
+		return nil, fmt.Errorf("only RSA keys are supported right now, got: %s", reflect.TypeOf(privateKey))
 	}
 
 	return rsaKey, nil

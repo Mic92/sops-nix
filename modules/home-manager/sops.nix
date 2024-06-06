@@ -62,6 +62,14 @@ let
     };
   });
 
+  pathNotInStore = lib.mkOptionType {
+    name = "pathNotInStore";
+    description = "path not in the Nix store";
+    descriptionClass = "noun";
+    check = x: !lib.path.hasStorePathPrefix (/. + x);
+    merge = lib.mergeEqualOption;
+  };
+
   manifestFor = suffix: secrets: pkgs.writeTextFile {
     name = "manifest${suffix}.json";
     text = builtins.toJSON {
@@ -92,7 +100,7 @@ let
     + (lib.optionalString cfg.age.generateKey ''
     if [[ ! -f '${cfg.age.keyFile}' ]]; then
       echo generating machine-specific age key...
-      mkdir -p $(dirname ${cfg.age.keyFile})
+      ${pkgs.coreutils}/bin/mkdir -p $(${pkgs.coreutils}/bin/dirname ${cfg.age.keyFile})
       # age-keygen sets 0600 by default, no need to chmod.
       ${pkgs.age}/bin/age-keygen -o ${cfg.age.keyFile}
     fi
@@ -135,7 +143,7 @@ in {
 
     defaultSymlinkPath = lib.mkOption {
       type = lib.types.str;
-      default = "%r/secrets";
+      default = "${config.xdg.configHome}/sops-nix/secrets";
       description = ''
         Default place where the latest generation of decrypt secrets
         can be found.
@@ -166,7 +174,7 @@ in {
 
     age = {
       keyFile = lib.mkOption {
-        type = lib.types.nullOr lib.types.path;
+        type = lib.types.nullOr pathNotInStore;
         default = null;
         example = "/home/someuser/.age-key.txt";
         description = ''
@@ -244,18 +252,41 @@ in {
       Install.WantedBy = if cfg.gnupg.home != null then [ "graphical-session-pre.target" ] else [ "default.target" ];
     };
 
+    # Darwin: load secrets once on login
     launchd.agents.sops-nix = {
       enable = true;
       config = {
-        ProgramArguments = [ script ];
-        KeepAlive = {
-          Crashed = false;
-          SuccessfulExit = false;
-        };
-        ProcessType = "Background";
+        Program = script;
+        KeepAlive = false;
+        RunAtLoad = true;
         StandardOutPath = "${config.home.homeDirectory}/Library/Logs/SopsNix/stdout";
         StandardErrorPath = "${config.home.homeDirectory}/Library/Logs/SopsNix/stderr";
       };
+    };
+
+    # [re]load secrets on home-manager activation
+    home.activation = let 
+      darwin = let
+        domain-target = "gui/$(id -u ${config.home.username})";
+      in ''
+        /bin/launchctl bootout ${domain-target}/org.nix-community.home.sops-nix && true
+        /bin/launchctl bootstrap ${domain-target} ${config.home.homeDirectory}/Library/LaunchAgents/org.nix-community.home.sops-nix.plist
+      '';
+
+      linux = let systemctl = config.systemd.user.systemctlPath; in ''
+        systemdStatus=$(${systemctl} --user is-system-running 2>&1 || true)
+
+        if [[ $systemdStatus == 'running' ]]; then
+          ${systemctl} restart --user sops-nix
+        else
+          echo "User systemd daemon not running. Probably executed on boot where no manual start/reload is needed."
+        fi
+
+        unset systemdStatus
+      '';
+    
+    in {
+      sops-nix = if pkgs.stdenv.isLinux then linux else darwin;
     };
   };
 }
