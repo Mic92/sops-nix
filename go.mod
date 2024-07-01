@@ -4,7 +4,7 @@ go 1.18
 
 require (
 	github.com/Mic92/ssh-to-age v0.0.0-20240115094500-460a2109aaf0
-	github.com/ProtonMail/go-crypto v1.1.0-alpha.2-proton
+	github.com/ProtonMail/go-crypto v1.1.0-alpha.3-proton
 	github.com/getsops/sops/v3 v3.8.1
 	github.com/joho/godotenv v1.5.1
 	github.com/mozilla-services/yaml v0.0.0-20201007153854-c369669a6625
