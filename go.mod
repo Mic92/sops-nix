@@ -9,7 +9,7 @@ require (
 	github.com/joho/godotenv v1.5.1
 	github.com/mozilla-services/yaml v0.0.0-20201007153854-c369669a6625
 	golang.org/x/crypto v0.24.0
-	golang.org/x/sys v0.21.0
+	golang.org/x/sys v0.22.0
 	gopkg.in/ini.v1 v1.67.0
 )
 
