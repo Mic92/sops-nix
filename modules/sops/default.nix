@@ -344,12 +344,14 @@ in {
           supportsDryActivation = true;
         });
 
-        generate-age-key = lib.mkIf (cfg.age.generateKey) (lib.stringAfter [] ''
-          if [[ ! -f '${cfg.age.keyFile}' ]]; then
+        generate-age-key = let
+          escapedKeyFile = lib.escapeShellArg cfg.age.keyFile;
+        in lib.mkIf cfg.age.generateKey (lib.stringAfter [] ''
+          if [[ ! -f ${escapedKeyFile} ]]; then
             echo generating machine-specific age key...
-            mkdir -p $(dirname ${cfg.age.keyFile})
+            mkdir -p $(dirname ${escapedKeyFile})
             # age-keygen sets 0600 by default, no need to chmod.
-            ${pkgs.age}/bin/age-keygen -o ${cfg.age.keyFile}
+            ${pkgs.age}/bin/age-keygen -o ${escapedKeyFile}
           fi
         '');
       };
