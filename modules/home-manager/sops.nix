@@ -94,18 +94,20 @@ let
 
   manifest = manifestFor "" cfg.secrets;
 
+  escapedAgeKeyFile = lib.escapeShellArg cfg.age.keyFile;
+
   script = toString (pkgs.writeShellScript "sops-nix-user" ((lib.optionalString (cfg.gnupg.home != null) ''
     export SOPS_GPG_EXEC=${pkgs.gnupg}/bin/gpg
   '')
     + (lib.optionalString cfg.age.generateKey ''
-    if [[ ! -f '${cfg.age.keyFile}' ]]; then
+    if [[ ! -f ${escapedAgeKeyFile} ]]; then
       echo generating machine-specific age key...
-      ${pkgs.coreutils}/bin/mkdir -p $(${pkgs.coreutils}/bin/dirname ${cfg.age.keyFile})
+      ${pkgs.coreutils}/bin/mkdir -p $(${pkgs.coreutils}/bin/dirname ${escapedAgeKeyFile})
       # age-keygen sets 0600 by default, no need to chmod.
-      ${pkgs.age}/bin/age-keygen -o ${cfg.age.keyFile}
+      ${pkgs.age}/bin/age-keygen -o ${escapedAgeKeyFile}
     fi
   '' + ''
-    ${sops-install-secrets}/bin/sops-install-secrets -ignore-passwd '${manifest}'
+    ${sops-install-secrets}/bin/sops-install-secrets -ignore-passwd ${manifest}
   '')));
 in {
   options.sops = {
