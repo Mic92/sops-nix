@@ -20,7 +20,8 @@ let
 
   regularSecrets = lib.filterAttrs (_: v: !v.neededForUsers) cfg.secrets;
 
-  sysusersEnabled = options.systemd ? sysusers && config.systemd.sysusers.enable;
+  useSystemdActivation = (options.systemd ? sysusers && config.systemd.sysusers.enable) ||
+    (options.services ? userborn && config.services.userborn.enable);
 
   withEnvironment = import ./with-environment.nix {
     inherit cfg lib;
@@ -231,13 +232,13 @@ in {
 
         *WARNING*
         Enabling this option has the potential to write secrets to disk unencrypted if the tmpfs volume is written to swap. Do not use unless absolutely necessary.
-        
+
         When using a swap file or device, consider enabling swap encryption by setting the `randomEncryption.enable` option
-        
+
         ```
         swapDevices = [{
           device = "/dev/sdXY";
-          randomEncryption.enable = true; 
+          randomEncryption.enable = true;
         }];
         ```
       '';
@@ -323,7 +324,7 @@ in {
       sops.environment.SOPS_GPG_EXEC = lib.mkIf (cfg.gnupg.home != null || cfg.gnupg.sshKeyPaths != []) (lib.mkDefault "${pkgs.gnupg}/bin/gpg");
 
       # When using sysusers we no longer be started as an activation script because those are started in initrd while sysusers is started later.
-      systemd.services.sops-install-secrets = lib.mkIf (regularSecrets != { } && sysusersEnabled) {
+      systemd.services.sops-install-secrets = lib.mkIf (regularSecrets != { } && useSystemdActivation) {
         wantedBy = [  "sysinit.target" ];
         after = [ "systemd-sysusers.service" ];
         environment = cfg.environment;
@@ -337,7 +338,7 @@ in {
       };
 
       system.activationScripts = {
-        setupSecrets = lib.mkIf (regularSecrets != {} && !sysusersEnabled) (lib.stringAfter ([ "specialfs" "users" "groups" ] ++ lib.optional cfg.age.generateKey "generate-age-key") ''
+        setupSecrets = lib.mkIf (regularSecrets != {} && !useSystemdActivation) (lib.stringAfter ([ "specialfs" "users" "groups" ] ++ lib.optional cfg.age.generateKey "generate-age-key") ''
           [ -e /run/current-system ] || echo setting up secrets...
           ${withEnvironment "${sops-install-secrets}/bin/sops-install-secrets ${manifest}"}
         '' // lib.optionalAttrs (config.system ? dryActivationScript) {

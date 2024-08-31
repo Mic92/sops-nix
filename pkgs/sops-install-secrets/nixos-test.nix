@@ -14,10 +14,17 @@ let
         secrets."nested/test/file".owner = "example-user";
       };
 
-      users.users.example-user = {
-        isNormalUser = true;
-        hashedPasswordFile = config.sops.secrets.test_key.path;
-      };
+      users.users.example-user = lib.mkMerge [
+        (lib.mkIf (! config.systemd.sysusers.enable) {
+          isNormalUser = true;
+          hashedPasswordFile = config.sops.secrets.test_key.path;
+        })
+        (lib.mkIf config.systemd.sysusers.enable {
+          isSystemUser = true;
+          group = "users";
+          hashedPasswordFile = config.sops.secrets.test_key.path;
+        })
+      ];
     };
 
     testScript = ''
@@ -390,6 +397,20 @@ in {
   user-passwords-sysusers = userPasswordTest "sops-user-passwords-sysusers" ({ pkgs, ... }: {
     systemd.sysusers.enable = true;
     users.mutableUsers = true;
+    system.etc.overlay.enable = true;
+    boot.initrd.systemd.enable = true;
+    boot.kernelPackages = pkgs.linuxPackages_latest;
+
+    # must run before sops sets up keys
+    systemd.services."sops-install-secrets-for-users".preStart = ''
+      printf '${builtins.readFile ./test-assets/age-keys.txt}' > /run/age-keys.txt
+      chmod -R 700 /run/age-keys.txt
+    '';
+  });
+} // lib.optionalAttrs (lib.versionAtLeast (lib.versions.majorMinor lib.version) "24.11") {
+  user-passwords-userborn = userPasswordTest "sops-user-passwords-userborn" ({ pkgs, ... }: {
+    services.userborn.enable = true;
+    users.mutableUsers = false;
     system.etc.overlay.enable = true;
     boot.initrd.systemd.enable = true;
     boot.kernelPackages = pkgs.linuxPackages_latest;
