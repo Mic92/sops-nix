@@ -1,4 +1,4 @@
-{ lib, buildGoModule, path, pkgs, vendorHash, go }:
+{ lib, buildGoModule, stdenv, vendorHash, go, callPackages }:
 buildGoModule {
   pname = "sops-install-secrets";
   version = "0.0.1";
@@ -10,17 +10,14 @@ buildGoModule {
   # requires root privileges for tests
   doCheck = false;
 
-  passthru.tests = import ./nixos-test.nix {
-    makeTest = import (path + "/nixos/tests/make-test-python.nix");
-    inherit pkgs;
-  };
+  passthru.tests = callPackages ./nixos-test.nix { };
 
   outputs = [ "out" ] ++
-  pkgs.lib.lists.optionals (pkgs.stdenv.isLinux) [ "unittest" ];
+  lib.lists.optionals (stdenv.isLinux) [ "unittest" ];
 
   postInstall = ''
     go test -c ./pkgs/sops-install-secrets
-  '' + pkgs.lib.optionalString (pkgs.stdenv.isLinux) ''
+  '' + lib.optionalString (stdenv.isLinux) ''
     # *.test is only tested on linux. $unittest does not exist on darwin.
     install -D ./sops-install-secrets.test $unittest/bin/sops-install-secrets.test
     # newer versions of nixpkgs no longer require this step
