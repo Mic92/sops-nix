@@ -96,10 +96,7 @@ let
 
   escapedAgeKeyFile = lib.escapeShellArg cfg.age.keyFile;
 
-  script = toString (pkgs.writeShellScript "sops-nix-user" ((lib.optionalString (cfg.gnupg.home != null) ''
-    export SOPS_GPG_EXEC=${pkgs.gnupg}/bin/gpg
-  '')
-    + (lib.optionalString cfg.age.generateKey ''
+  script = toString (pkgs.writeShellScript "sops-nix-user" ((lib.optionalString cfg.age.generateKey ''
     if [[ ! -f ${escapedAgeKeyFile} ]]; then
       echo generating machine-specific age key...
       ${pkgs.coreutils}/bin/mkdir -p $(${pkgs.coreutils}/bin/dirname ${escapedAgeKeyFile})
@@ -174,6 +171,16 @@ in {
       description = "What to log";
     };
 
+    environment = lib.mkOption {
+      type = lib.types.attrsOf (lib.types.either lib.types.str lib.types.path);
+      default = {};
+      description = ''
+        Environment variables to set before calling sops-install-secrets.
+
+        To properly quote strings with quotes use lib.escapeShellArg.
+      '';
+    };
+
     age = {
       keyFile = lib.mkOption {
         type = lib.types.nullOr pathNotInStore;
@@ -243,6 +250,8 @@ in {
       }]) cfg.secrets)
     );
 
+    sops.environment.SOPS_GPG_EXEC = lib.mkIf (cfg.gnupg.home != null || cfg.gnupg.sshKeyPaths != []) (lib.mkDefault "${pkgs.gnupg}/bin/gpg");
+
     systemd.user.services.sops-nix = lib.mkIf pkgs.stdenv.hostPlatform.isLinux {
       Unit = {
         Description = "sops-nix activation";
@@ -251,6 +260,7 @@ in {
         Type = "oneshot";
         ExecStart = script;
       };
+      Environment = builtins.concatStringsSep " " (lib.mapAttrsToList (name: value: "'${name}=${value}'") cfg.environment);
       Install.WantedBy = if cfg.gnupg.home != null then [ "graphical-session-pre.target" ] else [ "default.target" ];
     };
 
@@ -259,6 +269,7 @@ in {
       enable = true;
       config = {
         Program = script;
+        EnvironmentVariables = cfg.environment;
         KeepAlive = false;
         RunAtLoad = true;
         StandardOutPath = "${config.home.homeDirectory}/Library/Logs/SopsNix/stdout";
