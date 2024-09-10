@@ -1,7 +1,6 @@
-{ makeTest ? import <nixpkgs/nixos/tests/make-test-python.nix>
-, pkgs ? (import <nixpkgs> { }) }:
+{ lib, testers }:
 let
-  userPasswordTest = name: extraConfig: makeTest {
+  userPasswordTest = name: extraConfig: testers.runNixOSTest {
     inherit name;
     nodes.machine = { config, lib, ... }: {
       imports = [
@@ -15,10 +14,17 @@ let
         secrets."nested/test/file".owner = "example-user";
       };
 
-      users.users.example-user = {
-        isNormalUser = true;
-        hashedPasswordFile = config.sops.secrets.test_key.path;
-      };
+      users.users.example-user = lib.mkMerge [
+        (lib.mkIf (! config.systemd.sysusers.enable) {
+          isNormalUser = true;
+          hashedPasswordFile = config.sops.secrets.test_key.path;
+        })
+        (lib.mkIf config.systemd.sysusers.enable {
+          isSystemUser = true;
+          group = "users";
+          hashedPasswordFile = config.sops.secrets.test_key.path;
+        })
+      ];
     };
 
     testScript = ''
@@ -32,17 +38,14 @@ let
       machine.succeed("cat /run/secrets-for-users/test_key | grep -q 'test_value'")  # the user password still exists
 
       # BUG in nixos's overlayfs... systemd crashes on switch-to-configuration test
-    '' + pkgs.lib.optionalString (!(extraConfig ? system.etc.overlay.enable)) ''
+    '' + lib.optionalString (!(extraConfig ? system.etc.overlay.enable)) ''
       machine.succeed("/run/current-system/bin/switch-to-configuration test")
       machine.succeed("cat /run/secrets/nested/test/file | grep -q 'another value'")  # the regular secrets still work after a switch
       machine.succeed("cat /run/secrets-for-users/test_key | grep -q 'test_value'")  # the user password is still present after a switch
     '';
-  } {
-    inherit pkgs;
-    inherit (pkgs) system;
   };
 in {
-  ssh-keys = makeTest {
+  ssh-keys = testers.runNixOSTest {
     name = "sops-ssh-keys";
     nodes.server = { ... }: {
       imports = [ ../../modules/sops ];
@@ -60,12 +63,9 @@ in {
       start_all()
       server.succeed("cat /run/secrets/test_key | grep -q test_value")
     '';
-  } {
-    inherit pkgs;
-    inherit (pkgs) system;
   };
 
-  pruning = makeTest {
+  pruning = testers.runNixOSTest {
     name = "sops-pruning";
     nodes.machine = { lib, ... }: {
       imports = [ ../../modules/sops ];
@@ -107,12 +107,9 @@ in {
       machine.succeed("test -d /run/secrets.d/92")
       machine.succeed("test -d /run/secrets.d/non-numeric")
     '';
-  } {
-    inherit pkgs;
-    inherit (pkgs) system;
   };
 
-  age-keys = makeTest {
+  age-keys = testers.runNixOSTest {
     name = "sops-age-keys";
     nodes.machine =  { lib, ... }: {
       imports = [ ../../modules/sops ];
@@ -133,12 +130,9 @@ in {
       start_all()
       machine.succeed("cat /run/secrets/test_key | grep -q test_value")
     '';
-  } {
-    inherit pkgs;
-    inherit (pkgs) system;
   };
 
-  age-ssh-keys = makeTest {
+  age-ssh-keys = testers.runNixOSTest {
     name = "sops-age-ssh-keys";
     nodes.machine = {
       imports = [ ../../modules/sops ];
@@ -162,12 +156,9 @@ in {
       start_all()
       machine.succeed("cat /run/secrets/test_key | grep -q test_value")
     '';
-  } {
-    inherit pkgs;
-    inherit (pkgs) system;
   };
 
-  pgp-keys = makeTest {
+  pgp-keys = testers.runNixOSTest {
     name = "sops-pgp-keys";
     nodes.server = { pkgs, lib, config, ... }: {
       imports = [ ../../modules/sops ];
@@ -218,12 +209,9 @@ in {
       target = server.succeed("readlink -f /run/existing-file")
       assertEqual("/run/secrets.d/1/existing-file", target.strip())
     '';
-  } {
-    inherit pkgs;
-    inherit (pkgs) system;
   };
 
-  templates = makeTest {
+  templates = testers.runNixOSTest {
     name = "sops-templates";
     nodes.machine = { config, lib, ... }: {
       imports = [ ../../modules/sops ];
@@ -282,12 +270,9 @@ in {
       if rendered.strip() != expected.strip() or rendered_default.strip() != expected_default.strip():
         raise Exception("Template is not rendered correctly")
     '';
-  } {
-    inherit pkgs;
-    inherit (pkgs) system;
   };
 
-  restart-and-reload = makeTest {
+  restart-and-reload = testers.runNixOSTest {
     name = "sops-restart-and-reload";
     nodes.machine = { pkgs, lib, config, ... }: {
       imports = [ ../../modules/sops ];
@@ -399,9 +384,6 @@ in {
           machine.fail("test -f /restarted")  # not done in dry mode
           machine.fail("test -f /reloaded")  # not done in dry mode
     '';
-  } {
-    inherit pkgs;
-    inherit (pkgs) system;
   };
 
   user-passwords = userPasswordTest "sops-user-passwords" {
@@ -411,8 +393,8 @@ in {
       chmod -R 700 /run/age-keys.txt
     '';
   };
-} // pkgs.lib.optionalAttrs (pkgs.lib.versionAtLeast (pkgs.lib.versions.majorMinor pkgs.lib.version) "24.05") {
-  user-passwords-sysusers = userPasswordTest "sops-user-passwords-sysusers" {
+} // lib.optionalAttrs (lib.versionAtLeast (lib.versions.majorMinor lib.version) "24.05") {
+  user-passwords-sysusers = userPasswordTest "sops-user-passwords-sysusers" ({ pkgs, ... }: {
     systemd.sysusers.enable = true;
     users.mutableUsers = true;
     system.etc.overlay.enable = true;
@@ -424,5 +406,19 @@ in {
       printf '${builtins.readFile ./test-assets/age-keys.txt}' > /run/age-keys.txt
       chmod -R 700 /run/age-keys.txt
     '';
-  };
+  });
+} // lib.optionalAttrs (lib.versionAtLeast (lib.versions.majorMinor lib.version) "24.11") {
+  user-passwords-userborn = userPasswordTest "sops-user-passwords-userborn" ({ pkgs, ... }: {
+    services.userborn.enable = true;
+    users.mutableUsers = false;
+    system.etc.overlay.enable = true;
+    boot.initrd.systemd.enable = true;
+    boot.kernelPackages = pkgs.linuxPackages_latest;
+
+    # must run before sops sets up keys
+    systemd.services."sops-install-secrets-for-users".preStart = ''
+      printf '${builtins.readFile ./test-assets/age-keys.txt}' > /run/age-keys.txt
+      chmod -R 700 /run/age-keys.txt
+    '';
+  });
 }

@@ -14,9 +14,11 @@ let
     symlinkPath = "/run/secrets-for-users";
   };
   sysusersEnabled = options.systemd ? sysusers && config.systemd.sysusers.enable;
+  useSystemdActivation = sysusersEnabled ||
+    (options.services ? userborn && config.services.userborn.enable);
 in
 {
-  systemd.services.sops-install-secrets-for-users = lib.mkIf (secretsForUsers != { } && sysusersEnabled) {
+  systemd.services.sops-install-secrets-for-users = lib.mkIf (secretsForUsers != { } && useSystemdActivation) {
     wantedBy = [  "systemd-sysusers.service" ];
     before = [ "systemd-sysusers.service" ];
     environment = cfg.environment;
@@ -29,7 +31,7 @@ in
     };
   };
 
-  system.activationScripts = lib.mkIf (secretsForUsers != { } && !sysusersEnabled) {
+  system.activationScripts = lib.mkIf (secretsForUsers != { } && !useSystemdActivation) {
     setupSecretsForUsers = lib.stringAfter ([ "specialfs" ] ++ lib.optional cfg.age.generateKey "generate-age-key") ''
       [ -e /run/current-system ] || echo setting up secrets for users...
       ${withEnvironment "${cfg.package}/bin/sops-install-secrets -ignore-passwd ${manifestForUsers}"}
