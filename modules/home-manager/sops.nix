@@ -278,7 +278,7 @@ in {
       linux = let systemctl = config.systemd.user.systemctlPath; in ''
         systemdStatus=$(${systemctl} --user is-system-running 2>&1 || true)
 
-        if [[ $systemdStatus == 'running' ]]; then
+        if [[ $systemdStatus == 'running' || $systemdStatus == 'degraded' ]]; then
           ${systemctl} restart --user sops-nix
         else
           echo "User systemd daemon not running. Probably executed on boot where no manual start/reload is needed."
