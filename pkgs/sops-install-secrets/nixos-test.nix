@@ -13,6 +13,7 @@ let
         secrets.test_key.neededForUsers = true;
         secrets."nested/test/file".owner = "example-user";
       };
+      system.switch.enable = true;
 
       users.users.example-user = lib.mkMerge [
         (lib.mkIf (! config.systemd.sysusers.enable) {
@@ -285,6 +286,7 @@ in {
           reloadUnits = [ "reload-trigger.service" ];
         };
       };
+      system.switch.enable = true;
 
       # must run before sops sets up keys
       boot.initrd.postDeviceCommands = ''
@@ -318,6 +320,7 @@ in {
           ExecReload = "/bin/sh -c 'echo ok > /reloaded'";
         };
       };
+
     };
     testScript = ''
       machine.wait_for_unit("multi-user.target")
