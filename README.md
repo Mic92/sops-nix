@@ -707,6 +707,44 @@ This is how it can be included in your `configuration.nix`:
 }
 ```
 
+## Emit plain file for yaml and json formats
+
+By default, sops-nix extracts a single key from yaml and json files. If you
+need the plain file instead of extracting a specific key from the input document,
+you can set `key` to an empty string.
+
+For example, the input document `my-config.yaml` likes this:
+
+```yaml
+my-secret1: ENC[AES256_GCM,data:tkyQPQODC3g=,iv:yHliT2FJ74EtnLIeeQtGbOoqVZnF0q5HiXYMJxYx6HE=,tag:EW5LV4kG4lcENaN2HIFiow==,type:str]
+my-secret2: ENC[AES256_GCM,data:tkyQPQODC3g=,iv:yHliT2FJ74EtnLIeeQtGbOoqVZnF0q5HiXYMJxYx6HE=,tag:EW5LV4kG4lcENaN2HIFiow==,type:str]
+sops:
+    kms: []
+    gcp_kms: []
+    azure_kv: []
+    hc_vault: []
+...
+```
+
+This is how it can be included in your NixOS module:
+
+```nix
+{
+  sops.secrets.my-config = {
+    format = "yaml";
+    sopsFile = ./my-config.yaml;
+    key = "";
+  };
+}
+```
+
+Then, it will be mounted as `/run/secrets/my-config`:
+
+```yaml
+my-secret1: hello
+my-secret2: hello
+```
+
 ## Use with home manager
 
 sops-nix also provides a home-manager module.
