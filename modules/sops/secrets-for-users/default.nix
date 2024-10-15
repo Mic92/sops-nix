@@ -43,7 +43,7 @@ in
   };
 
   assertions = [{
-    assertion = (lib.filterAttrs (_: v: v.owner != "root" || v.group != "root") secretsForUsers) == { };
+    assertion = (lib.filterAttrs (_: v: (v.uid != 0 && v.owner != "root") || (v.gid != 0 && v.group != "root")) secretsForUsers) == { };
     message = "neededForUsers cannot be used for secrets that are not root-owned";
   } {
     assertion = secretsForUsers != { } && sysusersEnabled -> config.users.mutableUsers;
