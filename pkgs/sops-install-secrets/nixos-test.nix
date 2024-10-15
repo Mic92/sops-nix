@@ -112,12 +112,41 @@ in {
 
   age-keys = testers.runNixOSTest {
     name = "sops-age-keys";
-    nodes.machine =  { lib, ... }: {
+    nodes.machine =  { config, ... }: {
       imports = [ ../../modules/sops ];
       sops = {
         age.keyFile = "/run/age-keys.txt";
         defaultSopsFile = ./test-assets/secrets.yaml;
-        secrets.test_key = { };
+        secrets = {
+          test_key = { };
+
+          test_key_someuser_somegroup = {
+            uid = config.users.users."someuser".uid;
+            gid = config.users.groups."somegroup".gid;
+            key = "test_key";
+          };
+          test_key_someuser_root = {
+            uid = config.users.users."someuser".uid;
+            key = "test_key";
+          };
+          test_key_root_root = {
+            key = "test_key";
+          };
+          test_key_1001_1001 = {
+            uid = 1001;
+            gid = 1001;
+            key = "test_key";
+          };
+        };
+      };
+
+      users.users."someuser" = {
+        uid = 1000;
+        group = "somegroup";
+        isNormalUser = true;
+      };
+      users.groups."somegroup" = {
+        gid = 1000;
       };
 
       # must run before sops sets up keys
@@ -130,6 +159,22 @@ in {
     testScript = ''
       start_all()
       machine.succeed("cat /run/secrets/test_key | grep -q test_value")
+
+      with subtest("test ownership"):
+         machine.succeed("[ $(stat -c%u /run/secrets/test_key_someuser_somegroup) = '1000' ]")
+         machine.succeed("[ $(stat -c%g /run/secrets/test_key_someuser_somegroup) = '1000' ]")
+         machine.succeed("[ $(stat -c%U /run/secrets/test_key_someuser_somegroup) = 'someuser' ]")
+         machine.succeed("[ $(stat -c%G /run/secrets/test_key_someuser_somegroup) = 'somegroup' ]")
+
+         machine.succeed("[ $(stat -c%u /run/secrets/test_key_someuser_root) = '1000' ]")
+         machine.succeed("[ $(stat -c%g /run/secrets/test_key_someuser_root) = '0' ]")
+         machine.succeed("[ $(stat -c%U /run/secrets/test_key_someuser_root) = 'someuser' ]")
+         machine.succeed("[ $(stat -c%G /run/secrets/test_key_someuser_root) = 'root' ]")
+
+         machine.succeed("[ $(stat -c%u /run/secrets/test_key_1001_1001) = '1001' ]")
+         machine.succeed("[ $(stat -c%g /run/secrets/test_key_1001_1001) = '1001' ]")
+         machine.succeed("[ $(stat -c%U /run/secrets/test_key_1001_1001) = 'UNKNOWN' ]")
+         machine.succeed("[ $(stat -c%G /run/secrets/test_key_1001_1001) = 'UNKNOWN' ]")
     '';
   };
 
@@ -142,6 +187,7 @@ in {
         type = "ed25519";
         path = ./test-assets/ssh-ed25519-key;
       }];
+
       sops = {
         defaultSopsFile = ./test-assets/secrets.yaml;
         secrets.test_key = { };
@@ -161,7 +207,7 @@ in {
 
   pgp-keys = testers.runNixOSTest {
     name = "sops-pgp-keys";
-    nodes.server = { pkgs, lib, config, ... }: {
+    nodes.server = { lib, config, ... }: {
       imports = [ ../../modules/sops ];
 
       users.users.someuser = {

@@ -29,8 +29,10 @@ type secret struct {
 	Name         string     `json:"name"`
 	Key          string     `json:"key"`
 	Path         string     `json:"path"`
-	Owner        string     `json:"owner"`
-	Group        string     `json:"group"`
+	Owner        *string    `json:"owner,omitempty"`
+	UID          int        `json:"uid"`
+	Group        *string    `json:"group,omitempty"`
+	GID          int        `json:"gid"`
 	SopsFile     string     `json:"sopsFile"`
 	Format       FormatType `json:"format"`
 	Mode         string     `json:"mode"`
@@ -475,25 +477,34 @@ func (app *appContext) validateSecret(secret *secret) error {
 		secret.group = 0
 	} else if app.checkMode == Off || app.ignorePasswd {
 		// we only access to the user/group during deployment
-		owner, err := user.Lookup(secret.Owner)
-		if err != nil {
-			return fmt.Errorf("failed to lookup user '%s': %w", secret.Owner, err)
-		}
-		ownerNr, err := strconv.ParseUint(owner.Uid, 10, 64)
-		if err != nil {
-			return fmt.Errorf("cannot parse uid %s: %w", owner.Uid, err)
-		}
-		secret.owner = int(ownerNr)
 
-		group, err := user.LookupGroup(secret.Group)
-		if err != nil {
-			return fmt.Errorf("failed to lookup group '%s': %w", secret.Group, err)
+		if secret.Owner == nil {
+			secret.owner = secret.UID
+		} else {
+			owner, err := user.Lookup(*secret.Owner)
+			if err != nil {
+				return fmt.Errorf("failed to lookup user '%s': %w", *secret.Owner, err)
+			}
+			uid, err := strconv.ParseUint(owner.Uid, 10, 64)
+			if err != nil {
+				return fmt.Errorf("cannot parse uid %s: %w", owner.Uid, err)
+			}
+			secret.owner = int(uid)
 		}
-		groupNr, err := strconv.ParseUint(group.Gid, 10, 64)
-		if err != nil {
-			return fmt.Errorf("cannot parse gid %s: %w", group.Gid, err)
+
+		if secret.Group == nil {
+			secret.group = secret.GID
+		} else {
+			group, err := user.LookupGroup(*secret.Group)
+			if err != nil {
+				return fmt.Errorf("failed to lookup group '%s': %w", *secret.Group, err)
+			}
+			gid, err := strconv.ParseUint(group.Gid, 10, 64)
+			if err != nil {
+				return fmt.Errorf("cannot parse gid %s: %w", group.Gid, err)
+			}
+			secret.group = int(gid)
 		}
-		secret.group = int(groupNr)
 	}
 
 	if secret.Format == "" {

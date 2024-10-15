@@ -73,18 +73,32 @@ let
         '';
       };
       owner = lib.mkOption {
-        type = lib.types.str;
-        default = "root";
+        type = with lib.types; nullOr str;
+        default = null;
         description = ''
-          User of the file.
+          User of the file. Can only be set if uid is 0.
+        '';
+      };
+      uid = lib.mkOption {
+        type = with lib.types; nullOr int;
+        default = 0;
+        description = ''
+          UID of the file, only applied when owner is null. The UID will be applied even if the corresponding user doesn't exist.
         '';
       };
       group = lib.mkOption {
-        type = lib.types.str;
-        default = users.${config.owner}.group;
+        type = with lib.types; nullOr str;
+        default = if config.owner != null then users.${config.owner}.group else null;
         defaultText = lib.literalMD "{option}`config.users.users.\${owner}.group`";
         description = ''
-          Group of the file.
+          Group of the file. Can only be set if gid is 0.
+        '';
+      };
+      gid = lib.mkOption {
+        type = with lib.types; nullOr int;
+        default = 0;
+        description = ''
+          GID of the file, only applied when group is null. The GID will be applied even if the corresponding group doesn't exist.
         '';
       };
       sopsFile = lib.mkOption {
@@ -318,6 +332,12 @@ in {
             builtins.isPath secret.sopsFile ||
             (builtins.isString secret.sopsFile && lib.hasPrefix builtins.storeDir secret.sopsFile);
           message = "'${secret.sopsFile}' is not in the Nix store. Either add it to the Nix store or set sops.validateSopsFiles to false";
+        } {
+          assertion = secret.uid != null && secret.uid != 0 -> secret.owner == null;
+          message = "In ${secret.name} exactly one of sops.owner and sops.uid must be set";
+        } {
+          assertion = secret.gid != null && secret.gid != 0 -> secret.group == null;
+          message = "In ${secret.name} exactly one of sops.group and sops.gid must be set";
         }]) cfg.secrets)
       );
 
