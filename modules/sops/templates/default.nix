@@ -69,7 +69,7 @@ in {
           group = mkOption {
             type = singleLineStr;
             default = users.${config.owner}.group;
-            defaultText = ''config.users.users.''${cfg.owner}.group'';
+            defaultText = lib.literalExpression ''config.users.users.''${cfg.owner}.group'';
             description = ''
               Group of the file.
             '';
@@ -77,7 +77,7 @@ in {
           file = mkOption {
             type = types.path;
             default = pkgs.writeText config.name config.content;
-            defaultText = ''pkgs.writeText config.name config.content'';
+            defaultText = lib.literalExpression ''pkgs.writeText config.name config.content'';
             example = "./configuration-template.conf";
             description = ''
               File used as the template. When this value is specified, `sops.templates.<name>.content` is ignored.
