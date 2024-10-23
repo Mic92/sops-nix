@@ -54,7 +54,7 @@ let
       sopsFile = lib.mkOption {
         type = lib.types.path;
         default = cfg.defaultSopsFile;
-        defaultText = "\${config.sops.defaultSopsFile}";
+        defaultText = lib.literalExpression "\${config.sops.defaultSopsFile}";
         description = ''
           Sops file the secret is loaded from.
         '';
@@ -267,7 +267,7 @@ in {
     };
 
     # [re]load secrets on home-manager activation
-    home.activation = let 
+    home.activation = let
       darwin = let
         domain-target = "gui/$(id -u ${config.home.username})";
       in ''
@@ -286,7 +286,7 @@ in {
 
         unset systemdStatus
       '';
-    
+
     in {
       sops-nix = if pkgs.stdenv.isLinux then linux else darwin;
     };

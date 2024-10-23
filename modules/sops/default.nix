@@ -103,7 +103,7 @@ let
       };
       sopsFile = lib.mkOption {
         type = lib.types.path;
-        defaultText = "\${config.sops.defaultSopsFile}";
+        defaultText = lib.literalExpression "\${config.sops.defaultSopsFile}";
         description = ''
           Sops file the secret is loaded from.
         '';
