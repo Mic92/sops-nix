@@ -41,11 +41,12 @@ let
       };
       key = lib.mkOption {
         type = lib.types.str;
-        default = config._module.args.name;
+        default = if cfg.defaultSopsKey != null then cfg.defaultSopsKey else config._module.args.name;
         description = ''
           Key used to lookup in the sops file.
           No tested data structures are supported right now.
           This option is ignored if format is binary.
+          "" means whole file.
         '';
       };
       path = lib.mkOption {
@@ -173,6 +174,16 @@ in {
       default = "yaml";
       description = ''
         Default sops format used for all secrets.
+      '';
+    };
+
+    defaultSopsKey = lib.mkOption {
+      type = lib.types.nullOr lib.types.str;
+      default = null;
+      description = ''
+        Default key used to lookup in all secrets.
+        This option is ignored if format is binary.
+        "" means whole file.
       '';
     };
 
