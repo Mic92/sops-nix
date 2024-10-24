@@ -1,4 +1,8 @@
+<<<<<<< Updated upstream
 { lib, buildGoModule, stdenv, vendorHash, go, callPackages }:
+=======
+{ lib, buildGoModule, path, pkgs, vendorHash, go, home-manager }:
+>>>>>>> Stashed changes
 buildGoModule {
   pname = "sops-install-secrets";
   version = "0.0.1";
@@ -10,7 +14,17 @@ buildGoModule {
   # requires root privileges for tests
   doCheck = false;
 
+<<<<<<< Updated upstream
   passthru.tests = callPackages ./nixos-test.nix { };
+=======
+  passthru = {
+    hm-tests = (import ./hm-test.nix { inherit pkgs; inherit home-manager; }).run.all;
+    tests = import ./nixos-test.nix {
+      makeTest = import (path + "/nixos/tests/make-test-python.nix");
+      inherit pkgs;
+    };
+  };
+>>>>>>> Stashed changes
 
   outputs = [ "out" ] ++
   lib.lists.optionals (stdenv.isLinux) [ "unittest" ];

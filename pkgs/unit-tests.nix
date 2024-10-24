@@ -1,7 +1,8 @@
 { pkgs ? import <nixpkgs> {}
+, home-manager ? import <home-manager> {}
 }:
 let
-  sopsPkgs = import ../. { inherit pkgs; };
+  sopsPkgs = import ../. { inherit home-manager pkgs; };
 in pkgs.stdenv.mkDerivation {
   name = "env";
   nativeBuildInputs = with pkgs; [
