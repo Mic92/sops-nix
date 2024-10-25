@@ -258,9 +258,9 @@ in {
       };
       Service = {
         Type = "oneshot";
+        Environment = builtins.concatStringsSep " " (lib.mapAttrsToList (name: value: "'${name}=${value}'") cfg.environment);
         ExecStart = script;
       };
-      Environment = cfg.environment;
       Install.WantedBy = if cfg.gnupg.home != null then [ "graphical-session-pre.target" ] else [ "default.target" ];
     };
 
