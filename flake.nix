@@ -27,10 +27,10 @@
       inherit (prev) ssh-to-pgp;
     };
     nixosModules = {
-      sops = import ./modules/sops;
+      sops = ./modules/sops;
       default = self.nixosModules.sops;
     };
-    homeManagerModules.sops = import ./modules/home-manager/sops.nix;
+    homeManagerModules.sops = ./modules/home-manager/sops.nix;
     homeManagerModule = self.homeManagerModules.sops;
     packages = forAllSystems (system:
       import ./default.nix {
