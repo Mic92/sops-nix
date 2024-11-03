@@ -6,7 +6,6 @@ package main
 import (
 	"errors"
 	"fmt"
-	"log"
 	"os"
 	"os/exec"
 	"strings"
@@ -71,21 +70,16 @@ func MountSecretFs(mountpoint string, keysGID int, _useTmpfs bool, userMode bool
 	size := mb * 1024 * 1024 / 512 // size in sectors a 512 bytes
 	cmd := exec.Command("hdiutil", "attach", "-nomount", fmt.Sprintf("ram://%d", int(size)))
 	out, err := cmd.Output() // /dev/diskN
-	log.Printf("%q\n", string(out))
 	diskpath := strings.TrimRight(string(out[:]), " \t\n")
-	log.Printf("%q\n", diskpath)
-	log.Printf("hdiutil attach ret %v. out: %s", err, diskpath)
 
 	// format as hfs
 	out, err = exec.Command("newfs_hfs", "-s", diskpath).Output()
-	log.Printf("newfs_hfs ret %v. out: %s", err, out)
 
 	// "posix" mount takes `struct hfs_mount_args` which we dont have bindings for at hand.
 	// See https://stackoverflow.com/a/49048846/4108673
 	// err = unix.Mount("hfs", mountpoint, unix.MNT_NOEXEC|unix.MNT_NODEV, mount_args)
 	// Instead we call:
 	out, err = exec.Command("mount", "-t", "hfs", "-o", "nobrowse,nodev,nosuid,-m=0751", diskpath, mountpoint).Output()
-	log.Printf("mount ret %v. out: %s", err, out)
 
 	// There is no documented way to check for memfs mountpoint. Thus we place a file.
 	path := mountpoint + "/sops-nix-secretfs"
