@@ -16,6 +16,7 @@ writeTextFile {
     ageSshKeyPaths = cfg.age.sshKeyPaths;
     useTmpfs = cfg.useTmpfs;
     templates = cfg.templates;
+    placeholderBySecretName = cfg.placeholder;
     userMode = false;
     logging = {
       keyImport = builtins.elem "keyImport" cfg.log;

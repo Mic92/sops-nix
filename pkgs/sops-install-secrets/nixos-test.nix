@@ -241,7 +241,7 @@ in {
     testScript = ''
       def assertEqual(exp: str, act: str) -> None:
           if exp != act:
-              raise Exception(f"'{exp}' != '{act}'")
+              raise Exception(f"{exp!r} != {act!r}")
 
 
       start_all()
@@ -260,7 +260,7 @@ in {
 
   templates = testers.runNixOSTest {
     name = "sops-templates";
-    nodes.machine = { config, lib, ... }: {
+    nodes.machine = { config, ... }: {
       imports = [ ../../modules/sops ];
       sops = {
         age.keyFile = "/run/age-keys.txt";
@@ -296,32 +296,37 @@ in {
     };
 
     testScript = ''
-      start_all()
-      machine.succeed("[ $(stat -c%U /run/secrets-rendered/test_template) = 'someuser' ]")
-      machine.succeed("[ $(stat -c%G /run/secrets-rendered/test_template) = 'somegroup' ]")
-      machine.succeed("[ $(stat -c%U /run/secrets-rendered/test_default) = 'root' ]")
-      machine.succeed("[ $(stat -c%G /run/secrets-rendered/test_default) = 'root' ]")
+      def assertEqual(exp: str, act: str) -> None:
+          if exp != act:
+              raise Exception(f"{exp!r} != {act!r}")
 
-      expected = """
+
+      start_all()
+      machine.succeed("[ $(stat -c%U /run/secrets/rendered/test_template) = 'someuser' ]")
+      machine.succeed("[ $(stat -c%G /run/secrets/rendered/test_template) = 'somegroup' ]")
+      machine.succeed("[ $(stat -c%U /run/secrets/rendered/test_default) = 'root' ]")
+      machine.succeed("[ $(stat -c%G /run/secrets/rendered/test_default) = 'root' ]")
+
+      expected = """\
       This line is not modified.
       The next value will be replaced by test_value
       This line is also not modified.
       """
-      rendered = machine.succeed("cat /run/secrets-rendered/test_template")
+      rendered = machine.succeed("cat /run/secrets/rendered/test_template")
 
-      expected_default = """
+      expected_default = """\
       Test value: test_value
       """
-      rendered_default = machine.succeed("cat /run/secrets-rendered/test_default")
+      rendered_default = machine.succeed("cat /run/secrets/rendered/test_default")
 
-      if rendered.strip() != expected.strip() or rendered_default.strip() != expected_default.strip():
-        raise Exception("Template is not rendered correctly")
+      assertEqual(expected, rendered)
+      assertEqual(expected_default, rendered_default)
     '';
   };
 
   restart-and-reload = testers.runNixOSTest {
     name = "sops-restart-and-reload";
-    nodes.machine = { pkgs, lib, config, ... }: {
+    nodes.machine = {
       imports = [ ../../modules/sops ];
 
       sops = {

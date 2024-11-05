@@ -11,7 +11,6 @@ import (
 	"os/user"
 	"path"
 	"path/filepath"
-	"regexp"
 	"strconv"
 	"strings"
 	"syscall"
@@ -51,32 +50,36 @@ type loggingConfig struct {
 }
 
 type template struct {
-	Name    string `json:"name"`
-	Content string `json:"content"`
-	Path    string `json:"path"`
-	Mode    string `json:"mode"`
-	Owner   string `json:"owner"`
-	Group   string `json:"group"`
-	File    string `json:"file"`
+	Name    string  `json:"name"`
+	Content string  `json:"content"`
+	Path    string  `json:"path"`
+	Mode    string  `json:"mode"`
+	Owner   *string `json:"owner,omitempty"`
+	UID     int     `json:"uid"`
+	Group   *string `json:"group,omitempty"`
+	GID     int     `json:"gid"`
+	File    string  `json:"file"`
 	value   []byte
 	mode    os.FileMode
+	content string
 	owner   int
 	group   int
 }
 
 type manifest struct {
-	Secrets           []secret      `json:"secrets"`
-	Templates         []template    `json:"templates"`
-	SecretsMountPoint string        `json:"secretsMountPoint"`
-	SymlinkPath       string        `json:"symlinkPath"`
-	KeepGenerations   int           `json:"keepGenerations"`
-	SSHKeyPaths       []string      `json:"sshKeyPaths"`
-	GnupgHome         string        `json:"gnupgHome"`
-	AgeKeyFile        string        `json:"ageKeyFile"`
-	AgeSSHKeyPaths    []string      `json:"ageSshKeyPaths"`
-	UseTmpfs          bool          `json:"useTmpfs"`
-	UserMode          bool          `json:"userMode"`
-	Logging           loggingConfig `json:"logging"`
+	Secrets                 []secret             `json:"secrets"`
+	Templates               map[string]*template `json:"templates"`
+	PlaceholderBySecretName map[string]string    `json:"placeholderBySecretName"`
+	SecretsMountPoint       string               `json:"secretsMountPoint"`
+	SymlinkPath             string               `json:"symlinkPath"`
+	KeepGenerations         int                  `json:"keepGenerations"`
+	SSHKeyPaths             []string             `json:"sshKeyPaths"`
+	GnupgHome               string               `json:"gnupgHome"`
+	AgeKeyFile              string               `json:"ageKeyFile"`
+	AgeSSHKeyPaths          []string             `json:"ageSshKeyPaths"`
+	UseTmpfs                bool                 `json:"useTmpfs"`
+	UserMode                bool                 `json:"userMode"`
+	Logging                 loggingConfig        `json:"logging"`
 }
 
 type secretFile struct {
@@ -144,11 +147,11 @@ type options struct {
 }
 
 type appContext struct {
-	manifest     manifest
-	secretFiles  map[string]secretFile
-	placeholder  map[string]secret
-	checkMode    CheckMode
-	ignorePasswd bool
+	manifest            manifest
+	secretFiles         map[string]secretFile
+	secretByPlaceholder map[string]*secret
+	checkMode           CheckMode
+	ignorePasswd        bool
 }
 
 func readManifest(path string) (*manifest, error) {
@@ -363,28 +366,28 @@ func prepareSecretsDir(secretMountpoint string, linkName string, keysGID int, us
 	return &dir, nil
 }
 
-func createParentDirs(parent string, target string, keysGid int, userMode bool) error {
+func createParentDirs(parent string, target string, keysGID int, userMode bool) error {
 	dirs := strings.Split(filepath.Dir(target), "/")
 	pathSoFar := parent
 	for _, dir := range dirs {
 		pathSoFar = filepath.Join(pathSoFar, dir)
 		if err := os.MkdirAll(pathSoFar, 0o751); err != nil {
-			return fmt.Errorf("Cannot create directory '%s' for %s: %w", pathSoFar, filepath.Join(parent, target), err)
+			return fmt.Errorf("cannot create directory '%s' for %s: %w", pathSoFar, filepath.Join(parent, target), err)
 		}
 		if !userMode {
-			if err := os.Chown(pathSoFar, 0, int(keysGid)); err != nil {
-				return fmt.Errorf("Cannot own directory '%s' for %s: %w", pathSoFar, filepath.Join(parent, target), err)
+			if err := os.Chown(pathSoFar, 0, int(keysGID)); err != nil {
+				return fmt.Errorf("cannot own directory '%s' for %s: %w", pathSoFar, filepath.Join(parent, target), err)
 			}
 		}
 	}
 	return nil
 }
 
-func writeSecrets(secretDir string, secrets []secret, keysGid int, userMode bool) error {
+func writeSecrets(secretDir string, secrets []secret, keysGID int, userMode bool) error {
 	for _, secret := range secrets {
 		fp := filepath.Join(secretDir, secret.Name)
 
-		if err := createParentDirs(secretDir, secret.Name, keysGid, userMode); err != nil {
+		if err := createParentDirs(secretDir, secret.Name, keysGID, userMode); err != nil {
 			return err
 		}
 		if err := os.WriteFile(fp, []byte(secret.value), secret.mode); err != nil {
@@ -463,7 +466,7 @@ func (app *appContext) loadSopsFile(s *secret) (*secretFile, error) {
 		if err != nil {
 			return nil, fmt.Errorf("cannot parse ini of '%s': %w", s.SopsFile, err)
 		}
-		// TODO: we do not acctually check the contents of the ini here...
+		// TODO: we do not actually check the contents of the ini here...
 	}
 
 	return &secretFile{
@@ -491,7 +494,7 @@ func (app *appContext) validateSopsFile(s *secret, file *secretFile) error {
 func validateMode(mode string) (os.FileMode, error) {
 	parsed, err := strconv.ParseUint(mode, 8, 16)
 	if err != nil {
-		return 0, fmt.Errorf("Invalid number in mode: %d: %w", mode, err)
+		return 0, fmt.Errorf("invalid number in mode: %s: %w", mode, err)
 	}
 	return os.FileMode(parsed), nil
 }
@@ -499,11 +502,11 @@ func validateMode(mode string) (os.FileMode, error) {
 func validateOwner(owner string) (int, error) {
 	lookedUp, err := user.Lookup(owner)
 	if err != nil {
-		return 0, fmt.Errorf("Failed to lookup user '%s': %w", owner, err)
+		return 0, fmt.Errorf("failed to lookup user '%s': %w", owner, err)
 	}
 	ownerNr, err := strconv.ParseUint(lookedUp.Uid, 10, 64)
 	if err != nil {
-		return 0, fmt.Errorf("Cannot parse uid %s: %w", lookedUp.Uid, err)
+		return 0, fmt.Errorf("cannot parse uid %s: %w", lookedUp.Uid, err)
 	}
 	return int(ownerNr), nil
 }
@@ -511,11 +514,11 @@ func validateOwner(owner string) (int, error) {
 func validateGroup(group string) (int, error) {
 	lookedUp, err := user.LookupGroup(group)
 	if err != nil {
-		return 0, fmt.Errorf("Failed to lookup group '%s': %w", group, err)
+		return 0, fmt.Errorf("failed to lookup group '%s': %w", group, err)
 	}
 	groupNr, err := strconv.ParseUint(lookedUp.Gid, 10, 64)
 	if err != nil {
-		return 0, fmt.Errorf("Cannot parse gid %s: %w", lookedUp.Gid, err)
+		return 0, fmt.Errorf("cannot parse gid %s: %w", lookedUp.Gid, err)
 	}
 	return int(groupNr), nil
 }
@@ -531,39 +534,24 @@ func (app *appContext) validateSecret(secret *secret) error {
 		secret.owner = 0
 		secret.group = 0
 	} else if app.checkMode == Off || app.ignorePasswd {
-		// we only access to the user/group during deployment
-		owner, err := validateOwner(*secret.Owner)
-		if err != nil {
-			return err
-		}
-		secret.owner = owner
-
 		if secret.Owner == nil {
 			secret.owner = secret.UID
 		} else {
-			owner, err := user.Lookup(*secret.Owner)
+			owner, err := validateOwner(*secret.Owner)
 			if err != nil {
-				return fmt.Errorf("failed to lookup user '%s': %w", *secret.Owner, err)
+				return err
 			}
-			uid, err := strconv.ParseUint(owner.Uid, 10, 64)
-			if err != nil {
-				return fmt.Errorf("cannot parse uid %s: %w", owner.Uid, err)
-			}
-			secret.owner = int(uid)
+			secret.owner = owner
 		}
 
 		if secret.Group == nil {
 			secret.group = secret.GID
 		} else {
-			group, err := user.LookupGroup(*secret.Group)
+			group, err := validateGroup(*secret.Group)
 			if err != nil {
-				return fmt.Errorf("failed to lookup group '%s': %w", *secret.Group, err)
+				return err
 			}
-			gid, err := strconv.ParseUint(group.Gid, 10, 64)
-			if err != nil {
-				return fmt.Errorf("cannot parse gid %s: %w", group.Gid, err)
-			}
-			secret.group = int(gid)
+			secret.group = group
 		}
 	}
 
@@ -582,31 +570,26 @@ func (app *appContext) validateSecret(secret *secret) error {
 			return err
 		}
 		app.secretFiles[secret.SopsFile] = *maybeFile
+
 		file = *maybeFile
 	}
 
 	return app.validateSopsFile(secret, &file)
 }
 
-var PLACEHOLDER = regexp.MustCompile(`<SOPS:([a-f0-9]{64}):PLACEHOLDER>`)
-
-func renderTemplate(content *string, secrets []secret) ([]byte, error) {
-	secretMap := make(map[string][]byte)
-	var err error = nil
-	replaced := PLACEHOLDER.ReplaceAllStringFunc(*content, func(match string) string {
-		secretName := PLACEHOLDER.FindStringSubmatch(match)[1]
-		for _, secret := range secrets {
-			if secret.Name == secretName {
-				secretMap[secretName] = secret.value
-				return string(secret.value)
-			}
-		}
-		return match
-	})
-	if err != nil {
-		return nil, err
+func renderTemplates(templates map[string]*template, secretByPlaceholder map[string]*secret) {
+	for _, template := range templates {
+		rendered := renderTemplate(&template.content, secretByPlaceholder)
+		template.value = []byte(rendered)
 	}
-	return []byte{}, nil
+}
+
+func renderTemplate(content *string, secretByPlaceholder map[string]*secret) string {
+	rendered := *content
+	for placeholder, secret := range secretByPlaceholder {
+		rendered = strings.ReplaceAll(rendered, placeholder, string(secret.value))
+	}
+	return rendered
 }
 
 func (app *appContext) validateTemplate(template *template) error {
@@ -620,18 +603,25 @@ func (app *appContext) validateTemplate(template *template) error {
 		template.owner = 0
 		template.group = 0
 	} else if app.checkMode == Off || app.ignorePasswd {
-		// we only access to the user/group during deployment
-		owner, err := validateOwner(template.Owner)
-		if err != nil {
-			return err
+		if template.Owner == nil {
+			template.owner = template.UID
+		} else {
+			owner, err := validateOwner(*template.Owner)
+			if err != nil {
+				return err
+			}
+			template.owner = owner
 		}
-		template.owner = owner
 
-		group, err := validateGroup(template.Group)
-		if err != nil {
-			return err
+		if template.Group == nil {
+			template.group = template.GID
+		} else {
+			group, err := validateGroup(*template.Group)
+			if err != nil {
+				return err
+			}
+			template.group = group
 		}
-		template.group = group
 	}
 
 	var templateText string
@@ -640,17 +630,14 @@ func (app *appContext) validateTemplate(template *template) error {
 	} else if template.File != "" {
 		templateBytes, err := os.ReadFile(template.File)
 		if err != nil {
-			return fmt.Errorf("Cannot read %s: %w", template.File, err)
+			return fmt.Errorf("cannot read %s: %w", template.File, err)
 		}
 		templateText = string(templateBytes)
 	} else {
-		return fmt.Errorf("Neither content nor file was specified for template %s", template.Name)
+		return fmt.Errorf("neither content nor file was specified for template %s", template.Name)
 	}
-	rendered, err := renderTemplate(&templateText, app.manifest.Secrets)
-	if err != nil {
-		return fmt.Errorf("Failed to render template %s: %w", template.Name, err)
-	}
-	template.value = rendered
+
+	template.content = templateText
 
 	return nil
 }
@@ -668,15 +655,22 @@ func (app *appContext) validateManifest() error {
 		}
 	}
 
-	for _, secret := range m.Secrets {
-		if err := app.validateSecret(&secret); err != nil {
+	for i := range m.Secrets {
+		secret := &m.Secrets[i]
+		if err := app.validateSecret(secret); err != nil {
 			return err
 		}
+
+		// The Nix module only defines placeholders for secrets if there are
+		// templates.
+		if len(m.Templates) > 0 {
+			placeholder := m.PlaceholderBySecretName[secret.Name]
+			app.secretByPlaceholder[placeholder] = secret
+		}
 	}
-	if len(m.Templates) > 0 {
-	}
+
 	for _, template := range m.Templates {
-		if err := app.validateTemplate(&template); err != nil {
+		if err := app.validateTemplate(template); err != nil {
 			return err
 		}
 	}
@@ -1060,20 +1054,21 @@ func replaceRuntimeDir(path, rundir string) (ret string) {
 	return
 }
 
-func writeTemplates(targetDir string, templates []template, keysGid int, userMode bool) error {
+func writeTemplates(targetDir string, templates map[string]*template, keysGID int, userMode bool) error {
 	for _, template := range templates {
 		fp := filepath.Join(targetDir, template.Name)
 
-		createParentDirs(targetDir, template.Name, keysGid, userMode)
+		if err := createParentDirs(targetDir, template.Name, keysGID, userMode); err != nil {
+			return err
+		}
 
 		if err := os.WriteFile(fp, []byte(template.value), template.mode); err != nil {
-			return fmt.Errorf("Cannot write %s: %w", fp, err)
+			return fmt.Errorf("cannot write %s: %w", fp, err)
 		}
 		if !userMode {
 			if err := os.Chown(fp, template.owner, template.group); err != nil {
-				return fmt.Errorf("Cannot change owner/group of '%s' to %d/%d: %w", fp, secret.owner, secret.group, err)
-			}
-		}
+				return fmt.Errorf("cannot change owner/group of '%s' to %d/%d: %w", fp, template.owner, template.group, err)
+			} }
 	}
 	return nil
 }
@@ -1106,10 +1101,11 @@ func installSecrets(args []string) error {
 	}
 
 	app := appContext{
-		manifest:     *manifest,
-		checkMode:    opts.checkMode,
-		ignorePasswd: opts.ignorePasswd,
-		secretFiles:  make(map[string]secretFile),
+		manifest:            *manifest,
+		checkMode:           opts.checkMode,
+		ignorePasswd:        opts.ignorePasswd,
+		secretFiles:         make(map[string]secretFile),
+		secretByPlaceholder: make(map[string]*secret),
 	}
 
 	if err = app.validateManifest(); err != nil {
@@ -1183,9 +1179,12 @@ func installSecrets(args []string) error {
 		}
 	}
 
-	if err = decryptSecrets(manifest.Secrets); err != nil {
+	if err := decryptSecrets(manifest.Secrets); err != nil {
 		return err
 	}
+
+	// Now that the secrets are decrypted, we can render the templates.
+	renderTemplates(manifest.Templates, app.secretByPlaceholder)
 
 	secretDir, err := prepareSecretsDir(manifest.SecretsMountPoint, manifest.SymlinkPath, keysGID, manifest.UserMode)
 	if err != nil {
@@ -1195,8 +1194,8 @@ func installSecrets(args []string) error {
 		return fmt.Errorf("cannot write secrets: %w", err)
 	}
 
-	if err := writeTemplates(path.Join(*secretDir, "rendered"), manifest.Templates, keysGid, manifest.UserMode); err != nil {
-		return fmt.Errorf("Cannot render templates: %w", err)
+	if err := writeTemplates(path.Join(*secretDir, "rendered"), manifest.Templates, keysGID, manifest.UserMode); err != nil {
+		return fmt.Errorf("cannot render templates: %w", err)
 	}
 
 	if !manifest.UserMode {
