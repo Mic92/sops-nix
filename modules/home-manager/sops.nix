@@ -132,7 +132,7 @@ in {
       '';
     };
 
-    defaultSopsKey = mkOption {
+    defaultSopsKey = lib.mkOption {
       type = lib.types.nullOr lib.types.str;
       default = null;
       description = ''
