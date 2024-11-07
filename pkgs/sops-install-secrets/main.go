@@ -11,6 +11,7 @@ import (
 	"os/user"
 	"path"
 	"path/filepath"
+	"sort"
 	"strconv"
 	"strings"
 	"syscall"
@@ -984,12 +985,15 @@ func handleModifications(isDry bool, logcfg loggingConfig, symlinkPath string, s
 			} else {
 				fmt.Printf("%s secret%s: ", regularPrefix, s)
 			}
-			comma := ""
-			for name := range changed {
-				fmt.Printf("%s%s", comma, name)
-				comma = ", "
+
+			// Sort the output for deterministic behavior.
+			keys := make([]string, 0, len(changed))
+			for key := range changed {
+				keys = append(keys, key)
 			}
-			fmt.Println()
+			sort.Strings(keys)
+
+			fmt.Println(strings.Join(keys, ", "))
 		}
 	}
 	outputChanged(newSecrets, "adding", "would add")
