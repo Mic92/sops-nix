@@ -51,20 +51,22 @@ type loggingConfig struct {
 }
 
 type template struct {
-	Name    string  `json:"name"`
-	Content string  `json:"content"`
-	Path    string  `json:"path"`
-	Mode    string  `json:"mode"`
-	Owner   *string `json:"owner,omitempty"`
-	UID     int     `json:"uid"`
-	Group   *string `json:"group,omitempty"`
-	GID     int     `json:"gid"`
-	File    string  `json:"file"`
-	value   []byte
-	mode    os.FileMode
-	content string
-	owner   int
-	group   int
+	Name         string   `json:"name"`
+	Content      string   `json:"content"`
+	Path         string   `json:"path"`
+	Mode         string   `json:"mode"`
+	Owner        *string  `json:"owner,omitempty"`
+	UID          int      `json:"uid"`
+	Group        *string  `json:"group,omitempty"`
+	GID          int      `json:"gid"`
+	File         string   `json:"file"`
+	RestartUnits []string `json:"restartUnits"`
+	ReloadUnits  []string `json:"reloadUnits"`
+	value        []byte
+	mode         os.FileMode
+	content      string
+	owner        int
+	group        int
 }
 
 type manifest struct {
@@ -951,6 +953,8 @@ func handleModifications(isDry bool, logcfg loggingConfig, symlinkPath string, s
 		if err != nil {
 			if os.IsNotExist(err) {
 				// File did not exist before
+				restart = append(restart, template.RestartUnits...)
+				reload = append(reload, template.ReloadUnits...)
 				newTemplates[template.Name] = true
 				continue
 			}
@@ -964,6 +968,8 @@ func handleModifications(isDry bool, logcfg loggingConfig, symlinkPath string, s
 		}
 
 		if !bytes.Equal(oldData, newData) {
+			restart = append(restart, template.RestartUnits...)
+			reload = append(reload, template.ReloadUnits...)
 			modifiedTemplates[template.Name] = true
 		}
 	}
@@ -1156,7 +1162,8 @@ func writeTemplates(targetDir string, templates map[string]*template, keysGID in
 		if !userMode {
 			if err := os.Chown(fp, template.owner, template.group); err != nil {
 				return fmt.Errorf("cannot change owner/group of '%s' to %d/%d: %w", fp, template.owner, template.group, err)
-			} }
+			}
+		}
 	}
 	return nil
 }

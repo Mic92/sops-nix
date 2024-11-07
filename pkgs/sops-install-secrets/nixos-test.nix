@@ -344,10 +344,14 @@ in {
           reloadUnits = [ "reload-trigger.service" ];
         };
 
-        templates.test_template.content = ''
-          this is a template with
-          a secret: ${config.sops.placeholder.test_key}
-        '';
+        templates.test_template = {
+          content = ''
+            this is a template with
+            a secret: ${config.sops.placeholder.test_key}
+          '';
+          restartUnits = [ "restart-unit.service" "reload-unit.service" ];
+          reloadUnits = [ "reload-trigger.service" ];
+        };
       };
       system.switch.enable = true;
 
@@ -420,6 +424,22 @@ in {
       # Ensure something happened
       machine.succeed("test -f /restarted")
       machine.succeed("test -f /reloaded")
+
+      # Cleanup the marker files.
+      machine.succeed("rm /restarted /reloaded")
+
+      # Ensure the template is changed
+      machine.succeed(": > /run/secrets/rendered/test_template")
+
+      # The template is changed, now something should happen
+      machine.succeed("/run/current-system/bin/switch-to-configuration test")
+
+      # Ensure something happened
+      machine.succeed("test -f /restarted")
+      machine.succeed("test -f /reloaded")
+
+      # Cleanup the marker files.
+      machine.succeed("rm /restarted /reloaded")
 
       with subtest("change detection"):
         machine.succeed("rm /run/secrets/test_key")

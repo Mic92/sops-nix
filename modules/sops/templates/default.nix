@@ -65,6 +65,24 @@ in {
               File used as the template. When this value is specified, `sops.templates.<name>.content` is ignored.
             '';
           };
+          restartUnits = lib.mkOption {
+            type = lib.types.listOf lib.types.str;
+            default = [ ];
+            example = [ "sshd.service" ];
+            description = ''
+              Names of units that should be restarted when the rendered template changes.
+              This works the same way as <xref linkend="opt-systemd.services._name_.restartTriggers" />.
+            '';
+          };
+          reloadUnits = lib.mkOption {
+            type = lib.types.listOf lib.types.str;
+            default = [ ];
+            example = [ "sshd.service" ];
+            description = ''
+              Names of units that should be reloaded when the rendered template changes.
+              This works the same way as <xref linkend="opt-systemd.services._name_.reloadTriggers" />.
+            '';
+          };
         };
       }));
       default = { };
