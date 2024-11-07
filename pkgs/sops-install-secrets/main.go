@@ -155,6 +155,9 @@ type appContext struct {
 	ignorePasswd        bool
 }
 
+// Keep this in sync with `modules/sops/templates/default.nix`
+const RenderedSubdir string = "rendered"
+
 func readManifest(path string) (*manifest, error) {
 	file, err := os.Open(path)
 	if err != nil {
@@ -873,13 +876,17 @@ func symlinkWalk(filename string, linkDirname string, walkFn filepath.WalkFunc) 
 	return filepath.Walk(filename, symWalkFunc)
 }
 
-func handleModifications(isDry bool, logcfg loggingConfig, symlinkPath string, secretDir string, secrets []secret) error {
+func handleModifications(isDry bool, logcfg loggingConfig, symlinkPath string, secretDir string, secrets []secret, templates map[string]*template) error {
 	var restart []string
 	var reload []string
 
 	newSecrets := make(map[string]bool)
 	modifiedSecrets := make(map[string]bool)
 	removedSecrets := make(map[string]bool)
+
+	newTemplates := make(map[string]bool)
+	modifiedTemplates := make(map[string]bool)
+	removedTemplates := make(map[string]bool)
 
 	// When the symlink path does not exist yet, we are being run in stage-2-init.sh
 	// where switch-to-configuration is not run so the services would only be restarted
@@ -919,6 +926,33 @@ func handleModifications(isDry bool, logcfg loggingConfig, symlinkPath string, s
 		}
 	}
 
+	// Find modified/new templates
+	for _, template := range templates {
+		oldPath := filepath.Join(symlinkPath, RenderedSubdir, template.Name)
+		newPath := filepath.Join(secretDir, RenderedSubdir, template.Name)
+
+		// Read the old file
+		oldData, err := os.ReadFile(oldPath)
+		if err != nil {
+			if os.IsNotExist(err) {
+				// File did not exist before
+				newTemplates[template.Name] = true
+				continue
+			}
+			return err
+		}
+
+		// Read the new file
+		newData, err := os.ReadFile(newPath)
+		if err != nil {
+			return err
+		}
+
+		if !bytes.Equal(oldData, newData) {
+			modifiedTemplates[template.Name] = true
+		}
+	}
+
 	writeLines := func(list []string, file string) error {
 		if len(list) != 0 {
 			f, err := os.OpenFile(file, os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0o600)
@@ -952,7 +986,8 @@ func handleModifications(isDry bool, logcfg loggingConfig, symlinkPath string, s
 		return nil
 	}
 
-	// Find removed secrets
+	// Find removed secrets/templates.
+	symlinkRenderedPath := filepath.Join(symlinkPath, RenderedSubdir)
 	err := symlinkWalk(symlinkPath, symlinkPath, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return err
@@ -960,30 +995,49 @@ func handleModifications(isDry bool, logcfg loggingConfig, symlinkPath string, s
 		if info.IsDir() {
 			return nil
 		}
-		path = strings.TrimPrefix(path, symlinkPath+string(os.PathSeparator))
-		for _, secret := range secrets {
-			if secret.Name == path {
-				return nil
-			}
+
+		// If the path we're looking at isn't in `symlinkRenderedPath`, then
+		// it's a secret.
+		rel, err := filepath.Rel(symlinkRenderedPath, path)
+		if err != nil {
+			return err
 		}
-		removedSecrets[path] = true
+		isSecret := strings.HasPrefix(rel, "..")
+
+		if isSecret {
+			path = strings.TrimPrefix(path, symlinkPath+string(os.PathSeparator))
+			for _, secret := range secrets {
+				if secret.Name == path {
+					return nil
+				}
+			}
+			removedSecrets[path] = true
+		} else {
+			path = strings.TrimPrefix(path, symlinkRenderedPath+string(os.PathSeparator))
+			for _, template := range templates {
+				if template.Name == path {
+					return nil
+				}
+			}
+			removedTemplates[path] = true
+		}
 		return nil
 	})
 	if err != nil {
 		return err
 	}
 
-	// Output new/modified/removed secrets
-	outputChanged := func(changed map[string]bool, regularPrefix, dryPrefix string) {
+	// Output new/modified/removed secrets/templates
+	outputChanged := func(noun string, changed map[string]bool, regularPrefix, dryPrefix string) {
 		if len(changed) > 0 {
 			s := ""
 			if len(changed) != 1 {
 				s = "s"
 			}
 			if isDry {
-				fmt.Printf("%s secret%s: ", dryPrefix, s)
+				fmt.Printf("%s %s%s: ", dryPrefix, noun, s)
 			} else {
-				fmt.Printf("%s secret%s: ", regularPrefix, s)
+				fmt.Printf("%s %s%s: ", regularPrefix, noun, s)
 			}
 
 			// Sort the output for deterministic behavior.
@@ -996,9 +1050,12 @@ func handleModifications(isDry bool, logcfg loggingConfig, symlinkPath string, s
 			fmt.Println(strings.Join(keys, ", "))
 		}
 	}
-	outputChanged(newSecrets, "adding", "would add")
-	outputChanged(modifiedSecrets, "modifying", "would modify")
-	outputChanged(removedSecrets, "removing", "would remove")
+	outputChanged("secret", newSecrets, "adding", "would add")
+	outputChanged("secret", modifiedSecrets, "modifying", "would modify")
+	outputChanged("secret", removedSecrets, "removing", "would remove")
+	outputChanged("rendered secret", newTemplates, "adding", "would add")
+	outputChanged("rendered secret", modifiedTemplates, "modifying", "would modify")
+	outputChanged("rendered secret", removedTemplates, "removing", "would remove")
 
 	return nil
 }
@@ -1210,12 +1267,12 @@ func installSecrets(args []string) error {
 		return fmt.Errorf("cannot write secrets: %w", err)
 	}
 
-	if err := writeTemplates(path.Join(*secretDir, "rendered"), manifest.Templates, keysGID, manifest.UserMode); err != nil {
+	if err := writeTemplates(path.Join(*secretDir, RenderedSubdir), manifest.Templates, keysGID, manifest.UserMode); err != nil {
 		return fmt.Errorf("cannot render templates: %w", err)
 	}
 
 	if !manifest.UserMode {
-		if err := handleModifications(isDry, manifest.Logging, manifest.SymlinkPath, *secretDir, manifest.Secrets); err != nil {
+		if err := handleModifications(isDry, manifest.Logging, manifest.SymlinkPath, *secretDir, manifest.Secrets, manifest.Templates); err != nil {
 			return fmt.Errorf("cannot request units to restart: %w", err)
 		}
 	}

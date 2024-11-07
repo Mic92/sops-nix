@@ -421,6 +421,7 @@ in {
         assertOutput(
           out,
           "adding secret: test_key",
+          "adding rendered secret: test_template",
         )
 
         machine.succeed(": > /run/secrets/test_key")
@@ -429,8 +430,7 @@ in {
         assertOutput(
           out,
           "modifying secret: test_key",
-          # This is wrong. TODO: fix https://github.com/Mic92/sops-nix/issues/652
-          "removing secret: rendered/test_template",
+          "modifying rendered secret: test_template",
         )
 
         machine.succeed(": > /run/secrets/another_key")
@@ -438,8 +438,8 @@ in {
         out = machine.succeed("/run/current-system/bin/switch-to-configuration test")
         assertOutput(
           out,
-          # This is wrong. TODO: fix https://github.com/Mic92/sops-nix/issues/652
-          "removing secrets: another_key, rendered/another_template, rendered/test_template",
+          "removing secret: another_key",
+          "removing rendered secret: another_template",
         )
 
       with subtest("dry activation"):
@@ -451,8 +451,9 @@ in {
         assertOutput(
           out,
           "would add secret: test_key",
-          # This is wrong. TODO: fix https://github.com/Mic92/sops-nix/issues/652
-          "would remove secrets: another_key, rendered/another_template",
+          "would remove secret: another_key",
+          "would add rendered secret: test_template",
+          "would remove rendered secret: another_template",
         )
 
         # Verify that we did not actually activate the new configuration.
@@ -477,8 +478,6 @@ in {
         assertOutput(
           out,
           "would modify secret: test_key",
-          # This is wrong. TODO: fix https://github.com/Mic92/sops-nix/issues/652
-          "would remove secret: rendered/test_template",
         )
         machine.succeed("[ $(cat /run/secrets/test_key | wc -c) = 0 ]")
 

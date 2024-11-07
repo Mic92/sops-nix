@@ -24,6 +24,7 @@ in {
           path = mkOption {
             description = "Path where the rendered file will be placed";
             type = types.singleLineStr;
+            # Keep this in sync with `RenderedSubdir` in `pkgs/sops-install-secrets/main.go`
             default = "/run/secrets/rendered/${config.name}";
           };
           content = mkOption {
