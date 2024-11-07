@@ -326,7 +326,7 @@ in {
 
   restart-and-reload = testers.runNixOSTest {
     name = "sops-restart-and-reload";
-    nodes.machine = {
+    nodes.machine = {config, ...}: {
       imports = [ ../../modules/sops ];
 
       sops = {
@@ -336,6 +336,11 @@ in {
           restartUnits = [ "restart-unit.service" "reload-unit.service" ];
           reloadUnits = [ "reload-trigger.service" ];
         };
+
+        templates.test_template.content = ''
+          this is a template with
+          a secret: ${config.sops.placeholder.test_key}
+        '';
       };
       system.switch.enable = true;
 
@@ -374,6 +379,19 @@ in {
 
     };
     testScript = ''
+      def assertOutput(output, *expected_lines):
+        expected_lines = list(expected_lines)
+
+        # Remove unrelated fluff that shows up in the output of `switch-to-configuration`.
+        prefix = "setting up /etc...\n"
+        if output.startswith(prefix):
+          output = output.removeprefix(prefix)
+
+        actual_lines = output.splitlines(keepends=False)
+
+        if actual_lines != expected_lines:
+          raise Exception(f"{actual_lines} != {expected_lines}")
+
       machine.wait_for_unit("multi-user.target")
       machine.fail("test -f /restarted")
       machine.fail("test -f /reloaded")
@@ -397,46 +415,75 @@ in {
       machine.succeed("test -f /reloaded")
 
       with subtest("change detection"):
-         machine.succeed("rm /run/secrets/test_key")
-         out = machine.succeed("/run/current-system/bin/switch-to-configuration test")
-         if "adding secret" not in out:
-             raise Exception("Addition detection does not work")
+        machine.succeed("rm /run/secrets/test_key")
+        machine.succeed("rm /run/secrets/rendered/test_template")
+        out = machine.succeed("/run/current-system/bin/switch-to-configuration test")
+        assertOutput(
+          out,
+          "adding secret: test_key",
+        )
 
-         machine.succeed(": > /run/secrets/test_key")
-         out = machine.succeed("/run/current-system/bin/switch-to-configuration test")
-         if "modifying secret" not in out:
-             raise Exception("Modification detection does not work")
+        machine.succeed(": > /run/secrets/test_key")
+        machine.succeed(": > /run/secrets/rendered/test_template")
+        out = machine.succeed("/run/current-system/bin/switch-to-configuration test")
+        assertOutput(
+          out,
+          "modifying secret: test_key",
+          # This is wrong. TODO: fix https://github.com/Mic92/sops-nix/issues/652
+          "removing secret: rendered/test_template",
+        )
 
-         machine.succeed(": > /run/secrets/another_key")
-         out = machine.succeed("/run/current-system/bin/switch-to-configuration test")
-         if "removing secret" not in out:
-             raise Exception("Removal detection does not work")
+        machine.succeed(": > /run/secrets/another_key")
+        machine.succeed(": > /run/secrets/rendered/another_template")
+        out = machine.succeed("/run/current-system/bin/switch-to-configuration test")
+        assertOutput(
+          out,
+          # This is wrong. TODO: fix https://github.com/Mic92/sops-nix/issues/652
+          "removing secrets: another_key, rendered/another_template, rendered/test_template",
+        )
 
       with subtest("dry activation"):
-          machine.succeed("rm /run/secrets/test_key")
-          machine.succeed(": > /run/secrets/another_key")
-          out = machine.succeed("/run/current-system/bin/switch-to-configuration dry-activate")
-          if "would add secret" not in out:
-              raise Exception("Dry addition detection does not work")
-          if "would remove secret" not in out:
-              raise Exception("Dry removal detection does not work")
+        machine.succeed("rm /run/secrets/test_key")
+        machine.succeed("rm /run/secrets/rendered/test_template")
+        machine.succeed(": > /run/secrets/another_key")
+        machine.succeed(": > /run/secrets/rendered/another_template")
+        out = machine.succeed("/run/current-system/bin/switch-to-configuration dry-activate")
+        assertOutput(
+          out,
+          "would add secret: test_key",
+          # This is wrong. TODO: fix https://github.com/Mic92/sops-nix/issues/652
+          "would remove secrets: another_key, rendered/another_template",
+        )
 
-          machine.fail("test -f /run/secrets/test_key")
-          machine.succeed("test -f /run/secrets/another_key")
+        # Verify that we did not actually activate the new configuration.
+        machine.fail("test -f /run/secrets/test_key")
+        machine.fail("test -f /run/secrets/rendered/test_template")
+        machine.succeed("test -f /run/secrets/another_key")
+        machine.succeed("test -f /run/secrets/rendered/another_template")
 
-          machine.succeed("/run/current-system/bin/switch-to-configuration test")
-          machine.succeed("test -f /run/secrets/test_key")
-          machine.succeed("rm /restarted /reloaded")
-          machine.fail("test -f /run/secrets/another_key")
+        # Now actually activate and sanity check the resulting secrets.
+        machine.succeed("/run/current-system/bin/switch-to-configuration test")
+        machine.succeed("test -f /run/secrets/test_key")
+        machine.succeed("test -f /run/secrets/rendered/test_template")
+        machine.fail("test -f /run/secrets/another_key")
+        machine.fail("test -f /run/secrets/rendered/another_template")
 
-          machine.succeed(": > /run/secrets/test_key")
-          out = machine.succeed("/run/current-system/bin/switch-to-configuration dry-activate")
-          if "would modify secret" not in out:
-              raise Exception("Dry modification detection does not work")
-          machine.succeed("[ $(cat /run/secrets/test_key | wc -c) = 0 ]")
+        # Remove the restarted/reloaded indicators so we can confirm a
+        # dry-activate doesn't trigger systemd units.
+        machine.succeed("rm /restarted /reloaded")
 
-          machine.fail("test -f /restarted")  # not done in dry mode
-          machine.fail("test -f /reloaded")  # not done in dry mode
+        machine.succeed(": > /run/secrets/test_key")
+        out = machine.succeed("/run/current-system/bin/switch-to-configuration dry-activate")
+        assertOutput(
+          out,
+          "would modify secret: test_key",
+          # This is wrong. TODO: fix https://github.com/Mic92/sops-nix/issues/652
+          "would remove secret: rendered/test_template",
+        )
+        machine.succeed("[ $(cat /run/secrets/test_key | wc -c) = 0 ]")
+
+        machine.fail("test -f /restarted")  # not done in dry mode
+        machine.fail("test -f /reloaded")  # not done in dry mode
     '';
   };
 
