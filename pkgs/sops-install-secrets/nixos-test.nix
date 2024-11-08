@@ -284,9 +284,12 @@ in {
         owner = "someuser";
         group = "somegroup";
       };
-      sops.templates.test_default.content = ''
-        Test value: ${config.sops.placeholder.test_key}
-      '';
+      sops.templates.test_default = {
+        content = ''
+          Test value: ${config.sops.placeholder.test_key}
+        '';
+        path = "/etc/externally/linked";
+      };
 
       users.groups.somegroup = {};
       users.users.someuser = {
@@ -321,6 +324,10 @@ in {
 
       assertEqual(expected, rendered)
       assertEqual(expected_default, rendered_default)
+
+      # Confirm that `test_default` was symlinked to the appropriate place.
+      realpath = machine.succeed("realpath /etc/externally/linked").strip()
+      assertEqual(realpath, "/run/secrets.d/1/rendered/test_default")
     '';
   };
 
