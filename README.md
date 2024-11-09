@@ -823,6 +823,31 @@ The secrets are decrypted in a systemd user service called `sops-nix`, so other 
 }
 ```
 
+### Qubes Split GPG support
+
+If you are using Qubes with the [Split GPG](https://www.qubes-os.org/doc/split-gpg),
+then you can configure sops to utilize the `qubes-gpg-client-wrapper` with the `sops.gnupg.qubes-split-gpg` options.
+The example above updated looks like this:
+```nix
+{
+  sops = {
+    gnupg.qubes-split-gpg = {
+      enable = true;
+      domain = "vault-gpg";
+    };
+    defaultSopsFile = ./secrets.yaml;
+    secrets.test = {
+      # sopsFile = ./secrets.yml.enc; # optionally define per-secret files
+
+      # %r gets replaced with a runtime directory, use %% to specify a '%'
+      # sign. Runtime dir is $XDG_RUNTIME_DIR on linux and $(getconf
+      # DARWIN_USER_TEMP_DIR) on darwin.
+      path = "%r/test.txt";
+    };
+  };
+}
+```
+
 ## Use with GPG instead of SSH keys
 
 If you prefer having a separate GPG key, sops-nix also comes with a helper tool, `sops-init-gpg-key`:
