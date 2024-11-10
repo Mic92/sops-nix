@@ -290,7 +290,7 @@ in {
     home.sessionVariables = lib.mkIf cfg.gnupg.qubes-split-gpg.enable {
       # TODO: Add this package to nixpkgs and use it from the store
       # https://github.com/QubesOS/qubes-app-linux-split-gpg
-      SOPS_GPG_EXEC = "/usr/bin/qubes-gpg-client-wrapper";
+      SOPS_GPG_EXEC = "qubes-gpg-client-wrapper";
     };
 
     sops.environment = {
