@@ -231,6 +231,19 @@ in {
         '';
       };
 
+      qubes-split-gpg = {
+        enable = lib.mkEnableOption "Enable support for Qubes Split GPG feature: https://www.qubes-os.org/doc/split-gpg";
+
+        domain = lib.mkOption {
+          type = lib.types.nullOr lib.types.str;
+          default = null;
+          example = "vault-gpg";
+          description = ''
+            It tells Qubes OS which secure Qube holds your GPG keys for isolated cryptographic operations.
+          '';
+        };
+      };
+
       sshKeyPaths = lib.mkOption {
         type = lib.types.listOf lib.types.path;
         default = [];
@@ -244,11 +257,24 @@ in {
 
   config = lib.mkIf (cfg.secrets != {}) {
     assertions = [{
-      assertion = cfg.gnupg.home != null || cfg.gnupg.sshKeyPaths != [] || cfg.age.keyFile != null || cfg.age.sshKeyPaths != [];
-      message = "No key source configured for sops. Either set services.openssh.enable or set sops.age.keyFile or sops.gnupg.home";
+      assertion =
+        cfg.gnupg.home != null ||
+          cfg.gnupg.sshKeyPaths != [] ||
+          cfg.gnupg.qubes-split-gpg.enable == true ||
+          cfg.age.keyFile != null ||
+          cfg.age.sshKeyPaths != [];
+      message = "No key source configured for sops. Either set services.openssh.enable or set sops.age.keyFile or sops.gnupg.home or sops.gnupg.qubes-split-gpg.enable";
     } {
-      assertion = !(cfg.gnupg.home != null && cfg.gnupg.sshKeyPaths != []);
-      message = "Exactly one of sops.gnupg.home and sops.gnupg.sshKeyPaths must be set";
+      assertion = !(cfg.gnupg.home != null && cfg.gnupg.sshKeyPaths != []) &&
+        !(cfg.gnupg.home != null && cfg.gnupg.qubes-split-gpg.enable == true) &&
+        !(cfg.gnupg.sshKeyPaths != [ ] && cfg.gnupg.qubes-split-gpg.enable == true);
+      message = "Exactly one of sops.gnupg.home, sops.gnupg.qubes-split-gpg.enable and sops.gnupg.sshKeyPaths must be set";
+    } {
+      assertion = cfg.gnupg.qubes-split-gpg.enable == false ||
+        (cfg.gnupg.qubes-split-gpg.enable == true &&
+          cfg.gnupg.qubes-split-gpg.domain != null &&
+          cfg.gnupg.qubes-split-gpg.domain != "");
+      message = "sops.gnupg.qubes-split-gpg.domain is required when sops.gnupg.qubes-split-gpg.enable is set to true";
     }] ++ lib.optionals cfg.validateSopsFiles (
       lib.concatLists (lib.mapAttrsToList (name: secret: [{
         assertion = builtins.pathExists secret.sopsFile;
@@ -256,12 +282,25 @@ in {
       } {
         assertion =
           builtins.isPath secret.sopsFile ||
-          (builtins.isString secret.sopsFile && lib.hasPrefix builtins.storeDir secret.sopsFile);
+            (builtins.isString secret.sopsFile && lib.hasPrefix builtins.storeDir secret.sopsFile);
         message = "'${secret.sopsFile}' is not in the Nix store. Either add it to the Nix store or set sops.validateSopsFiles to false";
       }]) cfg.secrets)
     );
 
-    sops.environment.SOPS_GPG_EXEC = lib.mkIf (cfg.gnupg.home != null || cfg.gnupg.sshKeyPaths != []) (lib.mkDefault "${pkgs.gnupg}/bin/gpg");
+    home.sessionVariables = lib.mkIf cfg.gnupg.qubes-split-gpg.enable {
+      # TODO: Add this package to nixpkgs and use it from the store
+      # https://github.com/QubesOS/qubes-app-linux-split-gpg
+      SOPS_GPG_EXEC = "qubes-gpg-client-wrapper";
+    };
+
+    sops.environment = {
+      SOPS_GPG_EXEC = lib.mkMerge [
+        (lib.mkIf (cfg.gnupg.home != null || cfg.gnupg.sshKeyPaths != []) (lib.mkDefault "${pkgs.gnupg}/bin/gpg"))
+        (lib.mkIf cfg.gnupg.qubes-split-gpg.enable (lib.mkDefault config.home.sessionVariables.SOPS_GPG_EXEC))
+      ];
+
+      QUBES_GPG_DOMAIN = lib.mkIf cfg.gnupg.qubes-split-gpg.enable (lib.mkDefault cfg.gnupg.qubes-split-gpg.domain);
+    };
 
     systemd.user.services.sops-nix = lib.mkIf pkgs.stdenv.hostPlatform.isLinux {
       Unit = {
