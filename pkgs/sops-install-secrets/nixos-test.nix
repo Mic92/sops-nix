@@ -266,6 +266,10 @@ in {
         age.keyFile = "/run/age-keys.txt";
         defaultSopsFile = ./test-assets/secrets.yaml;
         secrets.test_key = { };
+
+        # Verify that things work even with `neededForUsers` secrets. See
+        # <https://github.com/Mic92/sops-nix/issues/659>.
+        secrets."nested/test/file".neededForUsers = true;
       };
 
       # must run before sops sets up keys
