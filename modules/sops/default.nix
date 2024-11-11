@@ -354,7 +354,7 @@ in {
 
       sops.environment.SOPS_GPG_EXEC = lib.mkIf (cfg.gnupg.home != null || cfg.gnupg.sshKeyPaths != []) (lib.mkDefault "${pkgs.gnupg}/bin/gpg");
 
-      # When using sysusers we no longer be started as an activation script because those are started in initrd while sysusers is started later.
+      # When using sysusers we no longer are started as an activation script because those are started in initrd while sysusers is started later.
       systemd.services.sops-install-secrets = lib.mkIf (regularSecrets != { } && useSystemdActivation) {
         wantedBy = [  "sysinit.target" ];
         after = [ "systemd-sysusers.service" ];
