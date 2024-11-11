@@ -3,7 +3,7 @@
 let
   cfg = config.sops;
   sops-install-secrets = (pkgs.callPackage ../.. {}).sops-install-secrets;
-  secretType = lib.types.submodule ({ config, name, ... }: {
+  secretType = lib.types.submodule ({ name, ... }: {
     options = {
       name = lib.mkOption {
         type = lib.types.str;
@@ -71,10 +71,11 @@ let
     merge = lib.mergeEqualOption;
   };
 
-  manifestFor = suffix: secrets: pkgs.writeTextFile {
+  manifestFor = suffix: secrets: templates: pkgs.writeTextFile {
     name = "manifest${suffix}.json";
     text = builtins.toJSON {
       secrets = builtins.attrValues secrets;
+      templates = builtins.attrValues templates;
       secretsMountPoint = cfg.defaultSecretsMountPoint;
       symlinkPath = cfg.defaultSymlinkPath;
       keepGenerations = cfg.keepGenerations;
@@ -93,11 +94,11 @@ let
     '';
   };
 
-  manifest = manifestFor "" cfg.secrets;
+  manifest = manifestFor "" cfg.secrets cfg.templates;
 
   escapedAgeKeyFile = lib.escapeShellArg cfg.age.keyFile;
 
-  script = toString (pkgs.writeShellScript "sops-nix-user" ((lib.optionalString cfg.age.generateKey ''
+  script = toString (pkgs.writeShellScript "sops-nix-user" (lib.optionalString cfg.age.generateKey ''
     if [[ ! -f ${escapedAgeKeyFile} ]]; then
       echo generating machine-specific age key...
       ${pkgs.coreutils}/bin/mkdir -p $(${pkgs.coreutils}/bin/dirname ${escapedAgeKeyFile})
@@ -106,7 +107,7 @@ let
     fi
   '' + ''
     ${sops-install-secrets}/bin/sops-install-secrets -ignore-passwd ${manifest}
-  '')));
+  ''));
 in {
   options.sops = {
     secrets = lib.mkOption {

@@ -71,7 +71,7 @@ type template struct {
 
 type manifest struct {
 	Secrets                 []secret             `json:"secrets"`
-	Templates               map[string]*template `json:"templates"`
+	Templates               []template           `json:"templates"`
 	PlaceholderBySecretName map[string]string    `json:"placeholderBySecretName"`
 	SecretsMountPoint       string               `json:"secretsMountPoint"`
 	SymlinkPath             string               `json:"symlinkPath"`
@@ -185,7 +185,7 @@ func linksAreEqual(linkTarget, targetFile string, info os.FileInfo, owner int, g
 	return linkTarget == targetFile && validUG
 }
 
-func symlinkSecret(targetFile string, path string, owner int, group int, userMode bool) error {
+func createSymlink(targetFile string, path string, owner int, group int, userMode bool) error {
 	for {
 		stat, err := os.Lstat(path)
 		if os.IsNotExist(err) {
@@ -217,7 +217,7 @@ func symlinkSecret(targetFile string, path string, owner int, group int, userMod
 	}
 }
 
-func symlinkSecrets(targetDir string, secrets []secret, templates map[string]*template, userMode bool) error {
+func symlinkSecretsAndTemplates(targetDir string, secrets []secret, templates []template, userMode bool) error {
 	for _, secret := range secrets {
 		targetFile := filepath.Join(targetDir, secret.Name)
 		if targetFile == secret.Path {
@@ -227,7 +227,7 @@ func symlinkSecrets(targetDir string, secrets []secret, templates map[string]*te
 		if err := os.MkdirAll(parent, os.ModePerm); err != nil {
 			return fmt.Errorf("cannot create parent directory of '%s': %w", secret.Path, err)
 		}
-		if err := symlinkSecret(targetFile, secret.Path, secret.owner, secret.group, userMode); err != nil {
+		if err := createSymlink(targetFile, secret.Path, secret.owner, secret.group, userMode); err != nil {
 			return fmt.Errorf("failed to symlink secret '%s': %w", secret.Path, err)
 		}
 	}
@@ -241,7 +241,7 @@ func symlinkSecrets(targetDir string, secrets []secret, templates map[string]*te
 		if err := os.MkdirAll(parent, os.ModePerm); err != nil {
 			return fmt.Errorf("cannot create parent directory of '%s': %w", template.Path, err)
 		}
-		if err := symlinkSecret(targetFile, template.Path, template.owner, template.group, userMode); err != nil {
+		if err := createSymlink(targetFile, template.Path, template.owner, template.group, userMode); err != nil {
 			return fmt.Errorf("failed to symlink template '%s': %w", template.Path, err)
 		}
 	}
@@ -610,8 +610,9 @@ func (app *appContext) validateSecret(secret *secret) error {
 	return app.validateSopsFile(secret, &file)
 }
 
-func renderTemplates(templates map[string]*template, secretByPlaceholder map[string]*secret) {
-	for _, template := range templates {
+func renderTemplates(templates []template, secretByPlaceholder map[string]*secret) {
+	for i := range templates {
+		template := &templates[i]
 		rendered := renderTemplate(&template.content, secretByPlaceholder)
 		template.value = []byte(rendered)
 	}
@@ -702,7 +703,8 @@ func (app *appContext) validateManifest() error {
 		}
 	}
 
-	for _, template := range m.Templates {
+	for i := range m.Templates {
+		template := &m.Templates[i]
 		if err := app.validateTemplate(template); err != nil {
 			return err
 		}
@@ -893,7 +895,7 @@ func symlinkWalk(filename string, linkDirname string, walkFn filepath.WalkFunc) 
 	return filepath.Walk(filename, symWalkFunc)
 }
 
-func handleModifications(isDry bool, logcfg loggingConfig, symlinkPath string, secretDir string, secrets []secret, templates map[string]*template) error {
+func handleModifications(isDry bool, logcfg loggingConfig, symlinkPath string, secretDir string, secrets []secret, templates []template) error {
 	var restart []string
 	var reload []string
 
@@ -1148,7 +1150,7 @@ func replaceRuntimeDir(path, rundir string) (ret string) {
 	return
 }
 
-func writeTemplates(targetDir string, templates map[string]*template, keysGID int, userMode bool) error {
+func writeTemplates(targetDir string, templates []template, keysGID int, userMode bool) error {
 	for _, template := range templates {
 		fp := filepath.Join(targetDir, template.Name)
 
@@ -1302,7 +1304,7 @@ func installSecrets(args []string) error {
 	if isDry {
 		return nil
 	}
-	if err := symlinkSecrets(manifest.SymlinkPath, manifest.Secrets, manifest.Templates, manifest.UserMode); err != nil {
+	if err := symlinkSecretsAndTemplates(manifest.SymlinkPath, manifest.Secrets, manifest.Templates, manifest.UserMode); err != nil {
 		return fmt.Errorf("failed to prepare symlinks to secret store: %w", err)
 	}
 	if err := atomicSymlink(*secretDir, manifest.SymlinkPath); err != nil {

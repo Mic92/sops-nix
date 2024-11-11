@@ -8,7 +8,7 @@ let
     inherit cfg;
     inherit (pkgs) writeTextFile;
   };
-  manifest = manifestFor "" regularSecrets {};
+  manifest = manifestFor "" regularSecrets regularTemplates {};
 
   pathNotInStore = lib.mkOptionType {
     name = "pathNotInStore";
@@ -19,6 +19,9 @@ let
   };
 
   regularSecrets = lib.filterAttrs (_: v: !v.neededForUsers) cfg.secrets;
+
+  # Currently, all templates are "regular" (there's no support for `neededForUsers` for templates.)
+  regularTemplates = cfg.templates;
 
   useSystemdActivation = (options.systemd ? sysusers && config.systemd.sysusers.enable) ||
     (options.services ? userborn && config.services.userborn.enable);
@@ -354,7 +357,7 @@ in {
 
       sops.environment.SOPS_GPG_EXEC = lib.mkIf (cfg.gnupg.home != null || cfg.gnupg.sshKeyPaths != []) (lib.mkDefault "${pkgs.gnupg}/bin/gpg");
 
-      # When using sysusers we no longer be started as an activation script because those are started in initrd while sysusers is started later.
+      # When using sysusers we no longer are started as an activation script because those are started in initrd while sysusers is started later.
       systemd.services.sops-install-secrets = lib.mkIf (regularSecrets != { } && useSystemdActivation) {
         wantedBy = [  "sysinit.target" ];
         after = [ "systemd-sysusers.service" ];
