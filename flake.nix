@@ -2,13 +2,18 @@
   description = "Integrates sops into nixos";
   inputs.nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
   inputs.nixpkgs-stable.url = "github:NixOS/nixpkgs/release-24.05";
+
+  inputs.nix-darwin.url = "github:LnL7/nix-darwin";
+  inputs.nix-darwin.inputs.nixpkgs.follows = "nixpkgs";
+
   nixConfig.extra-substituters = ["https://cache.thalheim.io"];
   nixConfig.extra-trusted-public-keys = ["cache.thalheim.io-1:R7msbosLEZKrxk/lKxf9BTjOOH7Ax3H0Qj0/6wiHOgc="];
   outputs = {
     self,
     nixpkgs,
-    nixpkgs-stable
-  }: let
+    nixpkgs-stable,
+    nix-darwin,
+  } @ inputs: let
     systems = [
       "x86_64-linux"
       "x86_64-darwin"
@@ -36,6 +41,15 @@
       sops = ./modules/nix-darwin;
       default = self.darwinModules.sops;
     };
+
+    darwinConfigurations.sops = nix-darwin.lib.darwinSystem {
+      modules = [ ./checks/darwin.nix ];
+      specialArgs = {
+        inherit self;
+        inherit inputs;
+      };
+    };
+
     packages = forAllSystems (system:
       import ./default.nix {
         pkgs = import nixpkgs {inherit system;};
