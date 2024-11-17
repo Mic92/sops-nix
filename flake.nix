@@ -32,6 +32,10 @@
     };
     homeManagerModules.sops = ./modules/home-manager/sops.nix;
     homeManagerModule = self.homeManagerModules.sops;
+    darwinModules = {
+      sops = ./modules/nix-darwin;
+      default = self.darwinModules.sops;
+    };
     packages = forAllSystems (system:
       import ./default.nix {
         pkgs = import nixpkgs {inherit system;};
