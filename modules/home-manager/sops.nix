@@ -109,6 +109,10 @@ let
     ${sops-install-secrets}/bin/sops-install-secrets -ignore-passwd ${manifest}
   ''));
 in {
+  imports = [
+    ./templates.nix
+  ];
+
   options.sops = {
     secrets = lib.mkOption {
       type = lib.types.attrsOf secretType;
