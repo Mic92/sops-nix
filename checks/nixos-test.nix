@@ -1,5 +1,7 @@
 { lib, testers }:
 let
+  testAssets = ../pkgs/sops-install-secrets/test-assets;
+
   userPasswordTest =
     name: extraConfig:
     testers.runNixOSTest {
@@ -8,12 +10,12 @@ let
         { config, lib, ... }:
         {
           imports = [
-            ../../modules/sops
+            ../modules/sops
             extraConfig
           ];
           sops = {
             age.keyFile = "/run/age-keys.txt";
-            defaultSopsFile = ./test-assets/secrets.yaml;
+            defaultSopsFile = testAssets + "/secrets.yaml";
             secrets.test_key.neededForUsers = true;
             secrets."nested/test/file".owner = "example-user";
           };
@@ -58,16 +60,16 @@ in
     nodes.server =
       { ... }:
       {
-        imports = [ ../../modules/sops ];
+        imports = [ ../modules/sops ];
         services.openssh.enable = true;
         services.openssh.hostKeys = [
           {
             type = "rsa";
             bits = 4096;
-            path = ./test-assets/ssh-key;
+            path = testAssets + "/ssh-key";
           }
         ];
-        sops.defaultSopsFile = ./test-assets/secrets.yaml;
+        sops.defaultSopsFile = testAssets + "/secrets.yaml";
         sops.secrets.test_key = { };
       };
 
@@ -82,17 +84,17 @@ in
     nodes.machine =
       { lib, ... }:
       {
-        imports = [ ../../modules/sops ];
+        imports = [ ../modules/sops ];
         sops = {
           age.keyFile = "/run/age-keys.txt";
-          defaultSopsFile = ./test-assets/secrets.yaml;
+          defaultSopsFile = testAssets + "/secrets.yaml";
           secrets.test_key = { };
           keepGenerations = lib.mkDefault 0;
         };
 
         # must run before sops sets up keys
         boot.initrd.postDeviceCommands = ''
-          cp -r ${./test-assets/age-keys.txt} /run/age-keys.txt
+          cp -r ${testAssets + "/age-keys.txt"} /run/age-keys.txt
           chmod -R 700 /run/age-keys.txt
         '';
 
@@ -128,10 +130,10 @@ in
     nodes.machine =
       { config, ... }:
       {
-        imports = [ ../../modules/sops ];
+        imports = [ ../modules/sops ];
         sops = {
           age.keyFile = "/run/age-keys.txt";
-          defaultSopsFile = ./test-assets/secrets.yaml;
+          defaultSopsFile = testAssets + "/secrets.yaml";
           secrets = {
             test_key = { };
 
@@ -166,7 +168,7 @@ in
 
         # must run before sops sets up keys
         boot.initrd.postDeviceCommands = ''
-          cp -r ${./test-assets/age-keys.txt} /run/age-keys.txt
+          cp -r ${testAssets + "/age-keys.txt"} /run/age-keys.txt
           chmod -R 700 /run/age-keys.txt
         '';
       };
@@ -196,17 +198,17 @@ in
   age-ssh-keys = testers.runNixOSTest {
     name = "sops-age-ssh-keys";
     nodes.machine = {
-      imports = [ ../../modules/sops ];
+      imports = [ ../modules/sops ];
       services.openssh.enable = true;
       services.openssh.hostKeys = [
         {
           type = "ed25519";
-          path = ./test-assets/ssh-ed25519-key;
+          path = testAssets + "/ssh-ed25519-key";
         }
       ];
 
       sops = {
-        defaultSopsFile = ./test-assets/secrets.yaml;
+        defaultSopsFile = testAssets + "/secrets.yaml";
         secrets.test_key = { };
         # Generate a key and append it to make sure it appending doesn't break anything
         age = {
@@ -227,7 +229,7 @@ in
     nodes.server =
       { lib, config, ... }:
       {
-        imports = [ ../../modules/sops ];
+        imports = [ ../modules/sops ];
 
         users.users.someuser = {
           isSystemUser = true;
@@ -235,7 +237,7 @@ in
         };
 
         sops.gnupg.home = "/run/gpghome";
-        sops.defaultSopsFile = ./test-assets/secrets.yaml;
+        sops.defaultSopsFile = testAssets + "/secrets.yaml";
         sops.secrets.test_key.owner = config.users.users.someuser.name;
         sops.secrets."nested/test/file".owner = config.users.users.someuser.name;
         sops.secrets.existing-file = {
@@ -244,7 +246,7 @@ in
         };
         # must run before sops
         system.activationScripts.gnupghome = lib.stringAfter [ "etc" ] ''
-          cp -r ${./test-assets/gnupghome} /run/gpghome
+          cp -r ${testAssets + "/gnupghome"} /run/gpghome
           chmod -R 700 /run/gpghome
 
           touch /run/existing-file
@@ -254,7 +256,7 @@ in
         #environment.variables = {
         #  GNUPGHOME = "/run/gpghome";
         #  SOPS_GPG_EXEC="${pkgs.gnupg}/bin/gpg";
-        #  SOPSFILE = "${./test-assets/secrets.yaml}";
+        #  SOPSFILE = "${testAssets + "/secrets.yaml"}";
         #};
       };
     testScript = ''
@@ -282,10 +284,10 @@ in
     nodes.machine =
       { config, ... }:
       {
-        imports = [ ../../modules/sops ];
+        imports = [ ../modules/sops ];
         sops = {
           age.keyFile = "/run/age-keys.txt";
-          defaultSopsFile = ./test-assets/secrets.yaml;
+          defaultSopsFile = testAssets + "/secrets.yaml";
           secrets.test_key = { };
 
           # Verify that things work even with `neededForUsers` secrets. See
@@ -295,7 +297,7 @@ in
 
         # must run before sops sets up keys
         boot.initrd.postDeviceCommands = ''
-          cp -r ${./test-assets/age-keys.txt} /run/age-keys.txt
+          cp -r ${testAssets + "/age-keys.txt"} /run/age-keys.txt
           chmod -R 700 /run/age-keys.txt
         '';
 
@@ -361,11 +363,11 @@ in
     nodes.machine =
       { config, ... }:
       {
-        imports = [ ../../modules/sops ];
+        imports = [ ../modules/sops ];
 
         sops = {
           age.keyFile = "/run/age-keys.txt";
-          defaultSopsFile = ./test-assets/secrets.yaml;
+          defaultSopsFile = testAssets + "/secrets.yaml";
           secrets.test_key = {
             restartUnits = [
               "restart-unit.service"
@@ -390,7 +392,7 @@ in
 
         # must run before sops sets up keys
         boot.initrd.postDeviceCommands = ''
-          cp -r ${./test-assets/age-keys.txt} /run/age-keys.txt
+          cp -r ${testAssets + "/age-keys.txt"} /run/age-keys.txt
           chmod -R 700 /run/age-keys.txt
         '';
 
@@ -551,7 +553,7 @@ in
   user-passwords = userPasswordTest "sops-user-passwords" {
     # must run before sops sets up keys
     boot.initrd.postDeviceCommands = ''
-      cp -r ${./test-assets/age-keys.txt} /run/age-keys.txt
+      cp -r ${testAssets + "/age-keys.txt"} /run/age-keys.txt
       chmod -R 700 /run/age-keys.txt
     '';
   };
@@ -568,7 +570,7 @@ in
 
       # must run before sops sets up keys
       systemd.services."sops-install-secrets-for-users".preStart = ''
-        printf '${builtins.readFile ./test-assets/age-keys.txt}' > /run/age-keys.txt
+        printf '${builtins.readFile (testAssets + "/age-keys.txt")}' > /run/age-keys.txt
         chmod -R 700 /run/age-keys.txt
       '';
     }
@@ -586,7 +588,7 @@ in
 
       # must run before sops sets up keys
       systemd.services."sops-install-secrets-for-users".preStart = ''
-        printf '${builtins.readFile ./test-assets/age-keys.txt}' > /run/age-keys.txt
+        printf '${builtins.readFile testAssets + "/age-keys.txt"}' > /run/age-keys.txt
         chmod -R 700 /run/age-keys.txt
       '';
     }
