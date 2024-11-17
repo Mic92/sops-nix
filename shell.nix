@@ -1,8 +1,15 @@
 {
-  pkgs ? import <nixpkgs> { },
+  mkShell,
+  bashInteractive,
+  go,
+  delve,
+  gnupg,
+  util-linux,
+  nix,
+  golangci-lint,
 }:
-pkgs.mkShell {
-  nativeBuildInputs = with pkgs; [
+mkShell {
+  nativeBuildInputs = [
     bashInteractive
     go
     delve
