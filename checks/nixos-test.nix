@@ -588,7 +588,7 @@ in
 
       # must run before sops sets up keys
       systemd.services."sops-install-secrets-for-users".preStart = ''
-        printf '${builtins.readFile testAssets + "/age-keys.txt"}' > /run/age-keys.txt
+        printf '${builtins.readFile (testAssets + "/age-keys.txt")}' > /run/age-keys.txt
         chmod -R 700 /run/age-keys.txt
       '';
     }
