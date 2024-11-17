@@ -78,7 +78,7 @@
       # dev outputs
       {
         checks = eachSystem (
-          { system, ... }:
+          { pkgs, system, ... }:
           let
             tests = self.packages.${system}.sops-install-secrets.tests;
             packages-stable = import ./default.nix {
@@ -90,7 +90,43 @@
               nixpkgs.lib.mapAttrs' (name: value: nixpkgs.lib.nameValuePair (name + version) value) attrs;
             suffix-stable = suffix-version "-24_05";
           in
-          tests // (suffix-stable tests-stable) // (suffix-stable packages-stable)
+          tests
+          // (suffix-stable tests-stable)
+          // (suffix-stable packages-stable)
+          // {
+            home-manager = self.legacyPackages.${system}.homeConfigurations.sops.activation-script;
+          }
+          // nixpkgs.lib.optionalAttrs pkgs.stdenv.isDarwin {
+            darwin-sops =
+              self.darwinConfigurations."sops-${pkgs.hostPlatform.darwinArch}".config.system.build.toplevel;
+          }
+        );
+
+        darwinConfigurations.sops-arm64 = privateInputs.nix-darwin.lib.darwinSystem {
+          modules = [
+            ./checks/darwin.nix
+            #{ nixpkgs.pkgs = nixpkgs.legacyPackages.aarch64-darwin; }
+            { nixpkgs.hostPlatform = "aarch64-darwin"; }
+          ];
+        };
+
+        darwinConfigurations.sops-x86_64 = privateInputs.nix-darwin.lib.darwinSystem {
+          modules = [
+            ./checks/darwin.nix
+            { nixpkgs.hostPlatform = "x86_64-darwin"; }
+          ];
+        };
+
+        legacyPackages = eachSystem (
+          { pkgs, ... }:
+          {
+            homeConfigurations.sops = privateInputs.home-manager.lib.homeManagerConfiguration {
+              modules = [
+                ./checks/home-manager.nix
+              ];
+              inherit pkgs;
+            };
+          }
         );
 
         apps = eachSystem (
@@ -110,7 +146,7 @@
           { pkgs, ... }:
           {
             unit-tests = pkgs.callPackage ./pkgs/unit-tests.nix { };
-            default = pkgs.callPackage ./shell.nix {};
+            default = pkgs.callPackage ./shell.nix { };
           }
         );
       };
