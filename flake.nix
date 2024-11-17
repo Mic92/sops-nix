@@ -93,11 +93,24 @@
           tests // (suffix-stable tests-stable) // (suffix-stable packages-stable)
         );
 
+        apps = eachSystem (
+          { pkgs, ... }:
+          {
+            update-dev-private-narHash = {
+              type = "app";
+              program = "${pkgs.writeShellScript "update-dev-private-narHash" ''
+                nix --extra-experimental-features "nix-command flakes" flake lock ./dev/private
+                nix --extra-experimental-features "nix-command flakes" hash path ./dev/private | tr -d '\n' > ./dev/private.narHash
+              ''}";
+            };
+          }
+        );
+
         devShells = eachSystem (
           { pkgs, ... }:
           {
             unit-tests = pkgs.callPackage ./pkgs/unit-tests.nix { };
-            default = pkgs.callPackage ./shell.nix { };
+            default = pkgs.callPackage ./shell.nix {};
           }
         );
       };
