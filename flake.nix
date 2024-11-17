@@ -6,6 +6,9 @@
   inputs.nix-darwin.url = "github:LnL7/nix-darwin";
   inputs.nix-darwin.inputs.nixpkgs.follows = "nixpkgs";
 
+  inputs.home-manager.url = "github:nix-community/home-manager";
+  inputs.home-manager.inputs.nixpkgs.follows = "nixpkgs";
+
   nixConfig.extra-substituters = ["https://cache.thalheim.io"];
   nixConfig.extra-trusted-public-keys = ["cache.thalheim.io-1:R7msbosLEZKrxk/lKxf9BTjOOH7Ax3H0Qj0/6wiHOgc="];
   outputs = {
@@ -13,6 +16,7 @@
     nixpkgs,
     nixpkgs-stable,
     nix-darwin,
+    home-manager,
   } @ inputs: let
     systems = [
       "x86_64-linux"
@@ -49,6 +53,16 @@
         inherit inputs;
       };
     };
+    legacyPackages = nixpkgs.lib.genAttrs ["x86_64-linux" "aarch64-linux" "aarch64-darwin"] (system: let
+       pkgs = nixpkgs.legacyPackages.${system};
+      in {
+        homeConfigurations.sops = home-manager.lib.homeManagerConfiguration {
+          modules = [
+            ./checks/home-manager.nix
+          ];
+          inherit pkgs;
+        };
+    });
 
     packages = forAllSystems (system:
       import ./default.nix {
