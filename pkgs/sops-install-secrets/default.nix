@@ -1,9 +1,20 @@
-{ lib, buildGoModule, stdenv, vendorHash, go, callPackages }:
+{
+  lib,
+  buildGoModule,
+  stdenv,
+  vendorHash,
+  go,
+  callPackages,
+}:
 buildGoModule {
   pname = "sops-install-secrets";
   version = "0.0.1";
 
-  src = lib.sourceByRegex ../.. [ "go\.(mod|sum)" "pkgs" "pkgs/sops-install-secrets.*" ];
+  src = lib.sourceByRegex ../.. [
+    "go\.(mod|sum)"
+    "pkgs"
+    "pkgs/sops-install-secrets.*"
+  ];
 
   subPackages = [ "pkgs/sops-install-secrets" ];
 
@@ -12,19 +23,20 @@ buildGoModule {
 
   passthru.tests = callPackages ./nixos-test.nix { };
 
-  outputs = [ "out" ] ++
-  lib.lists.optionals (stdenv.isLinux) [ "unittest" ];
+  outputs = [ "out" ] ++ lib.lists.optionals (stdenv.isLinux) [ "unittest" ];
 
-  postInstall = ''
-    go test -c ./pkgs/sops-install-secrets
-  '' + lib.optionalString (stdenv.isLinux) ''
-    # *.test is only tested on linux. $unittest does not exist on darwin.
-    install -D ./sops-install-secrets.test $unittest/bin/sops-install-secrets.test
-    # newer versions of nixpkgs no longer require this step
-    if command -v remove-references-to; then
-      remove-references-to -t ${go} $unittest/bin/sops-install-secrets.test
-    fi
-  '';
+  postInstall =
+    ''
+      go test -c ./pkgs/sops-install-secrets
+    ''
+    + lib.optionalString (stdenv.isLinux) ''
+      # *.test is only tested on linux. $unittest does not exist on darwin.
+      install -D ./sops-install-secrets.test $unittest/bin/sops-install-secrets.test
+      # newer versions of nixpkgs no longer require this step
+      if command -v remove-references-to; then
+        remove-references-to -t ${go} $unittest/bin/sops-install-secrets.test
+      fi
+    '';
 
   inherit vendorHash;
 

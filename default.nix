@@ -1,12 +1,15 @@
-{ pkgs ? import <nixpkgs> {}
-, vendorHash ? "sha256-xHScXL3i2oxJSJsvOC+KqLCA5Psu3ht7DQNrh0rB1rA="
-}: let
+{
+  pkgs ? import <nixpkgs> { },
+  vendorHash ? "sha256-xHScXL3i2oxJSJsvOC+KqLCA5Psu3ht7DQNrh0rB1rA=",
+}:
+let
   sops-install-secrets = pkgs.callPackage ./pkgs/sops-install-secrets {
     inherit vendorHash;
   };
-in rec {
+in
+rec {
   inherit sops-install-secrets;
-  sops-init-gpg-key = pkgs.callPackage ./pkgs/sops-init-gpg-key {};
+  sops-init-gpg-key = pkgs.callPackage ./pkgs/sops-init-gpg-key { };
   default = sops-init-gpg-key;
 
   sops-pgp-hook = pkgs.lib.warn ''
@@ -22,8 +25,9 @@ in rec {
   sops-pgp-hook-test = pkgs.callPackage ./pkgs/sops-pgp-hook-test.nix {
     inherit vendorHash;
   };
-  unit-tests = pkgs.callPackage ./pkgs/unit-tests.nix {};
-} // (pkgs.lib.optionalAttrs pkgs.stdenv.isLinux {
+  unit-tests = pkgs.callPackage ./pkgs/unit-tests.nix { };
+}
+// (pkgs.lib.optionalAttrs pkgs.stdenv.isLinux {
   lint = pkgs.callPackage ./pkgs/lint.nix {
     inherit sops-install-secrets;
   };

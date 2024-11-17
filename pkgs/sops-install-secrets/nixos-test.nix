@@ -1,64 +1,75 @@
 { lib, testers }:
 let
-  userPasswordTest = name: extraConfig: testers.runNixOSTest {
-    inherit name;
-    nodes.machine = { config, lib, ... }: {
-      imports = [
-        ../../modules/sops
-        extraConfig
-      ];
-      sops = {
-        age.keyFile = "/run/age-keys.txt";
-        defaultSopsFile = ./test-assets/secrets.yaml;
-        secrets.test_key.neededForUsers = true;
-        secrets."nested/test/file".owner = "example-user";
-      };
-      system.switch.enable = true;
+  userPasswordTest =
+    name: extraConfig:
+    testers.runNixOSTest {
+      inherit name;
+      nodes.machine =
+        { config, lib, ... }:
+        {
+          imports = [
+            ../../modules/sops
+            extraConfig
+          ];
+          sops = {
+            age.keyFile = "/run/age-keys.txt";
+            defaultSopsFile = ./test-assets/secrets.yaml;
+            secrets.test_key.neededForUsers = true;
+            secrets."nested/test/file".owner = "example-user";
+          };
+          system.switch.enable = true;
 
-      users.users.example-user = lib.mkMerge [
-        (lib.mkIf (! config.systemd.sysusers.enable) {
-          isNormalUser = true;
-          hashedPasswordFile = config.sops.secrets.test_key.path;
-        })
-        (lib.mkIf config.systemd.sysusers.enable {
-          isSystemUser = true;
-          group = "users";
-          hashedPasswordFile = config.sops.secrets.test_key.path;
-        })
-      ];
+          users.users.example-user = lib.mkMerge [
+            (lib.mkIf (!config.systemd.sysusers.enable) {
+              isNormalUser = true;
+              hashedPasswordFile = config.sops.secrets.test_key.path;
+            })
+            (lib.mkIf config.systemd.sysusers.enable {
+              isSystemUser = true;
+              group = "users";
+              hashedPasswordFile = config.sops.secrets.test_key.path;
+            })
+          ];
+        };
+
+      testScript =
+        ''
+          start_all()
+          machine.wait_for_unit("multi-user.target")
+
+          machine.succeed("getent shadow example-user | grep -q :test_value:")  # password was set
+          machine.succeed("cat /run/secrets/nested/test/file | grep -q 'another value'")  # regular secrets work...
+          user = machine.succeed("stat -c%U /run/secrets/nested/test/file").strip()  # ...and are owned...
+          assert user == "example-user", f"Expected 'example-user', got '{user}'"
+          machine.succeed("cat /run/secrets-for-users/test_key | grep -q 'test_value'")  # the user password still exists
+
+          # BUG in nixos's overlayfs... systemd crashes on switch-to-configuration test
+        ''
+        + lib.optionalString (!(extraConfig ? system.etc.overlay.enable)) ''
+          machine.succeed("/run/current-system/bin/switch-to-configuration test")
+          machine.succeed("cat /run/secrets/nested/test/file | grep -q 'another value'")  # the regular secrets still work after a switch
+          machine.succeed("cat /run/secrets-for-users/test_key | grep -q 'test_value'")  # the user password is still present after a switch
+        '';
     };
-
-    testScript = ''
-      start_all()
-      machine.wait_for_unit("multi-user.target")
-
-      machine.succeed("getent shadow example-user | grep -q :test_value:")  # password was set
-      machine.succeed("cat /run/secrets/nested/test/file | grep -q 'another value'")  # regular secrets work...
-      user = machine.succeed("stat -c%U /run/secrets/nested/test/file").strip()  # ...and are owned...
-      assert user == "example-user", f"Expected 'example-user', got '{user}'"
-      machine.succeed("cat /run/secrets-for-users/test_key | grep -q 'test_value'")  # the user password still exists
-
-      # BUG in nixos's overlayfs... systemd crashes on switch-to-configuration test
-    '' + lib.optionalString (!(extraConfig ? system.etc.overlay.enable)) ''
-      machine.succeed("/run/current-system/bin/switch-to-configuration test")
-      machine.succeed("cat /run/secrets/nested/test/file | grep -q 'another value'")  # the regular secrets still work after a switch
-      machine.succeed("cat /run/secrets-for-users/test_key | grep -q 'test_value'")  # the user password is still present after a switch
-    '';
-  };
-in {
+in
+{
   ssh-keys = testers.runNixOSTest {
     name = "sops-ssh-keys";
-    nodes.server = { ... }: {
-      imports = [ ../../modules/sops ];
-      services.openssh.enable = true;
-      services.openssh.hostKeys = [{
-        type = "rsa";
-        bits = 4096;
-        path = ./test-assets/ssh-key;
-      }];
-      sops.defaultSopsFile = ./test-assets/secrets.yaml;
-      sops.secrets.test_key = { };
-    };
+    nodes.server =
+      { ... }:
+      {
+        imports = [ ../../modules/sops ];
+        services.openssh.enable = true;
+        services.openssh.hostKeys = [
+          {
+            type = "rsa";
+            bits = 4096;
+            path = ./test-assets/ssh-key;
+          }
+        ];
+        sops.defaultSopsFile = ./test-assets/secrets.yaml;
+        sops.secrets.test_key = { };
+      };
 
     testScript = ''
       start_all()
@@ -68,23 +79,25 @@ in {
 
   pruning = testers.runNixOSTest {
     name = "sops-pruning";
-    nodes.machine = { lib, ... }: {
-      imports = [ ../../modules/sops ];
-      sops = {
-        age.keyFile = "/run/age-keys.txt";
-        defaultSopsFile = ./test-assets/secrets.yaml;
-        secrets.test_key = { };
-        keepGenerations = lib.mkDefault 0;
+    nodes.machine =
+      { lib, ... }:
+      {
+        imports = [ ../../modules/sops ];
+        sops = {
+          age.keyFile = "/run/age-keys.txt";
+          defaultSopsFile = ./test-assets/secrets.yaml;
+          secrets.test_key = { };
+          keepGenerations = lib.mkDefault 0;
+        };
+
+        # must run before sops sets up keys
+        boot.initrd.postDeviceCommands = ''
+          cp -r ${./test-assets/age-keys.txt} /run/age-keys.txt
+          chmod -R 700 /run/age-keys.txt
+        '';
+
+        specialisation.pruning.configuration.sops.keepGenerations = 10;
       };
-
-      # must run before sops sets up keys
-      boot.initrd.postDeviceCommands = ''
-        cp -r ${./test-assets/age-keys.txt} /run/age-keys.txt
-        chmod -R 700 /run/age-keys.txt
-      '';
-
-      specialisation.pruning.configuration.sops.keepGenerations = 10;
-    };
 
     testScript = ''
       # Force us to generation 100
@@ -112,49 +125,51 @@ in {
 
   age-keys = testers.runNixOSTest {
     name = "sops-age-keys";
-    nodes.machine =  { config, ... }: {
-      imports = [ ../../modules/sops ];
-      sops = {
-        age.keyFile = "/run/age-keys.txt";
-        defaultSopsFile = ./test-assets/secrets.yaml;
-        secrets = {
-          test_key = { };
+    nodes.machine =
+      { config, ... }:
+      {
+        imports = [ ../../modules/sops ];
+        sops = {
+          age.keyFile = "/run/age-keys.txt";
+          defaultSopsFile = ./test-assets/secrets.yaml;
+          secrets = {
+            test_key = { };
 
-          test_key_someuser_somegroup = {
-            uid = config.users.users."someuser".uid;
-            gid = config.users.groups."somegroup".gid;
-            key = "test_key";
-          };
-          test_key_someuser_root = {
-            uid = config.users.users."someuser".uid;
-            key = "test_key";
-          };
-          test_key_root_root = {
-            key = "test_key";
-          };
-          test_key_1001_1001 = {
-            uid = 1001;
-            gid = 1001;
-            key = "test_key";
+            test_key_someuser_somegroup = {
+              uid = config.users.users."someuser".uid;
+              gid = config.users.groups."somegroup".gid;
+              key = "test_key";
+            };
+            test_key_someuser_root = {
+              uid = config.users.users."someuser".uid;
+              key = "test_key";
+            };
+            test_key_root_root = {
+              key = "test_key";
+            };
+            test_key_1001_1001 = {
+              uid = 1001;
+              gid = 1001;
+              key = "test_key";
+            };
           };
         };
-      };
 
-      users.users."someuser" = {
-        uid = 1000;
-        group = "somegroup";
-        isNormalUser = true;
-      };
-      users.groups."somegroup" = {
-        gid = 1000;
-      };
+        users.users."someuser" = {
+          uid = 1000;
+          group = "somegroup";
+          isNormalUser = true;
+        };
+        users.groups."somegroup" = {
+          gid = 1000;
+        };
 
-      # must run before sops sets up keys
-      boot.initrd.postDeviceCommands = ''
-        cp -r ${./test-assets/age-keys.txt} /run/age-keys.txt
-        chmod -R 700 /run/age-keys.txt
-      '';
-    };
+        # must run before sops sets up keys
+        boot.initrd.postDeviceCommands = ''
+          cp -r ${./test-assets/age-keys.txt} /run/age-keys.txt
+          chmod -R 700 /run/age-keys.txt
+        '';
+      };
 
     testScript = ''
       start_all()
@@ -183,10 +198,12 @@ in {
     nodes.machine = {
       imports = [ ../../modules/sops ];
       services.openssh.enable = true;
-      services.openssh.hostKeys = [{
-        type = "ed25519";
-        path = ./test-assets/ssh-ed25519-key;
-      }];
+      services.openssh.hostKeys = [
+        {
+          type = "ed25519";
+          path = ./test-assets/ssh-ed25519-key;
+        }
+      ];
 
       sops = {
         defaultSopsFile = ./test-assets/secrets.yaml;
@@ -207,37 +224,39 @@ in {
 
   pgp-keys = testers.runNixOSTest {
     name = "sops-pgp-keys";
-    nodes.server = { lib, config, ... }: {
-      imports = [ ../../modules/sops ];
+    nodes.server =
+      { lib, config, ... }:
+      {
+        imports = [ ../../modules/sops ];
 
-      users.users.someuser = {
-        isSystemUser = true;
-        group = "nogroup";
+        users.users.someuser = {
+          isSystemUser = true;
+          group = "nogroup";
+        };
+
+        sops.gnupg.home = "/run/gpghome";
+        sops.defaultSopsFile = ./test-assets/secrets.yaml;
+        sops.secrets.test_key.owner = config.users.users.someuser.name;
+        sops.secrets."nested/test/file".owner = config.users.users.someuser.name;
+        sops.secrets.existing-file = {
+          key = "test_key";
+          path = "/run/existing-file";
+        };
+        # must run before sops
+        system.activationScripts.gnupghome = lib.stringAfter [ "etc" ] ''
+          cp -r ${./test-assets/gnupghome} /run/gpghome
+          chmod -R 700 /run/gpghome
+
+          touch /run/existing-file
+        '';
+        # Useful for debugging
+        #environment.systemPackages = [ pkgs.gnupg pkgs.sops ];
+        #environment.variables = {
+        #  GNUPGHOME = "/run/gpghome";
+        #  SOPS_GPG_EXEC="${pkgs.gnupg}/bin/gpg";
+        #  SOPSFILE = "${./test-assets/secrets.yaml}";
+        #};
       };
-
-      sops.gnupg.home = "/run/gpghome";
-      sops.defaultSopsFile = ./test-assets/secrets.yaml;
-      sops.secrets.test_key.owner = config.users.users.someuser.name;
-      sops.secrets."nested/test/file".owner = config.users.users.someuser.name;
-      sops.secrets.existing-file = {
-        key = "test_key";
-        path = "/run/existing-file";
-      };
-      # must run before sops
-      system.activationScripts.gnupghome = lib.stringAfter [ "etc" ] ''
-        cp -r ${./test-assets/gnupghome} /run/gpghome
-        chmod -R 700 /run/gpghome
-
-        touch /run/existing-file
-      '';
-      # Useful for debugging
-      #environment.systemPackages = [ pkgs.gnupg pkgs.sops ];
-      #environment.variables = {
-      #  GNUPGHOME = "/run/gpghome";
-      #  SOPS_GPG_EXEC="${pkgs.gnupg}/bin/gpg";
-      #  SOPSFILE = "${./test-assets/secrets.yaml}";
-      #};
-    };
     testScript = ''
       def assertEqual(exp: str, act: str) -> None:
           if exp != act:
@@ -260,47 +279,49 @@ in {
 
   templates = testers.runNixOSTest {
     name = "sops-templates";
-    nodes.machine = { config, ... }: {
-      imports = [ ../../modules/sops ];
-      sops = {
-        age.keyFile = "/run/age-keys.txt";
-        defaultSopsFile = ./test-assets/secrets.yaml;
-        secrets.test_key = { };
+    nodes.machine =
+      { config, ... }:
+      {
+        imports = [ ../../modules/sops ];
+        sops = {
+          age.keyFile = "/run/age-keys.txt";
+          defaultSopsFile = ./test-assets/secrets.yaml;
+          secrets.test_key = { };
 
-        # Verify that things work even with `neededForUsers` secrets. See
-        # <https://github.com/Mic92/sops-nix/issues/659>.
-        secrets."nested/test/file".neededForUsers = true;
-      };
+          # Verify that things work even with `neededForUsers` secrets. See
+          # <https://github.com/Mic92/sops-nix/issues/659>.
+          secrets."nested/test/file".neededForUsers = true;
+        };
 
-      # must run before sops sets up keys
-      boot.initrd.postDeviceCommands = ''
-        cp -r ${./test-assets/age-keys.txt} /run/age-keys.txt
-        chmod -R 700 /run/age-keys.txt
-      '';
-
-      sops.templates.test_template = {
-        content = ''
-          This line is not modified.
-          The next value will be replaced by ${config.sops.placeholder.test_key}
-          This line is also not modified.
+        # must run before sops sets up keys
+        boot.initrd.postDeviceCommands = ''
+          cp -r ${./test-assets/age-keys.txt} /run/age-keys.txt
+          chmod -R 700 /run/age-keys.txt
         '';
-        mode = "0400";
-        owner = "someuser";
-        group = "somegroup";
-      };
-      sops.templates.test_default = {
-        content = ''
-          Test value: ${config.sops.placeholder.test_key}
-        '';
-        path = "/etc/externally/linked";
-      };
 
-      users.groups.somegroup = {};
-      users.users.someuser = {
-        isSystemUser = true;
-        group = "somegroup";
+        sops.templates.test_template = {
+          content = ''
+            This line is not modified.
+            The next value will be replaced by ${config.sops.placeholder.test_key}
+            This line is also not modified.
+          '';
+          mode = "0400";
+          owner = "someuser";
+          group = "somegroup";
+        };
+        sops.templates.test_default = {
+          content = ''
+            Test value: ${config.sops.placeholder.test_key}
+          '';
+          path = "/etc/externally/linked";
+        };
+
+        users.groups.somegroup = { };
+        users.users.someuser = {
+          isSystemUser = true;
+          group = "somegroup";
+        };
       };
-    };
 
     testScript = ''
       def assertEqual(exp: str, act: str) -> None:
@@ -337,62 +358,72 @@ in {
 
   restart-and-reload = testers.runNixOSTest {
     name = "sops-restart-and-reload";
-    nodes.machine = {config, ...}: {
-      imports = [ ../../modules/sops ];
+    nodes.machine =
+      { config, ... }:
+      {
+        imports = [ ../../modules/sops ];
 
-      sops = {
-        age.keyFile = "/run/age-keys.txt";
-        defaultSopsFile = ./test-assets/secrets.yaml;
-        secrets.test_key = {
-          restartUnits = [ "restart-unit.service" "reload-unit.service" ];
-          reloadUnits = [ "reload-trigger.service" ];
+        sops = {
+          age.keyFile = "/run/age-keys.txt";
+          defaultSopsFile = ./test-assets/secrets.yaml;
+          secrets.test_key = {
+            restartUnits = [
+              "restart-unit.service"
+              "reload-unit.service"
+            ];
+            reloadUnits = [ "reload-trigger.service" ];
+          };
+
+          templates.test_template = {
+            content = ''
+              this is a template with
+              a secret: ${config.sops.placeholder.test_key}
+            '';
+            restartUnits = [
+              "restart-unit.service"
+              "reload-unit.service"
+            ];
+            reloadUnits = [ "reload-trigger.service" ];
+          };
+        };
+        system.switch.enable = true;
+
+        # must run before sops sets up keys
+        boot.initrd.postDeviceCommands = ''
+          cp -r ${./test-assets/age-keys.txt} /run/age-keys.txt
+          chmod -R 700 /run/age-keys.txt
+        '';
+
+        systemd.services."restart-unit" = {
+          description = "Restart unit";
+          # not started on boot
+          serviceConfig = {
+            ExecStart = "/bin/sh -c 'echo ok > /restarted'";
+          };
+        };
+        systemd.services."reload-unit" = {
+          description = "Reload unit";
+          wantedBy = [ "multi-user.target" ];
+          reloadIfChanged = true;
+          serviceConfig = {
+            Type = "oneshot";
+            RemainAfterExit = true;
+            ExecStart = "/bin/sh -c true";
+            ExecReload = "/bin/sh -c 'echo ok > /reloaded'";
+          };
+        };
+        systemd.services."reload-trigger" = {
+          description = "Reload trigger unit";
+          wantedBy = [ "multi-user.target" ];
+          serviceConfig = {
+            Type = "oneshot";
+            RemainAfterExit = true;
+            ExecStart = "/bin/sh -c true";
+            ExecReload = "/bin/sh -c 'echo ok > /reloaded'";
+          };
         };
 
-        templates.test_template = {
-          content = ''
-            this is a template with
-            a secret: ${config.sops.placeholder.test_key}
-          '';
-          restartUnits = [ "restart-unit.service" "reload-unit.service" ];
-          reloadUnits = [ "reload-trigger.service" ];
-        };
       };
-      system.switch.enable = true;
-
-      # must run before sops sets up keys
-      boot.initrd.postDeviceCommands = ''
-        cp -r ${./test-assets/age-keys.txt} /run/age-keys.txt
-        chmod -R 700 /run/age-keys.txt
-      '';
-
-      systemd.services."restart-unit" = {
-        description = "Restart unit";
-        # not started on boot
-        serviceConfig = { ExecStart = "/bin/sh -c 'echo ok > /restarted'"; };
-      };
-      systemd.services."reload-unit" = {
-        description = "Reload unit";
-        wantedBy = [ "multi-user.target" ];
-        reloadIfChanged = true;
-        serviceConfig = {
-          Type = "oneshot";
-          RemainAfterExit = true;
-          ExecStart = "/bin/sh -c true";
-          ExecReload = "/bin/sh -c 'echo ok > /reloaded'";
-        };
-      };
-      systemd.services."reload-trigger" = {
-        description = "Reload trigger unit";
-        wantedBy = [ "multi-user.target" ];
-        serviceConfig = {
-          Type = "oneshot";
-          RemainAfterExit = true;
-          ExecStart = "/bin/sh -c true";
-          ExecReload = "/bin/sh -c 'echo ok > /reloaded'";
-        };
-      };
-
-    };
     testScript = ''
       def assertOutput(output, *expected_lines):
         expected_lines = list(expected_lines)
@@ -524,32 +555,40 @@ in {
       chmod -R 700 /run/age-keys.txt
     '';
   };
-} // lib.optionalAttrs (lib.versionAtLeast (lib.versions.majorMinor lib.version) "24.05") {
-  user-passwords-sysusers = userPasswordTest "sops-user-passwords-sysusers" ({ pkgs, ... }: {
-    systemd.sysusers.enable = true;
-    users.mutableUsers = true;
-    system.etc.overlay.enable = true;
-    boot.initrd.systemd.enable = true;
-    boot.kernelPackages = pkgs.linuxPackages_latest;
+}
+// lib.optionalAttrs (lib.versionAtLeast (lib.versions.majorMinor lib.version) "24.05") {
+  user-passwords-sysusers = userPasswordTest "sops-user-passwords-sysusers" (
+    { pkgs, ... }:
+    {
+      systemd.sysusers.enable = true;
+      users.mutableUsers = true;
+      system.etc.overlay.enable = true;
+      boot.initrd.systemd.enable = true;
+      boot.kernelPackages = pkgs.linuxPackages_latest;
 
-    # must run before sops sets up keys
-    systemd.services."sops-install-secrets-for-users".preStart = ''
-      printf '${builtins.readFile ./test-assets/age-keys.txt}' > /run/age-keys.txt
-      chmod -R 700 /run/age-keys.txt
-    '';
-  });
-} // lib.optionalAttrs (lib.versionAtLeast (lib.versions.majorMinor lib.version) "24.11") {
-  user-passwords-userborn = userPasswordTest "sops-user-passwords-userborn" ({ pkgs, ... }: {
-    services.userborn.enable = true;
-    users.mutableUsers = false;
-    system.etc.overlay.enable = true;
-    boot.initrd.systemd.enable = true;
-    boot.kernelPackages = pkgs.linuxPackages_latest;
+      # must run before sops sets up keys
+      systemd.services."sops-install-secrets-for-users".preStart = ''
+        printf '${builtins.readFile ./test-assets/age-keys.txt}' > /run/age-keys.txt
+        chmod -R 700 /run/age-keys.txt
+      '';
+    }
+  );
+}
+// lib.optionalAttrs (lib.versionAtLeast (lib.versions.majorMinor lib.version) "24.11") {
+  user-passwords-userborn = userPasswordTest "sops-user-passwords-userborn" (
+    { pkgs, ... }:
+    {
+      services.userborn.enable = true;
+      users.mutableUsers = false;
+      system.etc.overlay.enable = true;
+      boot.initrd.systemd.enable = true;
+      boot.kernelPackages = pkgs.linuxPackages_latest;
 
-    # must run before sops sets up keys
-    systemd.services."sops-install-secrets-for-users".preStart = ''
-      printf '${builtins.readFile ./test-assets/age-keys.txt}' > /run/age-keys.txt
-      chmod -R 700 /run/age-keys.txt
-    '';
-  });
+      # must run before sops sets up keys
+      systemd.services."sops-install-secrets-for-users".preStart = ''
+        printf '${builtins.readFile ./test-assets/age-keys.txt}' > /run/age-keys.txt
+        chmod -R 700 /run/age-keys.txt
+      '';
+    }
+  );
 }
