@@ -331,6 +331,43 @@ in {
     '';
   };
 
+  template-path-not-external = testers.runNixOSTest {
+    name = "sops-template-path-not-external";
+    nodes.machine = {config, ...}: {
+      imports = [ ../../modules/sops ];
+      sops = {
+        age.keyFile = "/run/age-keys.txt";
+        defaultSopsFile = ./test-assets/secrets.yaml;
+        secrets.test_key = { };
+      };
+
+      # Must run before sops sets up keys.
+      boot.initrd.postDeviceCommands = ''
+        cp -r ${./test-assets/age-keys.txt} /run/age-keys.txt
+        chmod -R 700 /run/age-keys.txt
+      '';
+
+      sops.templates.test_template = {
+        content = ''
+          Test value: ${config.sops.placeholder.test_key}
+        '';
+        # This path is inside of `/run/secrets`, which isn't allowed.
+        path = "/run/secrets/foo-bar";
+      };
+
+      system.switch.enable = true;
+    };
+
+    testScript = ''
+      start_all()
+      machine.wait_for_unit("multi-user.target")
+      # TODO: is there some way to assert that system activation worked during
+      # the initial boot? We don't actually have to try activating again
+      # here...
+      machine.succeed("/run/current-system/bin/switch-to-configuration test")
+    '';
+  };
+
   restart-and-reload = testers.runNixOSTest {
     name = "sops-restart-and-reload";
     nodes.machine = {config, ...}: {

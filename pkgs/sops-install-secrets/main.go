@@ -185,7 +185,7 @@ func linksAreEqual(linkTarget, targetFile string, info os.FileInfo, owner int, g
 	return linkTarget == targetFile && validUG
 }
 
-func symlinkSecret(targetFile string, path string, owner int, group int, userMode bool) error {
+func createSymlink(targetFile string, path string, owner int, group int, userMode bool) error {
 	for {
 		stat, err := os.Lstat(path)
 		if os.IsNotExist(err) {
@@ -217,7 +217,7 @@ func symlinkSecret(targetFile string, path string, owner int, group int, userMod
 	}
 }
 
-func symlinkSecrets(targetDir string, secrets []secret, templates map[string]*template, userMode bool) error {
+func symlinkSecretsAndTemplates(targetDir string, secrets []secret, templates map[string]*template, userMode bool) error {
 	for _, secret := range secrets {
 		targetFile := filepath.Join(targetDir, secret.Name)
 		if targetFile == secret.Path {
@@ -227,7 +227,7 @@ func symlinkSecrets(targetDir string, secrets []secret, templates map[string]*te
 		if err := os.MkdirAll(parent, os.ModePerm); err != nil {
 			return fmt.Errorf("cannot create parent directory of '%s': %w", secret.Path, err)
 		}
-		if err := symlinkSecret(targetFile, secret.Path, secret.owner, secret.group, userMode); err != nil {
+		if err := createSymlink(targetFile, secret.Path, secret.owner, secret.group, userMode); err != nil {
 			return fmt.Errorf("failed to symlink secret '%s': %w", secret.Path, err)
 		}
 	}
@@ -241,7 +241,7 @@ func symlinkSecrets(targetDir string, secrets []secret, templates map[string]*te
 		if err := os.MkdirAll(parent, os.ModePerm); err != nil {
 			return fmt.Errorf("cannot create parent directory of '%s': %w", template.Path, err)
 		}
-		if err := symlinkSecret(targetFile, template.Path, template.owner, template.group, userMode); err != nil {
+		if err := createSymlink(targetFile, template.Path, template.owner, template.group, userMode); err != nil {
 			return fmt.Errorf("failed to symlink template '%s': %w", template.Path, err)
 		}
 	}
@@ -1302,7 +1302,7 @@ func installSecrets(args []string) error {
 	if isDry {
 		return nil
 	}
-	if err := symlinkSecrets(manifest.SymlinkPath, manifest.Secrets, manifest.Templates, manifest.UserMode); err != nil {
+	if err := symlinkSecretsAndTemplates(manifest.SymlinkPath, manifest.Secrets, manifest.Templates, manifest.UserMode); err != nil {
 		return fmt.Errorf("failed to prepare symlinks to secret store: %w", err)
 	}
 	if err := atomicSymlink(*secretDir, manifest.SymlinkPath); err != nil {
