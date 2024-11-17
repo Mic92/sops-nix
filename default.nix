@@ -17,10 +17,6 @@ rec {
   # backwards compatibility
   inherit (pkgs) ssh-to-pgp;
 
-  # used in the CI only
-  sops-pgp-hook-test = pkgs.callPackage ./pkgs/sops-pgp-hook-test.nix {
-    inherit vendorHash;
-  };
   unit-tests = pkgs.callPackage ./pkgs/unit-tests.nix { };
 }
 // (pkgs.lib.optionalAttrs pkgs.stdenv.isLinux {
