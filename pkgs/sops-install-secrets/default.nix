@@ -21,7 +21,9 @@ buildGoModule {
   # requires root privileges for tests
   doCheck = false;
 
-  passthru.tests = callPackages ./nixos-test.nix { };
+  passthru = {
+    tests = lib.optionalAttrs stdenv.isLinux (callPackages ./nixos-test.nix { });
+  };
 
   outputs = [ "out" ] ++ lib.lists.optionals (stdenv.isLinux) [ "unittest" ];
 
