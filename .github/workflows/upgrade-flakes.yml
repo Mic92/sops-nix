@@ -3,7 +3,7 @@ on:
   repository_dispatch:
   workflow_dispatch:
   schedule:
-    - cron:  '51 2 * * 0'
+    - cron: "51 2 * * 0"
 
 permissions:
   pull-requests: write
@@ -20,10 +20,10 @@ jobs:
             access-tokens = github.com=${{ secrets.GITHUB_TOKEN }}
       - name: Update flakes
         run: |
-           nix flake update
-           pushd dev/private
-           nix flake update
-           popd
-           nix run .#update-dev-private-narHash
+          nix flake update
+          pushd dev/private
+          nix flake update
+          popd
+          nix run .#update-dev-private-narHash
       - name: Create Pull Request
         uses: peter-evans/create-pull-request@v7

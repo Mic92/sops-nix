@@ -1,4 +1,3 @@
-
 {
   imports = [
     ../modules/nix-darwin/default.nix
