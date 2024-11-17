@@ -1,16 +1,21 @@
-{ pkgs ? import <nixpkgs> {}
+{
+  pkgs ? import <nixpkgs> { },
 }:
 let
   sopsPkgs = import ../. { inherit pkgs; };
-in pkgs.stdenv.mkDerivation {
+in
+pkgs.stdenv.mkDerivation {
   name = "env";
-  nativeBuildInputs = with pkgs; [
-    bashInteractive
-    gnupg
-    util-linux
-    nix
-    sopsPkgs.sops-pgp-hook-test
-  ] ++ pkgs.lib.optional (pkgs.stdenv.isLinux) sopsPkgs.sops-install-secrets.unittest;
+  nativeBuildInputs =
+    with pkgs;
+    [
+      bashInteractive
+      gnupg
+      util-linux
+      nix
+      sopsPkgs.sops-pgp-hook-test
+    ]
+    ++ pkgs.lib.optional (pkgs.stdenv.isLinux) sopsPkgs.sops-install-secrets.unittest;
   # allow to prefetch shell dependencies in build phase
   dontUnpack = true;
   installPhase = ''

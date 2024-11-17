@@ -1,8 +1,14 @@
-{ lib, options, config, pkgs, ... }:
+{
+  lib,
+  options,
+  config,
+  pkgs,
+  ...
+}:
 let
   cfg = config.sops;
   secretsForUsers = lib.filterAttrs (_: v: v.neededForUsers) cfg.secrets;
-  templatesForUsers = {};  # We do not currently support `neededForUsers` for templates.
+  templatesForUsers = { }; # We do not currently support `neededForUsers` for templates.
   manifestFor = pkgs.callPackage ../manifest-for.nix {
     inherit cfg;
     inherit (pkgs) writeTextFile;
@@ -22,16 +28,21 @@ let
 in
 {
 
-  assertions = [{
-    assertion = (lib.filterAttrs (_: v: (v.uid != 0 && v.owner != "root") || (v.gid != 0 && v.group != "root")) secretsForUsers) == { };
-    message = "neededForUsers cannot be used for secrets that are not root-owned";
-  }];
+  assertions = [
+    {
+      assertion =
+        (lib.filterAttrs (
+          _: v: (v.uid != 0 && v.owner != "root") || (v.gid != 0 && v.group != "root")
+        ) secretsForUsers) == { };
+      message = "neededForUsers cannot be used for secrets that are not root-owned";
+    }
+  ];
 
-  system.activationScripts = lib.mkIf (secretsForUsers != []) {
+  system.activationScripts = lib.mkIf (secretsForUsers != [ ]) {
     postActivation.text = lib.mkAfter installScript;
   };
 
-  launchd.daemons.sops-install-secrets-for-users = lib.mkIf (secretsForUsers != []) {
+  launchd.daemons.sops-install-secrets-for-users = lib.mkIf (secretsForUsers != [ ]) {
     command = installScript;
     serviceConfig = {
       RunAtLoad = true;

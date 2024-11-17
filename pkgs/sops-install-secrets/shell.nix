@@ -1,4 +1,11 @@
-{ pkgs ? import <nixpkgs> {} }:
+{
+  pkgs ? import <nixpkgs> { },
+}:
 pkgs.mkShell {
-  nativeBuildInputs = with pkgs; [ go delve util-linux gnupg ];
+  nativeBuildInputs = with pkgs; [
+    go
+    delve
+    util-linux
+    gnupg
+  ];
 }

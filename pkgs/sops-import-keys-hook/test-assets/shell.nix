@@ -1,5 +1,5 @@
 # shell.nix
-with import <nixpkgs> {};
+with import <nixpkgs> { };
 mkShell {
   sopsPGPKeyDirs = [
     "./keys"
@@ -10,6 +10,6 @@ mkShell {
   ];
   sopsCreateGPGHome = "1";
   nativeBuildInputs = [
-    (pkgs.callPackage ../../.. {}).sops-import-keys-hook
+    (pkgs.callPackage ../../.. { }).sops-import-keys-hook
   ];
 }
