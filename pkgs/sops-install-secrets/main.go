@@ -70,19 +70,19 @@ type template struct {
 }
 
 type manifest struct {
-	Secrets                 []secret             `json:"secrets"`
-	Templates               []template           `json:"templates"`
-	PlaceholderBySecretName map[string]string    `json:"placeholderBySecretName"`
-	SecretsMountPoint       string               `json:"secretsMountPoint"`
-	SymlinkPath             string               `json:"symlinkPath"`
-	KeepGenerations         int                  `json:"keepGenerations"`
-	SSHKeyPaths             []string             `json:"sshKeyPaths"`
-	GnupgHome               string               `json:"gnupgHome"`
-	AgeKeyFile              string               `json:"ageKeyFile"`
-	AgeSSHKeyPaths          []string             `json:"ageSshKeyPaths"`
-	UseTmpfs                bool                 `json:"useTmpfs"`
-	UserMode                bool                 `json:"userMode"`
-	Logging                 loggingConfig        `json:"logging"`
+	Secrets                 []secret          `json:"secrets"`
+	Templates               []template        `json:"templates"`
+	PlaceholderBySecretName map[string]string `json:"placeholderBySecretName"`
+	SecretsMountPoint       string            `json:"secretsMountPoint"`
+	SymlinkPath             string            `json:"symlinkPath"`
+	KeepGenerations         int               `json:"keepGenerations"`
+	SSHKeyPaths             []string          `json:"sshKeyPaths"`
+	GnupgHome               string            `json:"gnupgHome"`
+	AgeKeyFile              string            `json:"ageKeyFile"`
+	AgeSSHKeyPaths          []string          `json:"ageSshKeyPaths"`
+	UseTmpfs                bool              `json:"useTmpfs"`
+	UserMode                bool              `json:"userMode"`
+	Logging                 loggingConfig     `json:"logging"`
 }
 
 type secretFile struct {

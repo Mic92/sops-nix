@@ -3,6 +3,8 @@ inputs.treefmt-nix.lib.evalModule pkgs {
   projectRootFile = ".git/config";
 
   programs = {
+    gofumpt.enable = true;
+
     nixfmt.enable = true;
 
     deadnix.enable = true;

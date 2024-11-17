@@ -60,8 +60,8 @@ func MountSecretFs(mountpoint string, keysGID int, useTmpfs bool, userMode bool)
 		return nil
 	}
 
-	var fstype = "ramfs"
-	var fsmagic = RamfsMagic
+	fstype := "ramfs"
+	fsmagic := RamfsMagic
 	if useTmpfs {
 		fstype = "tmpfs"
 		fsmagic = TmpfsMagic
