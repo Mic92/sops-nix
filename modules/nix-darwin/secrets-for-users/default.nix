@@ -2,6 +2,7 @@
 let
   cfg = config.sops;
   secretsForUsers = lib.filterAttrs (_: v: v.neededForUsers) cfg.secrets;
+  templatesForUsers = {};  # We do not currently support `neededForUsers` for templates.
   manifestFor = pkgs.callPackage ../manifest-for.nix {
     inherit cfg;
     inherit (pkgs) writeTextFile;
@@ -9,7 +10,7 @@ let
   withEnvironment = import ../with-environment.nix {
     inherit cfg lib;
   };
-  manifestForUsers = manifestFor "-for-users" secretsForUsers {
+  manifestForUsers = manifestFor "-for-users" secretsForUsers templatesForUsers {
     secretsMountPoint = "/run/secrets-for-users.d";
     symlinkPath = "/run/secrets-for-users";
   };
