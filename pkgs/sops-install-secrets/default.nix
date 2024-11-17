@@ -4,7 +4,6 @@
   stdenv,
   vendorHash,
   go,
-  callPackages,
 }:
 buildGoModule {
   pname = "sops-install-secrets";
@@ -20,10 +19,6 @@ buildGoModule {
 
   # requires root privileges for tests
   doCheck = false;
-
-  passthru = {
-    tests = lib.optionalAttrs stdenv.isLinux (callPackages ./nixos-test.nix { });
-  };
 
   outputs = [ "out" ] ++ lib.lists.optionals (stdenv.isLinux) [ "unittest" ];
 

@@ -80,11 +80,14 @@
         checks = eachSystem (
           { pkgs, system, ... }:
           let
-            tests = self.packages.${system}.sops-install-secrets.tests;
             packages-stable = import ./default.nix {
               pkgs = privateInputs.nixpkgs-stable.legacyPackages.${system};
             };
-            tests-stable = packages-stable.sops-install-secrets.tests;
+            dropOverride = attrs: nixpkgs.lib.removeAttrs attrs [ "override" ];
+            tests = dropOverride (pkgs.callPackage ./checks/nixos-test.nix { });
+            tests-stable = dropOverride (
+              privateInputs.nixpkgs-stable.legacyPackages.${system}.callPackage ./checks/nixos-test.nix { }
+            );
             suffix-version =
               version: attrs:
               nixpkgs.lib.mapAttrs' (name: value: nixpkgs.lib.nameValuePair (name + version) value) attrs;
@@ -105,7 +108,6 @@
         darwinConfigurations.sops-arm64 = privateInputs.nix-darwin.lib.darwinSystem {
           modules = [
             ./checks/darwin.nix
-            #{ nixpkgs.pkgs = nixpkgs.legacyPackages.aarch64-darwin; }
             { nixpkgs.hostPlatform = "aarch64-darwin"; }
           ];
         };
