@@ -95,6 +95,10 @@
           in
           {
             home-manager = self.legacyPackages.${system}.homeConfigurations.sops.activation-script;
+            treefmt =
+              (pkgs.callPackage ./formatter.nix {
+                inputs = privateInputs;
+              }).config.build.check;
           }
           // (suffix-stable packages-stable)
           // nixpkgs.lib.optionalAttrs pkgs.stdenv.isLinux tests
@@ -129,6 +133,13 @@
               inherit pkgs;
             };
           }
+        );
+
+        formatter = eachSystem (
+          { pkgs, ... }:
+          (pkgs.callPackage ./formatter.nix {
+            inputs = privateInputs;
+          }).config.build.wrapper
         );
 
         apps = eachSystem (
