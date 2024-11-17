@@ -60,6 +60,7 @@ func SSHPrivateKeyToPGP(sshPrivateKey []byte) (*openpgp.Entity, error) {
 			IssuerKeyId:               &gpgKey.PrimaryKey.KeyId,
 		},
 	}
+
 	err = gpgKey.Identities[uid.Id].SelfSignature.SignUserId(uid.Id, gpgKey.PrimaryKey, gpgKey.PrivateKey, nil)
 	if err != nil {
 		return nil, err

@@ -21,6 +21,7 @@ import (
 // ok fails the test if an err is not nil.
 func ok(tb testing.TB, err error) {
 	tb.Helper()
+
 	if err != nil {
 		fmt.Printf("\033[31munexpected error: %s\033[39m\n\n", err.Error())
 		tb.FailNow()
@@ -29,6 +30,7 @@ func ok(tb testing.TB, err error) {
 
 func equals(tb testing.TB, exp, act interface{}) {
 	tb.Helper()
+
 	if !reflect.DeepEqual(exp, act) {
 		fmt.Printf("\033[31m\texp: %#v\n\n\tgot: %#v\033[39m\n\n", exp, act)
 		tb.FailNow()
@@ -41,6 +43,7 @@ func writeManifest(t *testing.T, dir string, m *manifest) string {
 	filename := path.Join(dir, "manifest.json")
 	f, err := os.OpenFile(filename, os.O_RDWR|os.O_CREATE, 0o755)
 	ok(t, err)
+
 	encoder := json.NewEncoder(f)
 	ok(t, encoder.Encode(m))
 	f.Close()
@@ -66,6 +69,7 @@ func (dir testDir) Remove() {
 
 func newTestDir(t *testing.T) testDir {
 	t.Helper()
+
 	tempdir, err := os.MkdirTemp("", "symlinkDir")
 	ok(t, err)
 	return testDir{tempdir, path.Join(tempdir, "secrets.d"), path.Join(tempdir, "secrets")}
@@ -88,15 +92,18 @@ func TestGPG(t *testing.T) { //nolint:paralleltest
 	gpgEnv := append(os.Environ(), fmt.Sprintf("GNUPGHOME=%s", gpgHome))
 
 	ok(t, os.Mkdir(gpgHome, os.FileMode(0o700)))
+
 	cmd := exec.Command("gpg", "--import", path.Join(assets, "key.asc")) // nolint:gosec
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	cmd.Env = gpgEnv
 	ok(t, cmd.Run())
+
 	stopGpgCmd := exec.Command("gpgconf", "--kill", "gpg-agent")
 	stopGpgCmd.Stdout = os.Stdout
 	stopGpgCmd.Stderr = os.Stderr
 	stopGpgCmd.Env = gpgEnv
+
 	defer func() {
 		if err := stopGpgCmd.Run(); err != nil {
 			fmt.Printf("failed to stop gpg-agent: %s\n", err)
@@ -119,6 +126,7 @@ func TestGPG(t *testing.T) { //nolint:paralleltest
 	}
 
 	var jsonSecret, binarySecret, dotenvSecret, iniSecret secret
+
 	root := "root"
 	// should not create a symlink
 	jsonSecret = yamlSecret
@@ -179,6 +187,7 @@ func TestGPG(t *testing.T) { //nolint:paralleltest
 	equals(t, 0o400, int(yamlStat.Mode().Perm()))
 	stat, success := yamlStat.Sys().(*syscall.Stat_t)
 	equals(t, true, success)
+
 	content, err := os.ReadFile(yamlSecret.Path)
 	ok(t, err)
 	equals(t, "test_value", string(content))
@@ -195,6 +204,7 @@ func TestGPG(t *testing.T) { //nolint:paralleltest
 	ok(t, err)
 	equals(t, true, jsonStat.Mode().IsRegular())
 	equals(t, 0o700, int(jsonStat.Mode().Perm()))
+
 	if stat, ok := jsonStat.Sys().(*syscall.Stat_t); ok {
 		equals(t, 0, int(stat.Uid))
 		equals(t, 0, int(stat.Gid))
