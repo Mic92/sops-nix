@@ -10,7 +10,6 @@ import (
 	"os/exec"
 	"os/user"
 	"path"
-	"path/filepath"
 	"reflect"
 	"runtime"
 	"strconv"
@@ -21,22 +20,24 @@ import (
 
 // ok fails the test if an err is not nil.
 func ok(tb testing.TB, err error) {
+	tb.Helper()
 	if err != nil {
-		_, file, line, _ := runtime.Caller(1)
-		fmt.Printf("\033[31m%s:%d: unexpected error: %s\033[39m\n\n", filepath.Base(file), line, err.Error())
+		fmt.Printf("\033[31munexpected error: %s\033[39m\n\n", err.Error())
 		tb.FailNow()
 	}
 }
 
 func equals(tb testing.TB, exp, act interface{}) {
+	tb.Helper()
 	if !reflect.DeepEqual(exp, act) {
-		_, file, line, _ := runtime.Caller(1)
-		fmt.Printf("\033[31m%s:%d:\n\n\texp: %#v\n\n\tgot: %#v\033[39m\n\n", filepath.Base(file), line, exp, act)
+		fmt.Printf("\033[31m\texp: %#v\n\n\tgot: %#v\033[39m\n\n", exp, act)
 		tb.FailNow()
 	}
 }
 
 func writeManifest(t *testing.T, dir string, m *manifest) string {
+	t.Helper()
+
 	filename := path.Join(dir, "manifest.json")
 	f, err := os.OpenFile(filename, os.O_RDWR|os.O_CREATE, 0o755)
 	ok(t, err)
@@ -64,17 +65,21 @@ func (dir testDir) Remove() {
 }
 
 func newTestDir(t *testing.T) testDir {
+	t.Helper()
 	tempdir, err := os.MkdirTemp("", "symlinkDir")
 	ok(t, err)
 	return testDir{tempdir, path.Join(tempdir, "secrets.d"), path.Join(tempdir, "secrets")}
 }
 
 func testInstallSecret(t *testing.T, testdir testDir, m *manifest) {
+	t.Helper()
+
 	path := writeManifest(t, testdir.path, m)
 	ok(t, installSecrets([]string{"sops-install-secrets", path}))
 }
 
-func testGPG(t *testing.T) {
+// cannot run in parellel with TestSSHKey because we rely on GNUPGHOME environment variable
+func TestGPG(t *testing.T) { //nolint:paralleltest
 	assets := testAssetPath()
 
 	testdir := newTestDir(t)
@@ -206,7 +211,9 @@ func testGPG(t *testing.T) {
 	equals(t, path.Join(testdir.secretsPath, "2"), target)
 }
 
-func testSSHKey(t *testing.T) {
+func TestSSHKey(t *testing.T) {
+	t.Parallel()
+
 	assets := testAssetPath()
 
 	testdir := newTestDir(t)
@@ -242,6 +249,8 @@ func testSSHKey(t *testing.T) {
 }
 
 func TestAge(t *testing.T) {
+	t.Parallel()
+
 	assets := testAssetPath()
 
 	testdir := newTestDir(t)
@@ -277,6 +286,8 @@ func TestAge(t *testing.T) {
 }
 
 func TestAgeWithSSH(t *testing.T) {
+	t.Parallel()
+
 	assets := testAssetPath()
 
 	testdir := newTestDir(t)
@@ -311,13 +322,9 @@ func TestAgeWithSSH(t *testing.T) {
 	testInstallSecret(t, testdir, &m)
 }
 
-func TestAll(t *testing.T) {
-	// we can't test in parallel because we rely on GNUPGHOME environment variable
-	testGPG(t)
-	testSSHKey(t)
-}
-
 func TestValidateManifest(t *testing.T) {
+	t.Parallel()
+
 	assets := testAssetPath()
 
 	testdir := newTestDir(t)
@@ -351,6 +358,8 @@ func TestValidateManifest(t *testing.T) {
 }
 
 func TestIsValidFormat(t *testing.T) {
+	t.Parallel()
+
 	generateCase := func(input string, mustBe bool) {
 		result := IsValidFormat(input)
 		if result != mustBe {
