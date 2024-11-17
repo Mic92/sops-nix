@@ -93,7 +93,7 @@ func TestGPG(t *testing.T) { //nolint:paralleltest
 
 	ok(t, os.Mkdir(gpgHome, os.FileMode(0o700)))
 
-	cmd := exec.Command("gpg", "--import", path.Join(assets, "key.asc")) // nolint:gosec
+	cmd := exec.Command("gpg", "--import", path.Join(assets, "key.asc")) //nolint:gosec
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	cmd.Env = gpgEnv
