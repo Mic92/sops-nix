@@ -1,7 +1,7 @@
 {
   description = "Integrates sops into nixos";
   inputs.nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
-  inputs.nixpkgs-stable.url = "github:NixOS/nixpkgs/release-24.05";
+
   nixConfig.extra-substituters = [ "https://cache.thalheim.io" ];
   nixConfig.extra-trusted-public-keys = [
     "cache.thalheim.io-1:R7msbosLEZKrxk/lKxf9BTjOOH7Ax3H0Qj0/6wiHOgc="
@@ -10,21 +10,41 @@
     {
       self,
       nixpkgs,
-      nixpkgs-stable,
-    }:
+    }@inputs:
     let
+      loadPrivateFlake =
+        path:
+        let
+          flakeHash = builtins.readFile "${toString path}.narHash";
+          flakePath = "path:${toString path}?narHash=${flakeHash}";
+        in
+        builtins.getFlake (builtins.unsafeDiscardStringContext flakePath);
+
+      privateFlake = loadPrivateFlake ./dev/private;
+
+      privateInputs = privateFlake.inputs;
+
       systems = [
         "x86_64-linux"
         "x86_64-darwin"
         "aarch64-darwin"
         "aarch64-linux"
       ];
-      forAllSystems = f: nixpkgs.lib.genAttrs systems (system: f system);
-      suffix-version =
-        version: attrs:
-        nixpkgs.lib.mapAttrs' (name: value: nixpkgs.lib.nameValuePair (name + version) value) attrs;
-      suffix-stable = suffix-version "-24_05";
+
+      eachSystem =
+        f:
+        builtins.listToAttrs (
+          builtins.map (system: {
+            name = system;
+            value = f {
+              pkgs = inputs.nixpkgs.legacyPackages.${system};
+              inherit system;
+            };
+          }) systems
+        );
+
     in
+    # public outputs
     {
       overlays.default =
         final: prev:
@@ -52,39 +72,33 @@
         sops = ./modules/nix-darwin;
         default = self.darwinModules.sops;
       };
-      packages = forAllSystems (
-        system:
-        import ./default.nix {
-          pkgs = import nixpkgs { inherit system; };
-        }
-      );
-      checks =
-        nixpkgs.lib.genAttrs
-          [
-            "x86_64-linux"
-            "aarch64-linux"
-          ]
-          (
-            system:
-            let
-              tests = self.packages.${system}.sops-install-secrets.tests;
-              packages-stable = import ./default.nix {
-                pkgs = import nixpkgs-stable { inherit system; };
-              };
-              tests-stable = packages-stable.sops-install-secrets.tests;
-            in
-            tests // (suffix-stable tests-stable) // (suffix-stable packages-stable)
-          );
+      packages = eachSystem ({ pkgs, ... }: import ./default.nix { inherit pkgs; });
+    }
+    //
+      # dev outputs
+      {
+        checks = eachSystem (
+          { system, ... }:
+          let
+            tests = self.packages.${system}.sops-install-secrets.tests;
+            packages-stable = import ./default.nix {
+              pkgs = privateInputs.nixpkgs-stable.legacyPackages.${system};
+            };
+            tests-stable = packages-stable.sops-install-secrets.tests;
+            suffix-version =
+              version: attrs:
+              nixpkgs.lib.mapAttrs' (name: value: nixpkgs.lib.nameValuePair (name + version) value) attrs;
+            suffix-stable = suffix-version "-24_05";
+          in
+          tests // (suffix-stable tests-stable) // (suffix-stable packages-stable)
+        );
 
-      devShells = forAllSystems (
-        system:
-        let
-          pkgs = nixpkgs.legacyPackages.${system};
-        in
-        {
-          unit-tests = pkgs.callPackage ./pkgs/unit-tests.nix { };
-          default = pkgs.callPackage ./shell.nix { };
-        }
-      );
-    };
+        devShells = eachSystem (
+          { pkgs, ... }:
+          {
+            unit-tests = pkgs.callPackage ./pkgs/unit-tests.nix { };
+            default = pkgs.callPackage ./shell.nix { };
+          }
+        );
+      };
 }
