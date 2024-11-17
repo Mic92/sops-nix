@@ -1,12 +1,13 @@
 { writeTextFile, cfg }:
 
-suffix: secrets: extraJson:
+suffix: secrets: templates: extraJson:
 
 writeTextFile {
   name = "manifest${suffix}.json";
   text = builtins.toJSON (
     {
       secrets = builtins.attrValues secrets;
+      templates = builtins.attrValues templates;
       # Does this need to be configurable?
       secretsMountPoint = "/run/secrets.d";
       symlinkPath = "/run/secrets";
@@ -16,7 +17,6 @@ writeTextFile {
       ageKeyFile = cfg.age.keyFile;
       ageSshKeyPaths = cfg.age.sshKeyPaths;
       useTmpfs = false;
-      templates = cfg.templates;
       placeholderBySecretName = cfg.placeholder;
       userMode = false;
       logging = {
