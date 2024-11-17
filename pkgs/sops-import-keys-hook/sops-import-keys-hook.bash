@@ -2,7 +2,8 @@ sopsImportKeysHook() {
   local key dir
   if [ -n "${sopsCreateGPGHome}" ]; then
     export GNUPGHOME=${sopsGPGHome:-$(pwd)/.git/gnupg}
-    mkdir -m 700 -p $GNUPGHOME
+    # shellcheck disable=SC2174
+    mkdir -m 700 -p "$GNUPGHOME"
   fi
   for key in ${sopsPGPKeys-}; do
     if [[ -f "$key" ]]; then

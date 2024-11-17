@@ -7,6 +7,7 @@ inputs.treefmt-nix.lib.evalModule pkgs {
 
     deadnix.enable = true;
     deno.enable = true;
+    shellcheck.enable = true;
   };
 
   settings = {
