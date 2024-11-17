@@ -1,4 +1,4 @@
-{ config, options, lib, pkgs, ... }:
+{ config, lib, pkgs, ... }:
 
 let
   cfg = config.sops;
@@ -7,7 +7,10 @@ let
     inherit cfg;
     inherit (pkgs) writeTextFile;
   };
-  manifest = manifestFor "" regularSecrets {};
+  manifest = manifestFor "" regularSecrets regularTemplates {};
+
+  # Currently, all templates are "regular" (there's no support for `neededForUsers` for templates.)
+  regularTemplates = cfg.templates;
 
   pathNotInStore = lib.mkOptionType {
     name = "pathNotInStore";
