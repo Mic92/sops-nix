@@ -978,6 +978,13 @@ func handleModifications(isDry bool, logcfg loggingConfig, symlinkPath string, s
 
 	writeLines := func(list []string, file string) error {
 		if len(list) != 0 {
+			if _, err := os.Stat(filepath.Dir(file)); err != nil {
+				if os.IsNotExist(err) {
+					return nil
+				} else {
+					return err
+				}
+			}
 			f, err := os.OpenFile(file, os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0o600)
 			if err != nil {
 				return err
