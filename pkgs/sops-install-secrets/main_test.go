@@ -165,19 +165,19 @@ func TestGPG(t *testing.T) { //nolint:paralleltest
 	iniSecret.SopsFile = path.Join(assets, "secrets.ini")
 	iniSecret.Path = path.Join(testdir.secretsPath, "test5")
 
-	manifest := manifest{
+	m := manifest{
 		Secrets:           []secret{yamlSecret, jsonSecret, binarySecret, dotenvSecret, iniSecret},
 		SecretsMountPoint: testdir.secretsPath,
 		SymlinkPath:       testdir.symlinkPath,
 		GnupgHome:         gpgHome,
 	}
 
-	testInstallSecret(t, testdir, &manifest)
+	testInstallSecret(t, testdir, &m)
 
-	_, err := os.Stat(manifest.SecretsMountPoint)
+	_, err := os.Stat(m.SecretsMountPoint)
 	ok(t, err)
 
-	_, err = os.Stat(manifest.SymlinkPath)
+	_, err = os.Stat(m.SymlinkPath)
 	ok(t, err)
 
 	yamlLinkStat, err := os.Lstat(yamlSecret.Path)
@@ -219,7 +219,7 @@ func TestGPG(t *testing.T) { //nolint:paralleltest
 	ok(t, err)
 	equals(t, 13, len(content))
 
-	testInstallSecret(t, testdir, &manifest)
+	testInstallSecret(t, testdir, &m)
 
 	target, err := os.Readlink(testdir.symlinkPath)
 	ok(t, err)
