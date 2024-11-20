@@ -191,6 +191,7 @@ func linksAreEqual(linkTarget, targetFile string, info os.FileInfo, owner int, g
 	} else {
 		panic("Failed to cast fileInfo Sys() to *syscall.Stat_t. This is possibly an unsupported OS.")
 	}
+
 	return linkTarget == targetFile && validUG
 }
 
@@ -207,6 +208,7 @@ func createSymlink(targetFile string, path string, owner int, group int, userMod
 					return fmt.Errorf("cannot chown symlink '%s': %w", path, err)
 				}
 			}
+
 			return nil
 		} else if err != nil {
 			return fmt.Errorf("cannot stat '%s': %w", path, err)
@@ -288,8 +290,10 @@ func recurseSecretKey(keys map[string]interface{}, wantedKey string) (string, er
 				if keyUntilNow != "" {
 					keyUntilNow += "/"
 				}
+
 				return "", fmt.Errorf("the key '%s%s' cannot be found", keyUntilNow, currentKey)
 			}
+
 			break
 		}
 
@@ -326,6 +330,7 @@ func recurseSecretKey(keys map[string]interface{}, wantedKey string) (string, er
 	if !ok {
 		return "", fmt.Errorf("the value of key '%s' is not a string", keyUntilNow)
 	}
+
 	return strVal, nil
 }
 
@@ -378,6 +383,7 @@ func decryptSecret(s *secret, sourceFiles map[string]plainData) error {
 	}
 
 	sourceFiles[s.SopsFile] = sourceFile
+
 	return nil
 }
 
@@ -388,6 +394,7 @@ func decryptSecrets(secrets []secret) error {
 			return err
 		}
 	}
+
 	return nil
 }
 
@@ -431,6 +438,7 @@ func prepareSecretsDir(secretMountpoint string, linkName string, keysGID int, us
 			return nil, fmt.Errorf("cannot change owner/group of '%s' to 0/%d: %w", dir, keysGID, err)
 		}
 	}
+
 	return &dir, nil
 }
 
@@ -450,6 +458,7 @@ func createParentDirs(parent string, target string, keysGID int, userMode bool) 
 			}
 		}
 	}
+
 	return nil
 }
 
@@ -471,6 +480,7 @@ func writeSecrets(secretDir string, secrets []secret, keysGID int, userMode bool
 			}
 		}
 	}
+
 	return nil
 }
 
@@ -484,6 +494,7 @@ func lookupGroup(groupname string) (int, error) {
 	if err != nil {
 		return 0, fmt.Errorf("cannot parse keys gid %s: %w", group.Gid, err)
 	}
+
 	return int(gid), nil
 }
 
@@ -497,6 +508,7 @@ func lookupKeysGroup() (int, error) {
 	if err2 == nil {
 		return gid, nil
 	}
+
 	return 0, fmt.Errorf("can't find group 'keys' nor 'nogroup' (%w)", err2)
 }
 
@@ -517,6 +529,7 @@ func (app *appContext) loadSopsFile(s *secret) (*secretFile, error) {
 		if err := json.Unmarshal(cipherText, &keys); err != nil {
 			return nil, fmt.Errorf("cannot parse json of '%s': %w", s.SopsFile, err)
 		}
+
 		return &secretFile{cipherText: cipherText, firstSecret: s}, nil
 	case Yaml:
 		if err := yaml.Unmarshal(cipherText, &keys); err != nil {
@@ -565,6 +578,7 @@ func (app *appContext) validateSopsFile(s *secret, file *secretFile) error {
 			return fmt.Errorf("secret %s in %s is not valid: %w", s.Name, s.SopsFile, err)
 		}
 	}
+
 	return nil
 }
 
@@ -573,6 +587,7 @@ func validateMode(mode string) (os.FileMode, error) {
 	if err != nil {
 		return 0, fmt.Errorf("invalid number in mode: %s: %w", mode, err)
 	}
+
 	return os.FileMode(parsed), nil
 }
 
@@ -586,6 +601,7 @@ func validateOwner(owner string) (int, error) {
 	if err != nil {
 		return 0, fmt.Errorf("cannot parse uid %s: %w", lookedUp.Uid, err)
 	}
+
 	return int(ownerNr), nil
 }
 
@@ -599,6 +615,7 @@ func validateGroup(group string) (int, error) {
 	if err != nil {
 		return 0, fmt.Errorf("cannot parse gid %s: %w", lookedUp.Gid, err)
 	}
+
 	return int(groupNr), nil
 }
 
@@ -673,6 +690,7 @@ func renderTemplate(content *string, secretByPlaceholder map[string]*secret) str
 	for placeholder, secret := range secretByPlaceholder {
 		rendered = strings.ReplaceAll(rendered, placeholder, string(secret.value))
 	}
+
 	return rendered
 }
 
@@ -765,6 +783,7 @@ func (app *appContext) validateManifest() error {
 			return err
 		}
 	}
+
 	return nil
 }
 
@@ -1087,6 +1106,7 @@ func handleModifications(isDry bool, logcfg loggingConfig, symlinkPath string, s
 				}
 			}
 		}
+
 		return nil
 	}
 
@@ -1150,6 +1170,7 @@ func handleModifications(isDry bool, logcfg loggingConfig, symlinkPath string, s
 
 			removedTemplates[path] = true
 		}
+
 		return nil
 	})
 	if err != nil {
@@ -1210,6 +1231,7 @@ func setupGPGKeyring(logcfg loggingConfig, sshKeys []string, parentDir string) (
 
 	if err := importSSHKeys(logcfg, sshKeys, dir); err != nil {
 		os.RemoveAll(dir)
+
 		return nil, err
 	}
 
@@ -1245,10 +1267,12 @@ func parseFlags(args []string) (*options, error) {
 
 	if fs.NArg() != 1 {
 		flag.Usage()
+
 		return nil, flag.ErrHelp
 	}
 
 	opts.manifest = fs.Arg(0)
+
 	return &opts, nil
 }
 
@@ -1264,6 +1288,7 @@ func replaceRuntimeDir(path, rundir string) (ret string) {
 		first = false
 		ret += strings.ReplaceAll(part, "%r", rundir)
 	}
+
 	return
 }
 
@@ -1285,6 +1310,7 @@ func writeTemplates(targetDir string, templates []template, keysGID int, userMod
 			}
 		}
 	}
+
 	return nil
 }
 

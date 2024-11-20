@@ -16,6 +16,7 @@ func RuntimeDir() (string, error) {
 	if !ok {
 		return "", errors.New("$XDG_RUNTIME_DIR is not set")
 	}
+
 	return rundir, nil
 }
 
@@ -53,6 +54,7 @@ func SecureSymlinkChown(symlinkToCheck, expectedTarget string, owner, group int)
 	if err != nil {
 		return fmt.Errorf("cannot change owner of '%s' to %d/%d: %w", symlinkToCheck, owner, group, err)
 	}
+
 	return nil
 }
 

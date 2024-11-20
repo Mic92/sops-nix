@@ -52,6 +52,7 @@ func writeManifest(t *testing.T, dir string, m *manifest) string {
 	encoder := json.NewEncoder(f)
 	ok(t, encoder.Encode(m))
 	f.Close()
+
 	return filename
 }
 
@@ -62,6 +63,7 @@ func testAssetPath() string {
 	}
 
 	_, filename, _, _ := runtime.Caller(0)
+
 	return path.Join(path.Dir(filename), "test-assets")
 }
 
@@ -78,6 +80,7 @@ func newTestDir(t *testing.T) testDir {
 
 	tempdir, err := os.MkdirTemp("", "symlinkDir")
 	ok(t, err)
+
 	return testDir{tempdir, path.Join(tempdir, "secrets.d"), path.Join(tempdir, "secrets")}
 }
 
