@@ -345,7 +345,7 @@ func decryptSecret(s *secret, sourceFiles map[string]plainData) error {
 				sourceFile.binary = plain
 			} else {
 				if err := yaml.Unmarshal(plain, &sourceFile.data); err != nil {
-					return fmt.Errorf("Cannot parse yaml of '%s': %w", s.SopsFile, err)
+					return fmt.Errorf("cannot parse yaml of '%s': %w", s.SopsFile, err)
 				}
 			}
 		case JSON:
@@ -353,7 +353,7 @@ func decryptSecret(s *secret, sourceFiles map[string]plainData) error {
 				sourceFile.binary = plain
 			} else {
 				if err := json.Unmarshal(plain, &sourceFile.data); err != nil {
-					return fmt.Errorf("Cannot parse json of '%s': %w", s.SopsFile, err)
+					return fmt.Errorf("cannot parse json of '%s': %w", s.SopsFile, err)
 				}
 			}
 		default:
