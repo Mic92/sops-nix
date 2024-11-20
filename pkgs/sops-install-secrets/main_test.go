@@ -18,6 +18,11 @@ import (
 	"testing"
 )
 
+const (
+	NOBODY  = "nobody"
+	NOGROUP = "nogroup"
+)
+
 // ok fails the test if an err is not nil.
 func ok(tb testing.TB, err error) {
 	tb.Helper()
@@ -110,9 +115,9 @@ func TestGPG(t *testing.T) { //nolint:paralleltest
 		}
 	}()
 
-	nobody := "nobody"
-	nogroup := "nogroup"
 	// should create a symlink
+	nobody := NOBODY
+	nogroup := NOGROUP
 	yamlSecret := secret{
 		Name:         "test",
 		Key:          "test_key",
@@ -194,11 +199,11 @@ func TestGPG(t *testing.T) { //nolint:paralleltest
 
 	u, err := user.LookupId(strconv.Itoa(int(stat.Uid)))
 	ok(t, err)
-	equals(t, "nobody", u.Username)
+	equals(t, NOBODY, u.Username)
 
 	g, err := user.LookupGroupId(strconv.Itoa(int(stat.Gid)))
 	ok(t, err)
-	equals(t, "nogroup", g.Name)
+	equals(t, NOGROUP, g.Name)
 
 	jsonStat, err := os.Stat(jsonSecret.Path)
 	ok(t, err)
@@ -234,8 +239,8 @@ func TestSSHKey(t *testing.T) {
 	ok(t, err)
 	file.Close()
 
-	nobody := "nobody"
-	nogroup := "nogroup"
+	nobody := NOBODY
+	nogroup := NOGROUP
 	s := secret{
 		Name:         "test",
 		Key:          "test_key",
@@ -271,8 +276,8 @@ func TestAge(t *testing.T) {
 	ok(t, err)
 	file.Close()
 
-	nobody := "nobody"
-	nogroup := "nogroup"
+	nobody := NOBODY
+	nogroup := NOGROUP
 	s := secret{
 		Name:         "test",
 		Key:          "test_key",
@@ -308,8 +313,8 @@ func TestAgeWithSSH(t *testing.T) {
 	ok(t, err)
 	file.Close()
 
-	nobody := "nobody"
-	nogroup := "nogroup"
+	nobody := NOBODY
+	nogroup := NOGROUP
 	s := secret{
 		Name:         "test",
 		Key:          "test_key",
@@ -340,8 +345,8 @@ func TestValidateManifest(t *testing.T) {
 	testdir := newTestDir(t)
 	defer testdir.Remove()
 
-	nobody := "nobody"
-	nogroup := "nogroup"
+	nobody := NOBODY
+	nogroup := NOGROUP
 	s := secret{
 		Name:         "test",
 		Key:          "test_key",
