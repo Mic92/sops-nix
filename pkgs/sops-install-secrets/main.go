@@ -117,7 +117,7 @@ func IsValidFormat(format string) bool {
 func (f *FormatType) UnmarshalJSON(b []byte) error {
 	var s string
 	if err := json.Unmarshal(b, &s); err != nil {
-		return err
+		return fmt.Errorf("failed to unmarshal format: %w", err)
 	}
 
 	t := FormatType(s)
@@ -133,7 +133,12 @@ func (f *FormatType) UnmarshalJSON(b []byte) error {
 }
 
 func (f FormatType) MarshalJSON() ([]byte, error) {
-	return json.Marshal(string(f))
+	data, err := json.Marshal(string(f))
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal format: %w", err)
+	}
+
+	return data, nil
 }
 
 type CheckMode string
@@ -765,20 +770,20 @@ func (app *appContext) validateManifest() error {
 
 func atomicSymlink(oldname, newname string) error {
 	if err := os.MkdirAll(filepath.Dir(newname), 0o755); err != nil {
-		return err
+		return fmt.Errorf("cannot create directory for %s: %w", newname, err)
 	}
 
 	// Fast path: if newname does not exist yet, we can skip the whole dance
 	// below.
 	if err := os.Symlink(oldname, newname); err == nil || !os.IsExist(err) {
-		return err
+		return fmt.Errorf("cannot create symlink %s -> %s: %w", newname, oldname, err)
 	}
 
 	// We need to use ioutil.TempDir, as we cannot overwrite a ioutil.TempFile,
 	// and removing+symlinking creates a TOCTOU race.
 	d, err := os.MkdirTemp(filepath.Dir(newname), "."+filepath.Base(newname))
 	if err != nil {
-		return err
+		return fmt.Errorf("cannot create temporary directory: %w", err)
 	}
 
 	cleanup := true
@@ -791,15 +796,21 @@ func atomicSymlink(oldname, newname string) error {
 
 	symlink := filepath.Join(d, "tmp.symlink")
 	if err := os.Symlink(oldname, symlink); err != nil {
-		return err
+		return fmt.Errorf("cannot create temporary symlink %s -> %s: %w", symlink, oldname, err)
 	}
 
 	if err := os.Rename(symlink, newname); err != nil {
-		return err
+		return fmt.Errorf("cannot rename %s to %s: %w", symlink, newname, err)
 	}
 
 	cleanup = false
-	return os.RemoveAll(d)
+
+	err = os.RemoveAll(d)
+	if err != nil {
+		return fmt.Errorf("cannot remove temporary directory: %w", err)
+	}
+
+	return nil
 }
 
 func pruneGenerations(secretsMountPoint, secretsDir string, keepGenerations int) error {
@@ -865,22 +876,26 @@ func importSSHKeys(logcfg loggingConfig, keyPaths []string, gpgHome string) erro
 		sshKey, err := os.ReadFile(p)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "Cannot read ssh key '%s': %s\n", p, err)
+
 			continue
 		}
 
 		gpgKey, err := sshkeys.SSHPrivateKeyToPGP(sshKey)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "%s\n", err)
+
 			continue
 		}
 
 		if err := gpgKey.SerializePrivate(secring, nil); err != nil {
 			fmt.Fprintf(os.Stderr, "Cannot write secring: %s\n", err)
+
 			continue
 		}
 
 		if err := gpgKey.Serialize(pubring); err != nil {
 			fmt.Fprintf(os.Stderr, "Cannot write pubring: %s\n", err)
+
 			continue
 		}
 
@@ -898,23 +913,27 @@ func importAgeSSHKeys(logcfg loggingConfig, keyPaths []string, ageFile os.File) 
 		sshKey, err := os.ReadFile(p)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "Cannot read ssh key '%s': %s\n", p, err)
+
 			continue
 		}
 		// Convert the key to age
 		privKey, pubKey, err := agessh.SSHPrivateKeyToAge(sshKey, []byte{})
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "Cannot convert ssh key '%s': %s\n", p, err)
+
 			continue
 		}
 		// Append it to the file
 		_, err = ageFile.WriteString(*privKey + "\n")
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "Cannot write key to age file: %s\n", err)
+
 			continue
 		}
 
 		if logcfg.KeyImport {
 			fmt.Fprintf(os.Stderr, "%s: Imported %s as age key with fingerprint %s\n", path.Base(os.Args[0]), p, *pubKey)
+
 			continue
 		}
 	}
@@ -929,28 +948,34 @@ func symlinkWalk(filename string, linkDirname string, walkFn filepath.WalkFunc) 
 		if fname, err := filepath.Rel(filename, path); err == nil {
 			path = filepath.Join(linkDirname, fname)
 		} else {
-			return err
+			return fmt.Errorf("cannot get relative path: %w", err)
 		}
 
 		if err == nil && info.Mode()&os.ModeSymlink == os.ModeSymlink {
 			finalPath, err := filepath.EvalSymlinks(path)
 			if err != nil {
-				return err
+				return fmt.Errorf("cannot evaluate symlink %s: %w", path, err)
 			}
 
-			info, err := os.Lstat(finalPath)
+			linkInfo, err := os.Lstat(finalPath)
 			if err != nil {
-				return walkFn(path, info, err)
+				return walkFn(path, linkInfo, err)
 			}
 
-			if info.IsDir() {
+			if linkInfo.IsDir() {
 				return symlinkWalk(finalPath, path, walkFn)
 			}
 		}
 
 		return walkFn(path, info, err)
 	}
-	return filepath.Walk(filename, symWalkFunc)
+
+	err := filepath.Walk(filename, symWalkFunc)
+	if err != nil {
+		return fmt.Errorf("error walking %s: %w", filename, err)
+	}
+
+	return nil
 }
 
 func handleModifications(isDry bool, logcfg loggingConfig, symlinkPath string, secretDir string, secrets []secret, templates []template) error {
@@ -986,15 +1011,17 @@ func handleModifications(isDry bool, logcfg loggingConfig, symlinkPath string, s
 				restart = append(restart, secret.RestartUnits...)
 				reload = append(reload, secret.ReloadUnits...)
 				newSecrets[secret.Name] = true
+
 				continue
 			}
-			return err
+
+			return fmt.Errorf("cannot read %s: %w", oldPath, err)
 		}
 
 		// Read the new file
 		newData, err := os.ReadFile(newPath)
 		if err != nil {
-			return err
+			return fmt.Errorf("cannot read %s: %w", newPath, err)
 		}
 
 		if !bytes.Equal(oldData, newData) {
@@ -1017,15 +1044,17 @@ func handleModifications(isDry bool, logcfg loggingConfig, symlinkPath string, s
 				restart = append(restart, template.RestartUnits...)
 				reload = append(reload, template.ReloadUnits...)
 				newTemplates[template.Name] = true
+
 				continue
 			}
-			return err
+
+			return fmt.Errorf("cannot read %s: %w", oldPath, err)
 		}
 
 		// Read the new file
 		newData, err := os.ReadFile(newPath)
 		if err != nil {
-			return err
+			return fmt.Errorf("cannot read %s: %w", newPath, err)
 		}
 
 		if !bytes.Equal(oldData, newData) {
@@ -1040,20 +1069,21 @@ func handleModifications(isDry bool, logcfg loggingConfig, symlinkPath string, s
 			if _, err := os.Stat(filepath.Dir(file)); err != nil {
 				if os.IsNotExist(err) {
 					return nil
-				} else {
-					return err
 				}
+
+				return fmt.Errorf("cannot stat %s: %w", filepath.Dir(file), err)
 			}
+
 			f, err := os.OpenFile(file, os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0o600)
 			if err != nil {
-				return err
+				return fmt.Errorf("cannot open %s: %w", file, err)
 			}
 
 			defer f.Close()
 
 			for _, unit := range list {
 				if _, err = f.WriteString(unit + "\n"); err != nil {
-					return err
+					return fmt.Errorf("cannot write to %s: %w", file, err)
 				}
 			}
 		}
@@ -1096,7 +1126,7 @@ func handleModifications(isDry bool, logcfg loggingConfig, symlinkPath string, s
 		// it's a secret.
 		rel, err := filepath.Rel(symlinkRenderedPath, path)
 		if err != nil {
-			return err
+			return fmt.Errorf("cannot get relative path: %w", err)
 		}
 
 		isSecret := strings.HasPrefix(rel, "..")
@@ -1203,7 +1233,7 @@ func parseFlags(args []string) (*options, error) {
 	fs.BoolVar(&opts.ignorePasswd, "ignore-passwd", false, `Don't look up anything in /etc/passwd. Causes everything to be owned by root:root or the user executing the tool in user mode`)
 
 	if err := fs.Parse(args[1:]); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error parsing flags: %w", err)
 	}
 
 	switch CheckMode(checkMode) {

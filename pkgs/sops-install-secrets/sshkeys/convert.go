@@ -15,7 +15,7 @@ import (
 func parsePrivateKey(sshPrivateKey []byte) (*rsa.PrivateKey, error) {
 	privateKey, err := ssh.ParseRawPrivateKey(sshPrivateKey)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to parse private ssh key: %w", err)
 	}
 
 	rsaKey, ok := privateKey.(*rsa.PrivateKey)
@@ -63,7 +63,7 @@ func SSHPrivateKeyToPGP(sshPrivateKey []byte) (*openpgp.Entity, error) {
 
 	err = gpgKey.Identities[uid.Id].SelfSignature.SignUserId(uid.Id, gpgKey.PrimaryKey, gpgKey.PrivateKey, nil)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to sign user id: %w", err)
 	}
 
 	return gpgKey, nil
