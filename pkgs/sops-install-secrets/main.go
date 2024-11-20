@@ -30,9 +30,9 @@ type secret struct {
 	Key          string     `json:"key"`
 	Path         string     `json:"path"`
 	Owner        *string    `json:"owner,omitempty"`
-	UID          int        `json:"uid"`
+	UID          uint32     `json:"uid"`
 	Group        *string    `json:"group,omitempty"`
-	GID          int        `json:"gid"`
+	GID          uint32     `json:"gid"`
 	SopsFile     string     `json:"sopsFile"`
 	Format       FormatType `json:"format"`
 	Mode         string     `json:"mode"`
@@ -40,8 +40,8 @@ type secret struct {
 	ReloadUnits  []string   `json:"reloadUnits"`
 	value        []byte
 	mode         os.FileMode
-	owner        int
-	group        int
+	owner        uint32
+	group        uint32
 }
 
 type loggingConfig struct {
@@ -55,17 +55,17 @@ type template struct {
 	Path         string   `json:"path"`
 	Mode         string   `json:"mode"`
 	Owner        *string  `json:"owner,omitempty"`
-	UID          int      `json:"uid"`
+	UID          uint32   `json:"uid"`
 	Group        *string  `json:"group,omitempty"`
-	GID          int      `json:"gid"`
+	GID          uint32   `json:"gid"`
 	File         string   `json:"file"`
 	RestartUnits []string `json:"restartUnits"`
 	ReloadUnits  []string `json:"reloadUnits"`
 	value        []byte
 	mode         os.FileMode
 	content      string
-	owner        int
-	group        int
+	owner        uint32
+	group        uint32
 }
 
 type manifest struct {
@@ -185,11 +185,11 @@ func readManifest(path string) (*manifest, error) {
 	return &m, nil
 }
 
-func linksAreEqual(linkTarget, targetFile string, info os.FileInfo, owner int, group int) bool {
+func linksAreEqual(linkTarget, targetFile string, info os.FileInfo, owner uint32, group uint32) bool {
 	validUG := true
 	if stat, ok := info.Sys().(*syscall.Stat_t); ok {
-		validUG = validUG && int(stat.Uid) == owner
-		validUG = validUG && int(stat.Gid) == group
+		validUG = validUG && stat.Uid == owner
+		validUG = validUG && stat.Gid == group
 	} else {
 		panic("Failed to cast fileInfo Sys() to *syscall.Stat_t. This is possibly an unsupported OS.")
 	}
@@ -197,7 +197,7 @@ func linksAreEqual(linkTarget, targetFile string, info os.FileInfo, owner int, g
 	return linkTarget == targetFile && validUG
 }
 
-func createSymlink(targetFile string, path string, owner int, group int, userMode bool) error {
+func createSymlink(targetFile string, path string, owner uint32, group uint32, userMode bool) error {
 	for {
 		stat, err := os.Lstat(path)
 		if os.IsNotExist(err) {
@@ -430,7 +430,7 @@ func prepareSecretsDir(secretMountpoint string, linkName string, keysGID int, us
 	}
 
 	generation++
-	dir := filepath.Join(secretMountpoint, strconv.Itoa(int(generation)))
+	dir := filepath.Join(secretMountpoint, strconv.FormatUint(generation, 10))
 
 	if _, err := os.Stat(dir); !os.IsNotExist(err) {
 		if err := os.RemoveAll(dir); err != nil {
@@ -443,7 +443,7 @@ func prepareSecretsDir(secretMountpoint string, linkName string, keysGID int, us
 	}
 
 	if !userMode {
-		if err := os.Chown(dir, 0, int(keysGID)); err != nil {
+		if err := os.Chown(dir, 0, keysGID); err != nil {
 			return nil, fmt.Errorf("cannot change owner/group of '%s' to 0/%d: %w", dir, keysGID, err)
 		}
 	}
@@ -462,7 +462,7 @@ func createParentDirs(parent string, target string, keysGID int, userMode bool) 
 		}
 
 		if !userMode {
-			if err := os.Chown(pathSoFar, 0, int(keysGID)); err != nil {
+			if err := os.Chown(pathSoFar, 0, keysGID); err != nil {
 				return fmt.Errorf("cannot own directory '%s' for %s: %w", pathSoFar, filepath.Join(parent, target), err)
 			}
 		}
@@ -479,12 +479,12 @@ func writeSecrets(secretDir string, secrets []secret, keysGID int, userMode bool
 			return err
 		}
 
-		if err := os.WriteFile(fp, []byte(secret.value), secret.mode); err != nil {
+		if err := os.WriteFile(fp, secret.value, secret.mode); err != nil {
 			return fmt.Errorf("cannot write %s: %w", fp, err)
 		}
 
 		if !userMode {
-			if err := os.Chown(fp, secret.owner, secret.group); err != nil {
+			if err := os.Chown(fp, int(secret.owner), int(secret.group)); err != nil {
 				return fmt.Errorf("cannot change owner/group of '%s' to %d/%d: %w", fp, secret.owner, secret.group, err)
 			}
 		}
@@ -600,32 +600,32 @@ func validateMode(mode string) (os.FileMode, error) {
 	return os.FileMode(parsed), nil
 }
 
-func validateOwner(owner string) (int, error) {
+func validateOwner(owner string) (uint32, error) {
 	lookedUp, err := user.Lookup(owner)
 	if err != nil {
 		return 0, fmt.Errorf("failed to lookup user '%s': %w", owner, err)
 	}
 
-	ownerNr, err := strconv.ParseUint(lookedUp.Uid, 10, 64)
+	ownerNr, err := strconv.ParseUint(lookedUp.Uid, 10, 32)
 	if err != nil {
 		return 0, fmt.Errorf("cannot parse uid %s: %w", lookedUp.Uid, err)
 	}
 
-	return int(ownerNr), nil
+	return uint32(ownerNr), nil
 }
 
-func validateGroup(group string) (int, error) {
+func validateGroup(group string) (uint32, error) {
 	lookedUp, err := user.LookupGroup(group)
 	if err != nil {
 		return 0, fmt.Errorf("failed to lookup group '%s': %w", group, err)
 	}
 
-	groupNr, err := strconv.ParseUint(lookedUp.Gid, 10, 64)
+	groupNr, err := strconv.ParseUint(lookedUp.Gid, 10, 32)
 	if err != nil {
 		return 0, fmt.Errorf("cannot parse gid %s: %w", lookedUp.Gid, err)
 	}
 
-	return int(groupNr), nil
+	return uint32(groupNr), nil
 }
 
 func (app *appContext) validateSecret(secret *secret) error {
@@ -1307,12 +1307,12 @@ func writeTemplates(targetDir string, templates []template, keysGID int, userMod
 			return err
 		}
 
-		if err := os.WriteFile(fp, []byte(template.value), template.mode); err != nil {
+		if err := os.WriteFile(fp, template.value, template.mode); err != nil {
 			return fmt.Errorf("cannot write %s: %w", fp, err)
 		}
 
 		if !userMode {
-			if err := os.Chown(fp, template.owner, template.group); err != nil {
+			if err := os.Chown(fp, int(template.owner), int(template.group)); err != nil {
 				return fmt.Errorf("cannot change owner/group of '%s' to %d/%d: %w", fp, template.owner, template.group, err)
 			}
 		}
