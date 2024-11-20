@@ -322,7 +322,12 @@ func recurseSecretKey(keys map[string]interface{}, wantedKey string) (string, er
 		currentData = make(map[string]interface{})
 
 		for key, value := range valWithWrongType {
-			currentData[key.(string)] = value
+			keyStr, ok := key.(string)
+			if !ok {
+				return "", fmt.Errorf("the key '%s' is not a string", key)
+			}
+
+			currentData[keyStr] = value
 		}
 	}
 
