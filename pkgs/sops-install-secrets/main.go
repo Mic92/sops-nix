@@ -218,11 +218,13 @@ func createSymlink(targetFile string, path string, owner int, group int, userMod
 
 		if stat.Mode()&os.ModeSymlink == os.ModeSymlink {
 			linkTarget, err := os.Readlink(path)
-			if os.IsNotExist(err) {
+
+			switch {
+			case os.IsNotExist(err):
 				continue
-			} else if err != nil {
+			case err != nil:
 				return fmt.Errorf("cannot read symlink '%s': %w", path, err)
-			} else if linksAreEqual(linkTarget, targetFile, stat, owner, group) {
+			case linksAreEqual(linkTarget, targetFile, stat, owner, group):
 				return nil
 			}
 		}
@@ -736,22 +738,19 @@ func (app *appContext) validateTemplate(template *template) error {
 		}
 	}
 
-	var templateText string
-
-	if template.Content != "" {
-		templateText = template.Content
-	} else if template.File != "" {
+	switch {
+	case template.Content != "":
+		template.content = template.Content
+	case template.File != "":
 		templateBytes, err := os.ReadFile(template.File)
 		if err != nil {
 			return fmt.Errorf("cannot read %s: %w", template.File, err)
 		}
 
-		templateText = string(templateBytes)
-	} else {
+		template.content = string(templateBytes)
+	_:
 		return fmt.Errorf("neither content nor file was specified for template %s", template.Name)
 	}
-
-	template.content = templateText
 
 	return nil
 }
