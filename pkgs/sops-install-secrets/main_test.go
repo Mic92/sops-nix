@@ -60,6 +60,7 @@ func testAssetPath() string {
 	if assets != "" {
 		return assets
 	}
+
 	_, filename, _, _ := runtime.Caller(0)
 	return path.Join(path.Dir(filename), "test-assets")
 }

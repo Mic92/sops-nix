@@ -1198,6 +1198,7 @@ func parseFlags(args []string) (*options, error) {
 	}
 
 	var checkMode string
+
 	fs.StringVar(&checkMode, "check-mode", "off", `Validate configuration without installing it (possible values: "manifest","sopsfile","off")`)
 	fs.BoolVar(&opts.ignorePasswd, "ignore-passwd", false, `Don't look up anything in /etc/passwd. Causes everything to be owned by root:root or the user executing the tool in user mode`)
 
@@ -1404,6 +1405,7 @@ func installSecrets(args []string) error {
 	if isDry {
 		return nil
 	}
+
 	if err := symlinkSecretsAndTemplates(manifest.SymlinkPath, manifest.Secrets, manifest.Templates, manifest.UserMode); err != nil {
 		return fmt.Errorf("failed to prepare symlinks to secret store: %w", err)
 	}
