@@ -932,7 +932,7 @@ func importSSHKeys(logcfg loggingConfig, keyPaths []string, gpgHome string) erro
 	return nil
 }
 
-func importAgeSSHKeys(logcfg loggingConfig, keyPaths []string, ageFile os.File) error {
+func importAgeSSHKeys(logcfg loggingConfig, keyPaths []string, ageFile os.File) {
 	for _, p := range keyPaths {
 		// Read the key
 		sshKey, err := os.ReadFile(p)
@@ -962,8 +962,6 @@ func importAgeSSHKeys(logcfg loggingConfig, keyPaths []string, ageFile os.File) 
 			continue
 		}
 	}
-
-	return nil
 }
 
 // Like filepath.Walk but symlink-aware.
@@ -1414,10 +1412,7 @@ func installSecrets(args []string) error {
 
 		// Import SSH keys
 		if len(manifest.AgeSSHKeyPaths) != 0 {
-			err = importAgeSSHKeys(manifest.Logging, manifest.AgeSSHKeyPaths, *ageFile)
-			if err != nil {
-				return err
-			}
+			importAgeSSHKeys(manifest.Logging, manifest.AgeSSHKeyPaths, *ageFile)
 		}
 		// Import the keyfile
 		if manifest.AgeKeyFile != "" {
