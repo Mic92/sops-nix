@@ -93,7 +93,7 @@ type secretFile struct {
 
 var isDryActivate = os.Getenv("NIXOS_ACTION") == "dry-activate" //nolint:gochecknoglobals
 
-type FormatType string
+type FormatType string //nolint:recvcheck
 
 const (
 	Yaml   FormatType = "yaml"
