@@ -91,6 +91,8 @@ type secretFile struct {
 	firstSecret *secret
 }
 
+var isDryActivate = os.Getenv("NIXOS_ACTION") == "dry-activate" //nolint:gochecknoglobals
+
 type FormatType string
 
 const (
@@ -632,7 +634,7 @@ func (app *appContext) validateSecret(secret *secret) error {
 
 	secret.mode = mode
 
-	if app.ignorePasswd || os.Getenv("NIXOS_ACTION") == "dry-activate" {
+	if app.ignorePasswd || isDryActivate {
 		secret.owner = 0
 		secret.group = 0
 	} else if app.checkMode == Off || app.ignorePasswd {
@@ -707,7 +709,7 @@ func (app *appContext) validateTemplate(template *template) error {
 
 	template.mode = mode
 
-	if app.ignorePasswd || os.Getenv("NIXOS_ACTION") == "dry-activate" {
+	if app.ignorePasswd || isDryActivate {
 		template.owner = 0
 		template.group = 0
 	} else if app.checkMode == Off || app.ignorePasswd {
@@ -1378,8 +1380,6 @@ func installSecrets(args []string) error {
 		}
 	}
 
-	isDry := os.Getenv("NIXOS_ACTION") == "dry-activate"
-
 	if err = MountSecretFs(manifest.SecretsMountPoint, keysGID, manifest.UseTmpfs, manifest.UserMode); err != nil {
 		return fmt.Errorf("failed to mount filesystem for secrets: %w", err)
 	}
@@ -1459,12 +1459,12 @@ func installSecrets(args []string) error {
 	}
 
 	if !manifest.UserMode {
-		if err := handleModifications(isDry, manifest.Logging, manifest.SymlinkPath, *secretDir, manifest.Secrets, manifest.Templates); err != nil {
+		if err := handleModifications(isDryActivate, manifest.Logging, manifest.SymlinkPath, *secretDir, manifest.Secrets, manifest.Templates); err != nil {
 			return fmt.Errorf("cannot request units to restart: %w", err)
 		}
 	}
 	// No need to perform the actual symlinking
-	if isDry {
+	if isDryActivate {
 		return nil
 	}
 
