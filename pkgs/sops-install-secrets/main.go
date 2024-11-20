@@ -19,7 +19,6 @@ import (
 
 	"github.com/Mic92/sops-nix/pkgs/sops-install-secrets/sshkeys"
 	agessh "github.com/Mic92/ssh-to-age"
-
 	"github.com/getsops/sops/v3/decrypt"
 	"github.com/joho/godotenv"
 	"github.com/mozilla-services/yaml"
@@ -886,7 +885,7 @@ func importSSHKeys(logcfg loggingConfig, keyPaths []string, gpgHome string) erro
 		}
 
 		if logcfg.KeyImport {
-			fmt.Printf("%s: Imported %s as GPG key with fingerprint %s\n", path.Base(os.Args[0]), p, hex.EncodeToString(gpgKey.PrimaryKey.Fingerprint[:]))
+			fmt.Printf("%s: Imported %s as GPG key with fingerprint %s\n", path.Base(os.Args[0]), p, hex.EncodeToString(gpgKey.PrimaryKey.Fingerprint))
 		}
 	}
 
