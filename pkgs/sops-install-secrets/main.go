@@ -1276,9 +1276,10 @@ func parseFlags(args []string) (*options, error) {
 	return &opts, nil
 }
 
-func replaceRuntimeDir(path, rundir string) (ret string) {
+func replaceRuntimeDir(path, rundir string) string {
 	parts := strings.Split(path, "%%")
 	first := true
+	ret := ""
 
 	for _, part := range parts {
 		if !first {
@@ -1289,7 +1290,7 @@ func replaceRuntimeDir(path, rundir string) (ret string) {
 		ret += strings.ReplaceAll(part, "%r", rundir)
 	}
 
-	return
+	return ret
 }
 
 func writeTemplates(targetDir string, templates []template, keysGID int, userMode bool) error {
