@@ -4,6 +4,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"os"
 
@@ -13,7 +14,7 @@ import (
 func RuntimeDir() (string, error) {
 	rundir, ok := os.LookupEnv("XDG_RUNTIME_DIR")
 	if !ok {
-		return "", fmt.Errorf("$XDG_RUNTIME_DIR is not set")
+		return "", errors.New("$XDG_RUNTIME_DIR is not set")
 	}
 	return rundir, nil
 }

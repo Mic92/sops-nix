@@ -94,7 +94,7 @@ func TestGPG(t *testing.T) { //nolint:paralleltest
 	testdir := newTestDir(t)
 	defer testdir.Remove()
 	gpgHome := path.Join(testdir.path, "gpg-home")
-	gpgEnv := append(os.Environ(), fmt.Sprintf("GNUPGHOME=%s", gpgHome))
+	gpgEnv := append(os.Environ(), "GNUPGHOME="+gpgHome)
 
 	ok(t, os.Mkdir(gpgHome, os.FileMode(0o700)))
 
