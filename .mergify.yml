@@ -1,16 +1,14 @@
 queue_rules:
   - name: default
-    merge_conditions:
-      - check-success=buildbot/nix-build
-defaults:
-  actions:
-    queue:
-      merge_method: rebase
-pull_request_rules:
-  - name: merge using the merge queue
-    conditions:
+    queue_conditions:
       - base=master
       - label~=merge-queue|dependencies
+    merge_conditions:
+      - check-success=buildbot/nix-build
+    merge_method: rebase
+
+pull_request_rules:
+  - name: refactored queue action rule
+    conditions: []
     actions:
       queue:
-
