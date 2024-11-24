@@ -1,12 +1,20 @@
 linters:
-  presets:
-    - bugs
-    - unused
-  enable:
-    - gofmt
-    - misspell
-    - revive
-    - stylecheck
+  enable-all: true
   disable:
-    # direnv is not a web server, context is not strictly necessary.
-    - noctx
+    - cyclop
+    - depguard
+    - dogsled
+    - err113
+    - exhaustruct
+    - exportloopref
+    - forbidigo
+    - funlen
+    - gocognit
+    - gocyclo
+    - godot
+    - godox
+    - lll
+    - maintidx
+    - mnd
+    - nestif
+    - varnamelen

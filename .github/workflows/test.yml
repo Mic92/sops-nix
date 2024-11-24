@@ -5,14 +5,14 @@ on:
     branches:
       - master
   schedule:
-    - cron:  '51 2 * * *'
+    - cron: "51 2 * * *"
 jobs:
   tests:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v4
-    - uses: cachix/install-nix-action@v30
-    - name: Add keys group (needed for go tests)
-      run: sudo groupadd keys
-    - name: Run unit tests
-      run: nix develop .#unit-tests --command "true"
+      - uses: actions/checkout@v4
+      - uses: cachix/install-nix-action@v30
+      - name: Add keys group (needed for go tests)
+        run: sudo groupadd keys
+      - name: Run unit tests
+        run: nix develop .#unit-tests --command "true"

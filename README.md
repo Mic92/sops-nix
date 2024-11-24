@@ -2,63 +2,87 @@
 
 ![sops-nix logo](https://github.com/Mic92/sops-nix/releases/download/assets/logo.gif "Logo of sops-nix")
 
-Atomic, declarative, and reproducible secret provisioning for NixOS based on [sops](https://github.com/mozilla/sops).
+Atomic, declarative, and reproducible secret provisioning for NixOS based on
+[sops](https://github.com/mozilla/sops).
 
 ## How it works
 
-Secrets are decrypted from [`sops` files](https://github.com/mozilla/sops#2usage) during
-activation time. The secrets are stored as one secret per file and access-controlled by full declarative configuration of their users, permissions, and groups.
-GPG keys or `age` keys can be used for decryption, and compatibility shims are supported to enable the use of SSH RSA or SSH Ed25519 keys.
-Sops also supports cloud key management APIs such as AWS
-KMS, GCP KMS, Azure Key Vault and Hashicorp Vault. While not
-officially supported by sops-nix yet, these can be controlled using
+Secrets are decrypted from
+[`sops` files](https://github.com/mozilla/sops#2usage) during activation time.
+The secrets are stored as one secret per file and access-controlled by full
+declarative configuration of their users, permissions, and groups. GPG keys or
+`age` keys can be used for decryption, and compatibility shims are supported to
+enable the use of SSH RSA or SSH Ed25519 keys. Sops also supports cloud key
+management APIs such as AWS KMS, GCP KMS, Azure Key Vault and Hashicorp Vault.
+While not officially supported by sops-nix yet, these can be controlled using
 environment variables that can be passed to sops.
 
 ## Features
 
-- Compatible with all NixOS deployment frameworks: [NixOps](https://github.com/NixOS/nixops), nixos-rebuild, [krops](https://github.com/krebs/krops/), [morph](https://github.com/DBCDK/morph), [nixus](https://github.com/Infinisil/nixus), etc.
-- Version-control friendly: Since all files are encrypted they can be directly committed to version control without worry. Diffs of the secrets are readable, and [can be shown in cleartext](https://github.com/mozilla/sops#showing-diffs-in-cleartext-in-git).
-- CI friendly: Since sops files can be added to the Nix store without leaking secrets, a machine definition can be built as a whole from a repository, without needing to rely on external secrets or services.
+- Compatible with all NixOS deployment frameworks:
+  [NixOps](https://github.com/NixOS/nixops), nixos-rebuild,
+  [krops](https://github.com/krebs/krops/),
+  [morph](https://github.com/DBCDK/morph),
+  [nixus](https://github.com/Infinisil/nixus), etc.
+- Version-control friendly: Since all files are encrypted they can be directly
+  committed to version control without worry. Diffs of the secrets are readable,
+  and
+  [can be shown in cleartext](https://github.com/mozilla/sops#showing-diffs-in-cleartext-in-git).
+- CI friendly: Since sops files can be added to the Nix store without leaking
+  secrets, a machine definition can be built as a whole from a repository,
+  without needing to rely on external secrets or services.
 - Home-manager friendly: Provides a home-manager module
-- Works well in teams: sops-nix comes with `nix-shell` hooks that allows multiple people to quickly import all GPG keys.
-  The cryptography used in sops is designed to be scalable: Secrets are only encrypted once with a master key
+- Works well in teams: sops-nix comes with `nix-shell` hooks that allows
+  multiple people to quickly import all GPG keys. The cryptography used in sops
+  is designed to be scalable: Secrets are only encrypted once with a master key
   instead of encrypted per machine/developer key.
-- Atomic upgrades: New secrets are written to a new directory which replaces the old directory atomically.
-- Rollback support: If sops files are added to the Nix store, old secrets can be rolled back. This is optional.
-- Fast time-to-deploy: Unlike solutions implemented by NixOps, krops and morph, no extra steps are required to upload secrets.
-- A variety of storage formats: Secrets can be stored in YAML, dotenv, INI, JSON or binary.
-- Minimizes configuration errors: sops files are checked against the configuration at evaluation time.
+- Atomic upgrades: New secrets are written to a new directory which replaces the
+  old directory atomically.
+- Rollback support: If sops files are added to the Nix store, old secrets can be
+  rolled back. This is optional.
+- Fast time-to-deploy: Unlike solutions implemented by NixOps, krops and morph,
+  no extra steps are required to upload secrets.
+- A variety of storage formats: Secrets can be stored in YAML, dotenv, INI, JSON
+  or binary.
+- Minimizes configuration errors: sops files are checked against the
+  configuration at evaluation time.
 
 ## Demo
 
-There is a `configuration.nix` example in the [deployment step](#deploy-example) of our usage example.
+There is a `configuration.nix` example in the [deployment step](#deploy-example)
+of our usage example.
 
 ## Supported encryption methods
 
 sops-nix supports two basic ways of encryption, GPG and `age`.
 
-GPG is based on [GnuPG](https://gnupg.org/) and encrypts against GPG public keys. Private GPG keys may
-be used to decrypt the secrets on the target machine. The tool [`ssh-to-pgp`](https://github.com/Mic92/ssh-to-pgp) can
-be used to derive a GPG key from a SSH (host) key in RSA format.
+GPG is based on [GnuPG](https://gnupg.org/) and encrypts against GPG public
+keys. Private GPG keys may be used to decrypt the secrets on the target machine.
+The tool [`ssh-to-pgp`](https://github.com/Mic92/ssh-to-pgp) can be used to
+derive a GPG key from a SSH (host) key in RSA format.
 
-The other method is `age` which is based on [`age`](https://github.com/FiloSottile/age).
-The tool ([`ssh-to-age`](https://github.com/Mic92/ssh-to-age)) can convert SSH host or user keys in Ed25519
-format to `age` keys.
+The other method is `age` which is based on
+[`age`](https://github.com/FiloSottile/age). The tool
+([`ssh-to-age`](https://github.com/Mic92/ssh-to-age)) can convert SSH host or
+user keys in Ed25519 format to `age` keys.
 
 ## Usage example
 
-If you prefer video over the textual description below, you can also checkout this [6min tutorial](https://www.youtube.com/watch?v=G5f6GC7SnhU) by [@vimjoyer](https://github.com/vimjoyer).
+If you prefer video over the textual description below, you can also checkout
+this [6min tutorial](https://www.youtube.com/watch?v=G5f6GC7SnhU) by
+[@vimjoyer](https://github.com/vimjoyer).
 
 <details>
 <summary><b>1. Install sops-nix</b></summary>
 
-Choose one of the following methods. When using it non-globally with home-manager, refer to [Use with home-manager](#use-with-home-manager).
+Choose one of the following methods. When using it non-globally with
+home-manager, refer to [Use with home-manager](#use-with-home-manager).
 
 #### Flakes (current recommendation)
 
 If you use experimental nix flakes support:
 
-``` nix
+```nix
 {
   inputs.sops-nix.url = "github:Mic92/sops-nix";
   # optional, not necessary for the module
@@ -79,23 +103,24 @@ If you use experimental nix flakes support:
 ```
 
 #### [`niv`](https://github.com/nmattia/niv) (recommended if not using flakes)
-  First add it to niv:
-  
+
+First add it to niv:
+
 ```console
 $ niv add Mic92/sops-nix
 ```
 
-  Then add the following to your `configuration.nix` in the `imports` list:
-  
+Then add the following to your `configuration.nix` in the `imports` list:
+
 ```nix
 {
   imports = [ "${(import ./nix/sources.nix).sops-nix}/modules/sops" ];
 }
 ```
-  
+
 #### `fetchTarball`
 
-  Add the following to your `configuration.nix`:
+Add the following to your `configuration.nix`:
 
 ```nix
 {
@@ -111,7 +136,7 @@ $ niv add Mic92/sops-nix
   ];
 }
 ```
-  
+
 </details>
 
 <details>
@@ -134,7 +159,8 @@ $ gpg --full-generate-key
 $ gpg --default-new-key-algo rsa4096 --gen-key
 ```
 
-Or you can use the `ssh-to-pgp` tool to get a GPG key from an SSH key: 
+Or you can use the `ssh-to-pgp` tool to get a GPG key from an SSH key:
+
 ```console
 $ nix-shell -p gnupg -p ssh-to-pgp --run "ssh-to-pgp -private-key -i $HOME/.ssh/id_rsa | gpg --import --quiet"
 2504791468b153b8a3963cc97ba53d1919c5dfd4
@@ -142,12 +168,18 @@ $ nix-shell -p gnupg -p ssh-to-pgp --run "ssh-to-pgp -private-key -i $HOME/.ssh/
 $ nix-shell -p ssh-to-pgp --run "ssh-to-pgp -i $HOME/.ssh/id_rsa -o $USER.asc"
 2504791468b153b8a3963cc97ba53d1919c5dfd4
 ```
-(Note that `ssh-to-pgp` only supports RSA keys; to use Ed25519 keys, use `age`.)  
+
+(Note that `ssh-to-pgp` only supports RSA keys; to use Ed25519 keys, use
+`age`.)\
 If you get the following,
+
 ```console
 ssh-to-pgp: failed to parse private ssh key: ssh: this private key is passphrase protected
 ```
-then your SSH key is encrypted with your password and you will need to create an unencrypted copy temporarily.
+
+then your SSH key is encrypted with your password and you will need to create an
+unencrypted copy temporarily.
+
 ```console
 $ cp $HOME/.ssh/id_rsa /tmp/id_rsa
 $ ssh-keygen -p -N "" -f /tmp/id_rsa
@@ -158,13 +190,16 @@ $ rm /tmp/id_rsa
 <details>
 <summary> How to find the public key of an `age` key </summary>
 
-If you generated an `age` key, the `age` public key can be found via `age-keygen -y $PATH_TO_KEY`:
+If you generated an `age` key, the `age` public key can be found via
+`age-keygen -y $PATH_TO_KEY`:
+
 ```console
 $ age-keygen -y ~/.config/sops/age/keys.txt
 age12zlz6lvcdk6eqaewfylg35w0syh58sm7gh53q5vvn7hd7c6nngyseftjxl
 ```
 
 Otherwise, you can convert an existing SSH key into an `age` public key:
+
 ```console
 $ nix-shell -p ssh-to-age --run "ssh-to-age < ~/.ssh/id_ed25519.pub"
 # or
@@ -177,6 +212,7 @@ $ nix-shell -p ssh-to-age --run "ssh-add -L | ssh-to-age"
 <summary> How to find the GPG fingerprint of a key </summary>
 
 Invoke this command and look for your key:
+
 ```console
 $ gpg --list-secret-keys
 /tmp/tmp.JA07D1aVRD/pubring.kbx
@@ -187,11 +223,15 @@ uid           [ unknown] root <root@localhost>
 ```
 
 The fingerprint here is `9F89C5F69A10281A835014B09C3DC61F752087EF`.
+
 </details>
 
-Your `age` public key or GPG fingerprint can be written to your [`.sops.yaml`](https://github.com/getsops/sops#using-sops-yaml-conf-to-select-kms-pgp-and-age-for-new-files) in the root of your configuration directory or repository:
+Your `age` public key or GPG fingerprint can be written to your
+[`.sops.yaml`](https://github.com/getsops/sops#using-sops-yaml-conf-to-select-kms-pgp-and-age-for-new-files)
+in the root of your configuration directory or repository:
+
 ```yaml
-# This example uses YAML anchors which allows reuse of multiple keys 
+# This example uses YAML anchors which allows reuse of multiple keys
 # without having to repeat yourself.
 # Also see https://github.com/Mic92/dotfiles/blob/master/nixos/.sops.yaml
 # for a more complex example.
@@ -201,15 +241,14 @@ keys:
 creation_rules:
   - path_regex: secrets/[^/]+\.(yaml|json|env|ini)$
     key_groups:
-    - pgp:
-      - *admin_alice
-      age:
-      - *admin_bob
+      - pgp:
+          - *admin_alice
+        age:
+          - *admin_bob
 ```
 
-**Note:**
-Be sure to not include a `-` before subsequent key types under `key_groups`
-(i.e. `age` in the above example should not have a `-` in front).
+**Note:** Be sure to not include a `-` before subsequent key types under
+`key_groups` (i.e. `age` in the above example should not have a `-` in front).
 This will otherwise cause sops to require multiple keys (shamir secret sharing)
 to decrypt a secret, which breaks normal sops-nix usage.
 
@@ -218,9 +257,12 @@ to decrypt a secret, which breaks normal sops-nix usage.
 <details>
 <summary><b>3. Get a public key for your target machine</b></summary>
 
-The easiest way to add new machines is by using SSH host keys (this requires OpenSSH to be enabled).  
+The easiest way to add new machines is by using SSH host keys (this requires
+OpenSSH to be enabled).
 
-If you are using `age`, the `ssh-to-age` tool can be used to convert any SSH Ed25519 public key to the `age` format:
+If you are using `age`, the `ssh-to-age` tool can be used to convert any SSH
+Ed25519 public key to the `age` format:
+
 ```console
 $ nix-shell -p ssh-to-age --run 'ssh-keyscan example.com | ssh-to-age'
 age1rgffpespcyjn0d8jglk7km9kfrfhdyev6camd3rck6pn8y47ze4sug23v3
@@ -228,7 +270,8 @@ $ nix-shell -p ssh-to-age --run 'cat /etc/ssh/ssh_host_ed25519_key.pub | ssh-to-
 age1rgffpespcyjn0d8jglk7km9kfrfhdyev6camd3rck6pn8y47ze4sug23v3
 ```
 
-For GPG, since sops does not natively support SSH keys yet, sops-nix supports a conversion tool (`ssh-to-pgp`) to store them as GPG keys:
+For GPG, since sops does not natively support SSH keys yet, sops-nix supports a
+conversion tool (`ssh-to-pgp`) to store them as GPG keys:
 
 ```console
 $ ssh root@server01 "cat /etc/ssh/ssh_host_rsa_key" | nix-shell -p ssh-to-pgp --run "ssh-to-pgp -o server01.asc"
@@ -240,7 +283,8 @@ $ nix-shell -p ssh-to-pgp --run "ssh-to-pgp -i /etc/ssh/ssh_host_rsa_key -o serv
 0fd60c8c3b664aceb1796ce02b318df330331003
 ```
 
-The output of these commands is the identifier for the server's key, which can be added to your `.sops.yaml`:
+The output of these commands is the identifier for the server's key, which can
+be added to your `.sops.yaml`:
 
 ```yaml
 keys:
@@ -251,22 +295,23 @@ keys:
 creation_rules:
   - path_regex: secrets/[^/]+\.(yaml|json|env|ini)$
     key_groups:
-    - pgp:
-      - *admin_alice
-      - *server_azmidi
-      age:
-      - *admin_bob
-      - *server_nosaxa
+      - pgp:
+          - *admin_alice
+          - *server_azmidi
+        age:
+          - *admin_bob
+          - *server_nosaxa
   - path_regex: secrets/azmidi/[^/]+\.(yaml|json|env|ini)$
     key_groups:
-    - pgp:
-      - *admin_alice
-      - *server_azmidi
-      age:
-      - *admin_bob
+      - pgp:
+          - *admin_alice
+          - *server_azmidi
+        age:
+          - *admin_bob
 ```
 
-If you prefer having a separate GPG key, see [Use with GPG instead of SSH keys](#use-with-GPG-instead-of-SSH-keys).
+If you prefer having a separate GPG key, see
+[Use with GPG instead of SSH keys](#use-with-GPG-instead-of-SSH-keys).
 
 </details>
 
@@ -275,8 +320,8 @@ If you prefer having a separate GPG key, see [Use with GPG instead of SSH keys](
 
 To create a sops file you need write a `.sops.yaml` as described above.
 
-When using GnuPG you also need to import your personal GPG key
-(and your colleagues) and your servers into your GPG key chain.
+When using GnuPG you also need to import your personal GPG key (and your
+colleagues) and your servers into your GPG key chain.
 
 <details>
 <summary>sops-nix can automate the import of GPG keys with a hook for nix-shell, allowing public
@@ -342,8 +387,10 @@ After configuring `.sops.yaml`, you can open a new file with sops:
 $ nix-shell -p sops --run "sops secrets/example.yaml"
 ```
 
-This will start your configured editor located at the `$EDITOR` environment variable.  
+This will start your configured editor located at the `$EDITOR` environment
+variable.\
 An example secret file might be:
+
 ```yaml
 # Files must always have a string value
 example-key: example-value
@@ -394,7 +441,9 @@ sops:
     version: 3.7.1
 ```
 
-If you add a new host to your `.sops.yaml` file, you will need to update the keys for all secrets that are used by the new host.  This can be done like so:
+If you add a new host to your `.sops.yaml` file, you will need to update the
+keys for all secrets that are used by the new host. This can be done like so:
+
 ```
 $ nix-shell -p sops --run "sops updatekeys secrets/example.yaml"
 ```
@@ -404,7 +453,8 @@ $ nix-shell -p sops --run "sops updatekeys secrets/example.yaml"
 <details>
 <summary id="deploy-example"><b>5. Deploy</b></summary>
 
-If you derived your server public key from SSH, all you need in your `configuration.nix` is:
+If you derived your server public key from SSH, all you need in your
+`configuration.nix` is:
 
 ```nix
 {
@@ -425,8 +475,8 @@ If you derived your server public key from SSH, all you need in your `configurat
 }
 ```
 
-On `nixos-rebuild switch` this will make the keys accessible 
-via `/run/secrets/example-key` and `/run/secrets/myservice/my_subdir/my_secret`:
+On `nixos-rebuild switch` this will make the keys accessible via
+`/run/secrets/example-key` and `/run/secrets/myservice/my_subdir/my_secret`:
 
 ```console
 $ cat /run/secrets/example-key
@@ -446,11 +496,11 @@ lrwxrwxrwx 16 root 12 Jul  6:23  /run/secrets -> /run/secrets.d/1
 
 ## Set secret permission/owner and allow services to access it
 
-By default secrets are owned by `root:root`. Furthermore
-the parent directory `/run/secrets.d` is only owned by
-`root` and the `keys` group has read access to it:
+By default secrets are owned by `root:root`. Furthermore the parent directory
+`/run/secrets.d` is only owned by `root` and the `keys` group has read access to
+it:
 
-``` console
+```console
 $ ls -la /run/secrets.d/1
 total 24
 drwxr-x--- 2 root keys   0 Jul 12  6:23 .
@@ -458,8 +508,8 @@ drwxr-x--- 3 root keys   0 Jul 12  6:23 ..
 -r-------- 1 root root  20 Jul 12  6:23 example-secret
 ```
 
-The secrets option has further parameter to change secret permission.
-Consider the following nixos configuration example:
+The secrets option has further parameter to change secret permission. Consider
+the following nixos configuration example:
 
 ```nix
 {
@@ -514,9 +564,11 @@ the service needs a token and a SSH private key to function.</summary>
 
 ## Restarting/reloading systemd units on secret change
 
-It is possible to restart or reload units when a secret changes or is newly initialized.
+It is possible to restart or reload units when a secret changes or is newly
+initialized.
 
 This behavior can be configured per-secret:
+
 ```nix
 {
   sops.secrets."home-assistant-secrets.yaml" = {
@@ -528,9 +580,8 @@ This behavior can be configured per-secret:
 
 ## Symlinks to other directories
 
-Some services might expect files in certain locations.
-Using the `path` option a symlink to this directory can
-be created:
+Some services might expect files in certain locations. Using the `path` option a
+symlink to this directory can be created:
 
 ```nix
 {
@@ -548,13 +599,17 @@ lrwxrwxrwx 1 root root 40 Jul 19 22:36 /var/lib/hass/secrets.yaml -> /run/secret
 
 ## Setting a user's password
 
-sops-nix has to run after NixOS creates users (in order to specify what users own a secret.)
-This means that it's not possible to set `users.users.<name>.hashedPasswordFile` to any secrets managed by sops-nix.
-To work around this issue, it's possible to set `neededForUsers = true` in a secret.
-This will cause the secret to be decrypted to `/run/secrets-for-users` instead of `/run/secrets` before NixOS creates users.
-As users are not created yet, it's not possible to set an owner for these secrets.
+sops-nix has to run after NixOS creates users (in order to specify what users
+own a secret.) This means that it's not possible to set
+`users.users.<name>.hashedPasswordFile` to any secrets managed by sops-nix. To
+work around this issue, it's possible to set `neededForUsers = true` in a
+secret. This will cause the secret to be decrypted to `/run/secrets-for-users`
+instead of `/run/secrets` before NixOS creates users. As users are not created
+yet, it's not possible to set an owner for these secrets.
 
-The password must be stored as a hash for this to work, which can be created with the command `mkpasswd`
+The password must be stored as a hash for this to work, which can be created
+with the command `mkpasswd`
+
 ```console
 $ echo "password" | mkpasswd -s
 $y$j9T$WFoiErKnEnMcGq0ruQK4K.$4nJAY3LBeBsZBTYSkdTOejKU6KlDmhnfUV3Ll1K/1b.
@@ -571,13 +626,15 @@ $y$j9T$WFoiErKnEnMcGq0ruQK4K.$4nJAY3LBeBsZBTYSkdTOejKU6KlDmhnfUV3Ll1K/1b.
 }
 ```
 
-**Note:** If you are using Impermanence, you must set `sops.age.keyFile` to a keyfile inside your persist directory or it will not exist at boot time. 
-For example: `/nix/persist/var/lib/sops-nix/key.txt`
-Similarly if ssh host keys are used instead, they also need to be placed inside the persisted storage.
+**Note:** If you are using Impermanence, you must set `sops.age.keyFile` to a
+keyfile inside your persist directory or it will not exist at boot time. For
+example: `/nix/persist/var/lib/sops-nix/key.txt` Similarly if ssh host keys are
+used instead, they also need to be placed inside the persisted storage.
 
 ## Different file formats
 
-At the moment we support the following file formats: YAML, JSON, INI, dotenv and binary.
+At the moment we support the following file formats: YAML, JSON, INI, dotenv and
+binary.
 
 sops-nix allows specifying multiple sops files in different file formats:
 
@@ -644,7 +701,7 @@ $ sops secrets.json
 
 Then, put in the following content:
 
-``` json
+```json
 {
   "github_token": "4a6c73f74928a9c4c4bc47379256b72e598e2bd3",
   "ssh_key": "-----BEGIN OPENSSH PRIVATE KEY-----\\nb3BlbnNzaC1rZXktdjEAAAAABG5vbmUAAAAEbm9uZQAAAAAAAAABAAAAMwAAAAtzc2gtZW\\nQyNTUxOQAAACDENhLwQI4v/Ecv65iCMZ7aZAL+Sdc0Cqyjkd012XwJzQAAAJht4at6beGr\\negAAAAtzc2gtZWQyNTUxOQAAACDENhLwQI4v/Ecv65iCMZ7aZAL+Sdc0Cqyjkd012XwJzQ\\nAAAEBizgX7v+VMZeiCtWRjpl95dxqBWUkbrPsUSYF3DGV0rsQ2EvBAji/8Ry/rmIIxntpk\\nAv5J1zQKrKOR3TXZfAnNAAAAE2pvZXJnQHR1cmluZ21hY2hpbmUBAg==\\n-----END OPENSSH PRIVATE KEY-----\\n"
@@ -669,11 +726,12 @@ You can include it like this in your `configuration.nix`:
 ### Binary
 
 This format allows to encrypt an arbitrary binary format that can't be put into
-JSON/YAML files. Unlike the other two formats, for binary files, one file corresponds to one secret.
+JSON/YAML files. Unlike the other two formats, for binary files, one file
+corresponds to one secret.
 
 To encrypt an binary file use the following command:
 
-``` console
+```console
 $ sops -e /etc/krb5/krb5.keytab > krb5.keytab
 # an example of what this might result in:
 $ head krb5.keytab
@@ -687,12 +745,11 @@ $ head krb5.keytab
                 "mac": "ENC[AES256_GCM,data:ISjUzaw/5mNiwypmUrOk2DAZnlkbnhURHmTTYA3705NmRsSyUh1PyQvCuwglmaHscwl4GrsnIz4rglvwx1zYa+UUwanR0+VeBqntHwzSNiWhh7qMAQwdUXmdCNiOyeGy6jcSDsXUeQmyIWH6yibr7hhzoQFkZEB7Wbvcw6Sossk=,iv:UilxNvfHN6WkEvfY8ZIJCWijSSpLk7fqSCWh6n8+7lk=,tag:HUTgyL01qfVTCNWCTBfqXw==,type:str]",
                 "pgp": [
                         {
-
 ```
 
 It can be decrypted again like this:
 
-``` console
+```console
 $ sops -d krb5.keytab > /tmp/krb5.keytab
 ```
 
@@ -709,9 +766,9 @@ This is how it can be included in your `configuration.nix`:
 
 ## Emit plain file for yaml and json formats
 
-By default, sops-nix extracts a single key from yaml and json files. If you
-need the plain file instead of extracting a specific key from the input document,
-you can set `key` to an empty string.
+By default, sops-nix extracts a single key from yaml and json files. If you need
+the plain file instead of extracting a specific key from the input document, you
+can set `key` to an empty string.
 
 For example, the input document `my-config.yaml` likes this:
 
@@ -719,10 +776,10 @@ For example, the input document `my-config.yaml` likes this:
 my-secret1: ENC[AES256_GCM,data:tkyQPQODC3g=,iv:yHliT2FJ74EtnLIeeQtGbOoqVZnF0q5HiXYMJxYx6HE=,tag:EW5LV4kG4lcENaN2HIFiow==,type:str]
 my-secret2: ENC[AES256_GCM,data:tkyQPQODC3g=,iv:yHliT2FJ74EtnLIeeQtGbOoqVZnF0q5HiXYMJxYx6HE=,tag:EW5LV4kG4lcENaN2HIFiow==,type:str]
 sops:
-    kms: []
-    gcp_kms: []
-    azure_kv: []
-    hc_vault: []
+  kms: []
+  gcp_kms: []
+  azure_kv: []
+  hc_vault: []
 ...
 ```
 
@@ -747,16 +804,25 @@ my-secret2: hello
 
 ## Use with home manager
 
-sops-nix also provides a home-manager module.
-This module provides a subset of features provided by the system-wide sops-nix since features like the creation of the ramfs and changing the owner of the secrets are not available for non-root users.
+sops-nix also provides a home-manager module. This module provides a subset of
+features provided by the system-wide sops-nix since features like the creation
+of the ramfs and changing the owner of the secrets are not available for
+non-root users.
 
-Instead of running as an activation script, sops-nix runs as a systemd user service called `sops-nix.service`.
-While the sops-nix _system_ module decrypts secrets to the system non-persistent `/run/secrets`, the _home-manager_ module places them in the users non-persistent `$XDG_RUNTIME_DIR/secrets.d`.
-Additionally secrets are symlinked to the users home at `$HOME/.config/sops-nix/secrets` which are referenced for the `.path` value in sops-nix.
-This requires that the home-manager option `home.homeDirectory` is set to determine the home-directory on evaluation.  It will have to be manually set if home-manager is configured as stand-alone or on non NixOS systems.
+Instead of running as an activation script, sops-nix runs as a systemd user
+service called `sops-nix.service`. While the sops-nix _system_ module decrypts
+secrets to the system non-persistent `/run/secrets`, the _home-manager_ module
+places them in the users non-persistent `$XDG_RUNTIME_DIR/secrets.d`.
+Additionally secrets are symlinked to the users home at
+`$HOME/.config/sops-nix/secrets` which are referenced for the `.path` value in
+sops-nix. This requires that the home-manager option `home.homeDirectory` is set
+to determine the home-directory on evaluation. It will have to be manually set
+if home-manager is configured as stand-alone or on non NixOS systems.
 
-Depending on whether you use home-manager system-wide or stand-alone using a home.nix, you have to import it in a different way.
-This example shows the `flake` approach from the recommended example [Install: Flakes (current recommendation)](#Flakes (current recommendation))
+Depending on whether you use home-manager system-wide or stand-alone using a
+home.nix, you have to import it in a different way. This example shows the
+`flake` approach from the recommended example
+[Install: Flakes (current recommendation)](#Flakes "current recommendation")
 
 ```nix
 {
@@ -776,7 +842,8 @@ This example shows the `flake` approach from the recommended example [Install: F
 }
 ```
 
-This example show the `channel` approach from the example [Install: nix-channel](#nix-channel). All other methods work as well. 
+This example show the `channel` approach from the example
+[Install: nix-channel](#nix-channel). All other methods work as well.
 
 ```nix
 {
@@ -796,7 +863,9 @@ This example show the `channel` approach from the example [Install: nix-channel]
 }
 ```
 
-The actual sops configuration is in the `sops` namespace in your home.nix (or in the `home-manager.users.<name>` namespace when using home-manager system-wide):
+The actual sops configuration is in the `sops` namespace in your home.nix (or in
+the `home-manager.users.<name>` namespace when using home-manager system-wide):
+
 ```nix
 {
   sops = {
@@ -816,7 +885,9 @@ The actual sops configuration is in the `sops` namespace in your home.nix (or in
 }
 ```
 
-The secrets are decrypted in a systemd user service called `sops-nix`, so other services needing secrets must order after it:
+The secrets are decrypted in a systemd user service called `sops-nix`, so other
+services needing secrets must order after it:
+
 ```nix
 {
   systemd.user.services.mbsync.Unit.After = [ "sops-nix.service" ];
@@ -825,9 +896,11 @@ The secrets are decrypted in a systemd user service called `sops-nix`, so other 
 
 ### Qubes Split GPG support
 
-If you are using Qubes with the [Split GPG](https://www.qubes-os.org/doc/split-gpg),
-then you can configure sops to utilize the `qubes-gpg-client-wrapper` with the `sops.gnupg.qubes-split-gpg` options.
-The example above updated looks like this:
+If you are using Qubes with the
+[Split GPG](https://www.qubes-os.org/doc/split-gpg), then you can configure sops
+to utilize the `qubes-gpg-client-wrapper` with the `sops.gnupg.qubes-split-gpg`
+options. The example above updated looks like this:
+
 ```nix
 {
   sops = {
@@ -850,7 +923,8 @@ The example above updated looks like this:
 
 ## Use with GPG instead of SSH keys
 
-If you prefer having a separate GPG key, sops-nix also comes with a helper tool, `sops-init-gpg-key`:
+If you prefer having a separate GPG key, sops-nix also comes with a helper tool,
+`sops-init-gpg-key`:
 
 ```console
 $ nix run github:Mic92/sops-nix#sops-init-gpg-key -- --hostname server01 --gpghome /tmp/newkey
@@ -904,8 +978,9 @@ fingerprint: 4413684FC623628CEA3E0929AB2F16C6B5EF89EF
 F0477297E369CD1D189DD901278D1535AB473B9E
 ```
 
-In both cases, you must upload the GPG key directory `/tmp/newkey` onto the server.
-If you uploaded it to `/var/lib/sops` than your sops configuration will look like this:
+In both cases, you must upload the GPG key directory `/tmp/newkey` onto the
+server. If you uploaded it to `/var/lib/sops` than your sops configuration will
+look like this:
 
 ```nix
 {
@@ -917,10 +992,11 @@ If you uploaded it to `/var/lib/sops` than your sops configuration will look lik
 ```
 
 However be aware that this will also run GnuPG on your server including the
-GnuPG daemon. [GnuPG is in general not great software](https://latacora.micro.blog/2019/07/16/the-pgp-problem.html) and might break in
-hilarious ways. If you experience problems, you are on your own. If you want a
-more stable and predictable solution go with SSH keys or one of the KMS services.
-
+GnuPG daemon.
+[GnuPG is in general not great software](https://latacora.micro.blog/2019/07/16/the-pgp-problem.html)
+and might break in hilarious ways. If you experience problems, you are on your
+own. If you want a more stable and predictable solution go with SSH keys or one
+of the KMS services.
 
 ## Share secrets between different users
 
@@ -945,8 +1021,8 @@ example the `drone` secret is exposed as `/run/secrets/drone-server` for
 ## Migrate from pass/krops
 
 If you have used [pass](https://www.passwordstore.org) before (e.g. in
-[krops](https://github.com/krebs/krops)) than you can use the following one-liner
-to convert all your secrets to a YAML structure:
+[krops](https://github.com/krebs/krops)) than you can use the following
+one-liner to convert all your secrets to a YAML structure:
 
 ```console
 $ for i in *.gpg; do echo "$(basename $i .gpg): |\n$(pass $(dirname $i)/$(basename $i .gpg)| sed 's/^/  /')"; done
@@ -956,21 +1032,23 @@ Copy the output to the editor you have opened with sops.
 
 ## Real-world examples
 
-The [nix-community infra](https://github.com/nix-community/infra) makes extensive usage of sops-nix.
-Each host has a [secrets.yaml](https://github.com/nix-community/infra/tree/master/hosts/build01) containing secrets for the host.
-Also Samuel Leathers explains his personal setup in this [blog article](https://samleathers.com/posts/2022-02-11-my-new-network-and-sops.html).
+The [nix-community infra](https://github.com/nix-community/infra) makes
+extensive usage of sops-nix. Each host has a
+[secrets.yaml](https://github.com/nix-community/infra/tree/master/hosts/build01)
+containing secrets for the host. Also Samuel Leathers explains his personal
+setup in this
+[blog article](https://samleathers.com/posts/2022-02-11-my-new-network-and-sops.html).
 
 ## Known limitations
 
 ### Initrd secrets
 
-sops-nix does not fully support initrd secrets.
-This is because `nixos-rebuild switch` installs
-the bootloader before running sops-nix's activation hook.  
-As a workaround, it is possible to run `nixos-rebuild test`
-before `nixos-rebuild switch` to provision initrd secrets
-before actually using them in the initrd.
-In the future, we hope to extend NixOS to allow keys to be
+sops-nix does not fully support initrd secrets. This is because
+`nixos-rebuild switch` installs the bootloader before running sops-nix's
+activation hook.\
+As a workaround, it is possible to run `nixos-rebuild test` before
+`nixos-rebuild switch` to provision initrd secrets before actually using them in
+the initrd. In the future, we hope to extend NixOS to allow keys to be
 provisioned in the bootloader install phase.
 
 ### Using secrets at evaluation time
@@ -985,13 +1063,15 @@ can be used together with sops-nix.
 
 ## Templates
 
-If your setup requires embedding secrets within a configuration file, the `template` feature of `sops-nix` provides a seamless way to do this. 
+If your setup requires embedding secrets within a configuration file, the
+`template` feature of `sops-nix` provides a seamless way to do this.
 
 Here's how to use it:
 
 1. **Define Your Secret**
 
-   Specify the secrets you intend to use. This will be encrypted and managed securely by `sops-nix`.
+   Specify the secrets you intend to use. This will be encrypted and managed
+   securely by `sops-nix`.
 
    ```nix
    {
@@ -1001,8 +1081,9 @@ Here's how to use it:
 
 2. **Use Templates for Configuration with Secrets**
 
-   Create a template for your configuration file and utilize the placeholder where you'd like the secret to be inserted. 
-   During the activation phase, `sops-nix` will substitute the placeholder with the actual secret content.
+   Create a template for your configuration file and utilize the placeholder
+   where you'd like the secret to be inserted. During the activation phase,
+   `sops-nix` will substitute the placeholder with the actual secret content.
 
    ```nix
    {
@@ -1022,7 +1103,8 @@ Here's how to use it:
 
 3. **Reference the Rendered Configuration in Services**
 
-   When defining a service (e.g., using `systemd`), refer to the rendered configuration (with secrets in place) by leveraging the `.path` attribute.
+   When defining a service (e.g., using `systemd`), refer to the rendered
+   configuration (with secrets in place) by leveraging the `.path` attribute.
 
    ```nix
    {
@@ -1045,12 +1127,14 @@ Here's how to use it:
   mechanism to inject secrets into configuration files in the nixos activation
   phase
 
-
 # Need more commercial support?
 
+We are building sops-nix very much as contributors to the community and are
+committed to keeping it open source.
 
-We are building sops-nix very much as contributors to the community and are committed to keeping it open source.
+That said, many of us that are contributing to sops-nix also work for
+consultancies. If you want to contact one of those for paid-for support setting
+up sops-nix in your infrastructure you can do so here:
 
-That said, many of us that are contributing to sops-nix also work for consultancies. If you want to contact one of those for paid-for support setting up sops-nix in your infrastructure you can do so here:
-* [Numtide](https://numtide.com/contact)
-* [Helsinki Systems](https://helsinki-systems.de/)
+- [Numtide](https://numtide.com/contact)
+- [Helsinki Systems](https://helsinki-systems.de/)

@@ -6,7 +6,6 @@ import (
 	"os"
 	"os/exec"
 	"path"
-	"path/filepath"
 	"runtime"
 	"strings"
 	"testing"
@@ -14,22 +13,27 @@ import (
 
 // ok fails the test if an err is not nil.
 func ok(tb testing.TB, err error) {
+	tb.Helper()
+
 	if err != nil {
-		_, file, line, _ := runtime.Caller(1)
-		fmt.Printf("\033[31m%s:%d: unexpected error: %s\033[39m\n\n", filepath.Base(file), line, err.Error())
+		fmt.Printf("\033[31m unexpected error: %s\033[39m\n\n", err.Error())
 		tb.FailNow()
 	}
 }
 
 func TestShellHook(t *testing.T) {
+	t.Parallel()
+
 	assets := os.Getenv("TEST_ASSETS")
 	if assets == "" {
 		_, filename, _, _ := runtime.Caller(0)
 		assets = path.Join(path.Dir(filename), "test-assets")
 	}
+
 	tempdir, err := os.MkdirTemp("", "testdir")
 	ok(t, err)
-	cmd := exec.Command("cp", "-vra", assets+"/.", tempdir) // nolint:gosec
+
+	cmd := exec.Command("cp", "-vra", assets+"/.", tempdir) //nolint:gosec
 	fmt.Printf("$ %s\n", strings.Join(cmd.Args, " "))
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
@@ -37,12 +41,14 @@ func TestShellHook(t *testing.T) {
 
 	defer os.RemoveAll(tempdir)
 
-	cmd = exec.Command("nix-shell", path.Join(assets, "shell.nix"), "--run", "gpg --list-keys") // nolint:gosec
+	cmd = exec.Command("nix-shell", path.Join(assets, "shell.nix"), "--run", "gpg --list-keys") //nolint:gosec
+
 	var stdoutBuf, stderrBuf bytes.Buffer
 	cmd.Stdout = &stdoutBuf
 	cmd.Stderr = &stderrBuf
 	cmd.Dir = tempdir
 	fmt.Println(tempdir)
+
 	err = cmd.Run()
 	stdout := stdoutBuf.String()
 	stderr := stderrBuf.String()

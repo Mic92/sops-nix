@@ -95,6 +95,18 @@
           in
           {
             home-manager = self.legacyPackages.${system}.homeConfigurations.sops.activation-script;
+            treefmt =
+              (pkgs.callPackage ./formatter.nix {
+                inputs = privateInputs;
+              }).config.build.check;
+
+            cross-build = pkgs.callPackage ./pkgs/cross-build.nix {
+              sops-install-secrets = self.packages.${system}.sops-install-secrets;
+            };
+
+            lint = pkgs.callPackage ./pkgs/lint.nix {
+              sops-install-secrets = self.packages.${system}.sops-install-secrets;
+            };
           }
           // (suffix-stable packages-stable)
           // nixpkgs.lib.optionalAttrs pkgs.stdenv.isLinux tests
@@ -131,6 +143,13 @@
           }
         );
 
+        formatter = eachSystem (
+          { pkgs, ... }:
+          (pkgs.callPackage ./formatter.nix {
+            inputs = privateInputs;
+          }).config.build.wrapper
+        );
+
         apps = eachSystem (
           { pkgs, ... }:
           {
@@ -145,9 +164,11 @@
         );
 
         devShells = eachSystem (
-          { pkgs, ... }:
+          { system, pkgs, ... }:
           {
-            unit-tests = pkgs.callPackage ./pkgs/unit-tests.nix { };
+            unit-tests = pkgs.callPackage ./pkgs/unit-tests.nix {
+              sops-install-secrets = self.packages.${system}.sops-install-secrets;
+            };
             default = pkgs.callPackage ./shell.nix { };
           }
         );

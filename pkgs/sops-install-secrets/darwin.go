@@ -23,7 +23,7 @@ func RuntimeDir() (string, error) {
 	return strings.TrimSuffix(rundir, "/"), nil
 }
 
-func SecureSymlinkChown(symlinkToCheck string, expectedTarget string, owner, group int) error {
+func SecureSymlinkChown(symlinkToCheck string, expectedTarget string, owner, group uint32) error {
 	// not sure what O_PATH is needed for anyways
 	fd, err := unix.Open(symlinkToCheck, unix.O_CLOEXEC|unix.O_SYMLINK|unix.O_NOFOLLOW, 0)
 	if err != nil {
@@ -39,7 +39,7 @@ func SecureSymlinkChown(symlinkToCheck string, expectedTarget string, owner, gro
 	if n > len(expectedTarget) || string(buf[:n]) != expectedTarget {
 		return fmt.Errorf("symlink %s does not point to %s", symlinkToCheck, expectedTarget)
 	}
-	err = unix.Fchownat(fd, "", owner, group, unix.AT_SYMLINK_NOFOLLOW)
+	err = unix.Fchownat(fd, "", int(owner), int(group), unix.AT_SYMLINK_NOFOLLOW)
 	if err != nil {
 		return fmt.Errorf("cannot change owner of '%s' to %d/%d: %w", symlinkToCheck, owner, group, err)
 	}

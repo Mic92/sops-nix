@@ -1,5 +1,5 @@
-
-{ config, ... }: {
+{ config, ... }:
+{
   imports = [
     ../modules/home-manager/sops.nix
   ];

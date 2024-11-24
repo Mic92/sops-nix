@@ -10,7 +10,6 @@ import (
 	"os/exec"
 	"os/user"
 	"path"
-	"path/filepath"
 	"reflect"
 	"runtime"
 	"strconv"
@@ -19,30 +18,41 @@ import (
 	"testing"
 )
 
+const (
+	NOBODY  = "nobody"
+	NOGROUP = "nogroup"
+)
+
 // ok fails the test if an err is not nil.
 func ok(tb testing.TB, err error) {
+	tb.Helper()
+
 	if err != nil {
-		_, file, line, _ := runtime.Caller(1)
-		fmt.Printf("\033[31m%s:%d: unexpected error: %s\033[39m\n\n", filepath.Base(file), line, err.Error())
+		fmt.Printf("\033[31munexpected error: %s\033[39m\n\n", err.Error())
 		tb.FailNow()
 	}
 }
 
 func equals(tb testing.TB, exp, act interface{}) {
+	tb.Helper()
+
 	if !reflect.DeepEqual(exp, act) {
-		_, file, line, _ := runtime.Caller(1)
-		fmt.Printf("\033[31m%s:%d:\n\n\texp: %#v\n\n\tgot: %#v\033[39m\n\n", filepath.Base(file), line, exp, act)
+		fmt.Printf("\033[31m\texp: %#v\n\n\tgot: %#v\033[39m\n\n", exp, act)
 		tb.FailNow()
 	}
 }
 
 func writeManifest(t *testing.T, dir string, m *manifest) string {
+	t.Helper()
+
 	filename := path.Join(dir, "manifest.json")
 	f, err := os.OpenFile(filename, os.O_RDWR|os.O_CREATE, 0o755)
 	ok(t, err)
+
 	encoder := json.NewEncoder(f)
 	ok(t, encoder.Encode(m))
 	f.Close()
+
 	return filename
 }
 
@@ -51,7 +61,9 @@ func testAssetPath() string {
 	if assets != "" {
 		return assets
 	}
+
 	_, filename, _, _ := runtime.Caller(0)
+
 	return path.Join(path.Dir(filename), "test-assets")
 }
 
@@ -64,43 +76,52 @@ func (dir testDir) Remove() {
 }
 
 func newTestDir(t *testing.T) testDir {
+	t.Helper()
+
 	tempdir, err := os.MkdirTemp("", "symlinkDir")
 	ok(t, err)
+
 	return testDir{tempdir, path.Join(tempdir, "secrets.d"), path.Join(tempdir, "secrets")}
 }
 
 func testInstallSecret(t *testing.T, testdir testDir, m *manifest) {
+	t.Helper()
+
 	path := writeManifest(t, testdir.path, m)
 	ok(t, installSecrets([]string{"sops-install-secrets", path}))
 }
 
-func testGPG(t *testing.T) {
+// cannot run in parellel with TestSSHKey because we rely on GNUPGHOME environment variable
+func TestGPG(t *testing.T) { //nolint:paralleltest
 	assets := testAssetPath()
 
 	testdir := newTestDir(t)
 	defer testdir.Remove()
 	gpgHome := path.Join(testdir.path, "gpg-home")
-	gpgEnv := append(os.Environ(), fmt.Sprintf("GNUPGHOME=%s", gpgHome))
+	gpgEnv := append(os.Environ(), "GNUPGHOME="+gpgHome)
 
 	ok(t, os.Mkdir(gpgHome, os.FileMode(0o700)))
-	cmd := exec.Command("gpg", "--import", path.Join(assets, "key.asc")) // nolint:gosec
+
+	cmd := exec.Command("gpg", "--import", path.Join(assets, "key.asc")) //nolint:gosec
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	cmd.Env = gpgEnv
 	ok(t, cmd.Run())
+
 	stopGpgCmd := exec.Command("gpgconf", "--kill", "gpg-agent")
 	stopGpgCmd.Stdout = os.Stdout
 	stopGpgCmd.Stderr = os.Stderr
 	stopGpgCmd.Env = gpgEnv
+
 	defer func() {
 		if err := stopGpgCmd.Run(); err != nil {
 			fmt.Printf("failed to stop gpg-agent: %s\n", err)
 		}
 	}()
 
-	nobody := "nobody"
-	nogroup := "nogroup"
 	// should create a symlink
+	nobody := NOBODY
+	nogroup := NOGROUP
 	yamlSecret := secret{
 		Name:         "test",
 		Key:          "test_key",
@@ -114,6 +135,7 @@ func testGPG(t *testing.T) {
 	}
 
 	var jsonSecret, binarySecret, dotenvSecret, iniSecret secret
+
 	root := "root"
 	// should not create a symlink
 	jsonSecret = yamlSecret
@@ -147,19 +169,19 @@ func testGPG(t *testing.T) {
 	iniSecret.SopsFile = path.Join(assets, "secrets.ini")
 	iniSecret.Path = path.Join(testdir.secretsPath, "test5")
 
-	manifest := manifest{
+	m := manifest{
 		Secrets:           []secret{yamlSecret, jsonSecret, binarySecret, dotenvSecret, iniSecret},
 		SecretsMountPoint: testdir.secretsPath,
 		SymlinkPath:       testdir.symlinkPath,
 		GnupgHome:         gpgHome,
 	}
 
-	testInstallSecret(t, testdir, &manifest)
+	testInstallSecret(t, testdir, &m)
 
-	_, err := os.Stat(manifest.SecretsMountPoint)
+	_, err := os.Stat(m.SecretsMountPoint)
 	ok(t, err)
 
-	_, err = os.Stat(manifest.SymlinkPath)
+	_, err = os.Stat(m.SymlinkPath)
 	ok(t, err)
 
 	yamlLinkStat, err := os.Lstat(yamlSecret.Path)
@@ -174,22 +196,24 @@ func testGPG(t *testing.T) {
 	equals(t, 0o400, int(yamlStat.Mode().Perm()))
 	stat, success := yamlStat.Sys().(*syscall.Stat_t)
 	equals(t, true, success)
+
 	content, err := os.ReadFile(yamlSecret.Path)
 	ok(t, err)
 	equals(t, "test_value", string(content))
 
 	u, err := user.LookupId(strconv.Itoa(int(stat.Uid)))
 	ok(t, err)
-	equals(t, "nobody", u.Username)
+	equals(t, NOBODY, u.Username)
 
 	g, err := user.LookupGroupId(strconv.Itoa(int(stat.Gid)))
 	ok(t, err)
-	equals(t, "nogroup", g.Name)
+	equals(t, NOGROUP, g.Name)
 
 	jsonStat, err := os.Stat(jsonSecret.Path)
 	ok(t, err)
 	equals(t, true, jsonStat.Mode().IsRegular())
 	equals(t, 0o700, int(jsonStat.Mode().Perm()))
+
 	if stat, ok := jsonStat.Sys().(*syscall.Stat_t); ok {
 		equals(t, 0, int(stat.Uid))
 		equals(t, 0, int(stat.Gid))
@@ -199,14 +223,16 @@ func testGPG(t *testing.T) {
 	ok(t, err)
 	equals(t, 13, len(content))
 
-	testInstallSecret(t, testdir, &manifest)
+	testInstallSecret(t, testdir, &m)
 
 	target, err := os.Readlink(testdir.symlinkPath)
 	ok(t, err)
 	equals(t, path.Join(testdir.secretsPath, "2"), target)
 }
 
-func testSSHKey(t *testing.T) {
+func TestSSHKey(t *testing.T) {
+	t.Parallel()
+
 	assets := testAssetPath()
 
 	testdir := newTestDir(t)
@@ -217,8 +243,8 @@ func testSSHKey(t *testing.T) {
 	ok(t, err)
 	file.Close()
 
-	nobody := "nobody"
-	nogroup := "nogroup"
+	nobody := NOBODY
+	nogroup := NOGROUP
 	s := secret{
 		Name:         "test",
 		Key:          "test_key",
@@ -242,6 +268,8 @@ func testSSHKey(t *testing.T) {
 }
 
 func TestAge(t *testing.T) {
+	t.Parallel()
+
 	assets := testAssetPath()
 
 	testdir := newTestDir(t)
@@ -252,8 +280,8 @@ func TestAge(t *testing.T) {
 	ok(t, err)
 	file.Close()
 
-	nobody := "nobody"
-	nogroup := "nogroup"
+	nobody := NOBODY
+	nogroup := NOGROUP
 	s := secret{
 		Name:         "test",
 		Key:          "test_key",
@@ -277,6 +305,8 @@ func TestAge(t *testing.T) {
 }
 
 func TestAgeWithSSH(t *testing.T) {
+	t.Parallel()
+
 	assets := testAssetPath()
 
 	testdir := newTestDir(t)
@@ -287,8 +317,8 @@ func TestAgeWithSSH(t *testing.T) {
 	ok(t, err)
 	file.Close()
 
-	nobody := "nobody"
-	nogroup := "nogroup"
+	nobody := NOBODY
+	nogroup := NOGROUP
 	s := secret{
 		Name:         "test",
 		Key:          "test_key",
@@ -311,20 +341,16 @@ func TestAgeWithSSH(t *testing.T) {
 	testInstallSecret(t, testdir, &m)
 }
 
-func TestAll(t *testing.T) {
-	// we can't test in parallel because we rely on GNUPGHOME environment variable
-	testGPG(t)
-	testSSHKey(t)
-}
-
 func TestValidateManifest(t *testing.T) {
+	t.Parallel()
+
 	assets := testAssetPath()
 
 	testdir := newTestDir(t)
 	defer testdir.Remove()
 
-	nobody := "nobody"
-	nogroup := "nogroup"
+	nobody := NOBODY
+	nogroup := NOGROUP
 	s := secret{
 		Name:         "test",
 		Key:          "test_key",
@@ -351,6 +377,8 @@ func TestValidateManifest(t *testing.T) {
 }
 
 func TestIsValidFormat(t *testing.T) {
+	t.Parallel()
+
 	generateCase := func(input string, mustBe bool) {
 		result := IsValidFormat(input)
 		if result != mustBe {
