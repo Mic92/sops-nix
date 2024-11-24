@@ -17,12 +17,3 @@ rec {
   # backwards compatibility
   inherit (pkgs) ssh-to-pgp;
 }
-// (pkgs.lib.optionalAttrs pkgs.stdenv.isLinux {
-  lint = pkgs.callPackage ./pkgs/lint.nix {
-    inherit sops-install-secrets;
-  };
-
-  cross-build = pkgs.callPackage ./pkgs/cross-build.nix {
-    inherit sops-install-secrets;
-  };
-})

@@ -99,6 +99,14 @@
               (pkgs.callPackage ./formatter.nix {
                 inputs = privateInputs;
               }).config.build.check;
+
+            cross-build = pkgs.callPackage ./pkgs/cross-build.nix {
+              sops-install-secrets = self.packages.${system}.sops-install-secrets;
+            };
+
+            lint = pkgs.callPackage ./pkgs/lint.nix {
+              sops-install-secrets = self.packages.${system}.sops-install-secrets;
+            };
           }
           // (suffix-stable packages-stable)
           // nixpkgs.lib.optionalAttrs pkgs.stdenv.isLinux tests
