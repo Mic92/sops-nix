@@ -1,17 +1,17 @@
 {
-  pkgs ? import <nixpkgs> { },
+  stdenv,
+  gnupg,
+  util-linux,
+  nix,
+  sops-install-secrets,
 }:
-let
-  sopsPkgs = import ../. { inherit pkgs; };
-in
-pkgs.stdenv.mkDerivation {
-  name = "unit-tests";
-  nativeBuildInputs = with pkgs; [
-    bashInteractive
+stdenv.mkDerivation {
+  name = "unittests";
+  nativeBuildInputs = [
     gnupg
     util-linux
     nix
-    sopsPkgs.sops-install-secrets.unittest
+    sops-install-secrets.unittest
   ];
   # allow to prefetch shell dependencies in build phase
   dontUnpack = true;

@@ -16,8 +16,6 @@ rec {
 
   # backwards compatibility
   inherit (pkgs) ssh-to-pgp;
-
-  unit-tests = pkgs.callPackage ./pkgs/unit-tests.nix { };
 }
 // (pkgs.lib.optionalAttrs pkgs.stdenv.isLinux {
   lint = pkgs.callPackage ./pkgs/lint.nix {

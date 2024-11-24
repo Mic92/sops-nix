@@ -156,9 +156,11 @@
         );
 
         devShells = eachSystem (
-          { pkgs, ... }:
+          { system, pkgs, ... }:
           {
-            unit-tests = pkgs.callPackage ./pkgs/unit-tests.nix { };
+            unit-tests = pkgs.callPackage ./pkgs/unit-tests.nix {
+              sops-install-secrets = self.packages.${system}.sops-install-secrets;
+            };
             default = pkgs.callPackage ./shell.nix { };
           }
         );
