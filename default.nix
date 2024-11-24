@@ -1,6 +1,6 @@
 {
   pkgs ? import <nixpkgs> { },
-  vendorHash ? "sha256-xHScXL3i2oxJSJsvOC+KqLCA5Psu3ht7DQNrh0rB1rA=",
+  vendorHash ? "sha256-dWo8SAEUVyBhKyKoIj2u1VHiWPMod9veYGbivXkUI2Y=",
 }:
 let
   sops-init-gpg-key = pkgs.callPackage ./pkgs/sops-init-gpg-key { };
