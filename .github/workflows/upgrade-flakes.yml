@@ -4,19 +4,26 @@ on:
   workflow_dispatch:
   schedule:
     - cron:  '51 2 * * 0'
+
+permissions:
+  pull-requests: write
+
 jobs:
   createPullRequest:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - name: Install Nix
-        uses: cachix/install-nix-action@V27
+        uses: cachix/install-nix-action@v30
         with:
           extra_nix_config: |
             access-tokens = github.com=${{ secrets.GITHUB_TOKEN }}
-      - name: Update flake.lock
-        uses: DeterminateSystems/update-flake-lock@v24
-        with:
-          token: ${{ secrets.GH_TOKEN_FOR_UPDATES }}
-          pr-labels: |
-            merge-queue
+      - name: Update flakes
+        run: |
+           nix flake update
+           pushd dev/private
+           nix flake update
+           popd
+           nix run .#update-dev-private-narHash
+      - name: Create Pull Request
+        uses: peter-evans/create-pull-request@v7

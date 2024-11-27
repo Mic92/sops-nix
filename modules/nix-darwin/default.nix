@@ -1,6 +1,5 @@
 {
   config,
-  options,
   lib,
   pkgs,
   ...
@@ -8,13 +7,15 @@
 
 let
   cfg = config.sops;
-  users = config.users.users;
   sops-install-secrets = cfg.package;
   manifestFor = pkgs.callPackage ./manifest-for.nix {
     inherit cfg;
     inherit (pkgs) writeTextFile;
   };
   manifest = manifestFor "" regularSecrets regularTemplates { };
+
+  # Currently, all templates are "regular" (there's no support for `neededForUsers` for templates.)
+  regularTemplates = cfg.templates;
 
   pathNotInStore = lib.mkOptionType {
     name = "pathNotInStore";
@@ -25,13 +26,6 @@ let
   };
 
   regularSecrets = lib.filterAttrs (_: v: !v.neededForUsers) cfg.secrets;
-
-  # Currently, all templates are "regular" (there's no support for `neededForUsers` for templates.)
-  regularTemplates = cfg.templates;
-
-  useSystemdActivation =
-    (options.systemd ? sysusers && config.systemd.sysusers.enable)
-    || (options.services ? userborn && config.services.userborn.enable);
 
   withEnvironment = import ./with-environment.nix {
     inherit cfg lib;
@@ -55,12 +49,11 @@ let
         };
         key = lib.mkOption {
           type = lib.types.str;
-          default = if cfg.defaultSopsKey != null then cfg.defaultSopsKey else config._module.args.name;
+          default = config._module.args.name;
           description = ''
             Key used to lookup in the sops file.
             No tested data structures are supported right now.
             This option is ignored if format is binary.
-            "" means whole file.
           '';
         };
         path = lib.mkOption {
@@ -99,7 +92,7 @@ let
         };
         owner = lib.mkOption {
           type = with lib.types; nullOr str;
-          default = null;
+          default = "root";
           description = ''
             User of the file. Can only be set if uid is 0.
           '';
@@ -113,8 +106,8 @@ let
         };
         group = lib.mkOption {
           type = with lib.types; nullOr str;
-          default = if config.owner != null then users.${config.owner}.group else null;
-          defaultText = lib.literalMD "{option}`config.users.users.\${owner}.group`";
+          default = "staff";
+          defaultText = "staff";
           description = ''
             Group of the file. Can only be set if gid is 0.
           '';
@@ -137,32 +130,14 @@ let
           type = lib.types.str;
           readOnly = true;
           description = ''
-            Hash of the sops file, useful in <xref linkend="opt-systemd.services._name_.restartTriggers" />.
-          '';
-        };
-        restartUnits = lib.mkOption {
-          type = lib.types.listOf lib.types.str;
-          default = [ ];
-          example = [ "sshd.service" ];
-          description = ''
-            Names of units that should be restarted when this secret changes.
-            This works the same way as <xref linkend="opt-systemd.services._name_.restartTriggers" />.
-          '';
-        };
-        reloadUnits = lib.mkOption {
-          type = lib.types.listOf lib.types.str;
-          default = [ ];
-          example = [ "sshd.service" ];
-          description = ''
-            Names of units that should be reloaded when this secret changes.
-            This works the same way as <xref linkend="opt-systemd.services._name_.reloadTriggers" />.
+            Hash of the sops file.
           '';
         };
         neededForUsers = lib.mkOption {
           type = lib.types.bool;
           default = false;
           description = ''
-            Enabling this option causes the secret to be decrypted before users and groups are created.
+             **Warning** This option doesn't have any effect on macOS, as nix-darwin cannot manage user passwords on macOS.
             This can be used to retrieve user's passwords from sops-nix.
             Setting this option moves the secret to /run/secrets-for-users and disallows setting owner and group to anything else than root.
           '';
@@ -171,17 +146,43 @@ let
     }
   );
 
+  darwinSSHKeys = [
+    {
+      type = "rsa";
+      path = "/etc/ssh/ssh_host_rsa_key";
+    }
+    {
+      type = "ed25519";
+      path = "/etc/ssh/ssh_host_ed25519_key";
+    }
+  ];
+
+  escapedKeyFile = lib.escapeShellArg cfg.age.keyFile;
   # Skip ssh keys deployed with sops to avoid a catch 22
   defaultImportKeys =
     algo:
-    if config.services.openssh.enable then
-      map (e: e.path) (
-        lib.filter (
-          e: e.type == algo && !(lib.hasPrefix "/run/secrets" e.path)
-        ) config.services.openssh.hostKeys
-      )
-    else
-      [ ];
+    map (e: e.path) (
+      lib.filter (e: e.type == algo && !(lib.hasPrefix "/run/secrets" e.path)) darwinSSHKeys
+    );
+
+  installScript = ''
+    ${
+      if cfg.age.generateKey then
+        ''
+          if [[ ! -f ${escapedKeyFile} ]]; then
+            echo generating machine-specific age key...
+            mkdir -p "$(dirname ${escapedKeyFile})"
+            # age-keygen sets 0600 by default, no need to chmod.
+            ${pkgs.age}/bin/age-keygen -o ${escapedKeyFile}
+          fi
+        ''
+      else
+        ""
+    }
+    echo "Setting up secrets..."
+    ${withEnvironment "${sops-install-secrets}/bin/sops-install-secrets ${manifest}"}
+  '';
+
 in
 {
   options.sops = {
@@ -205,16 +206,6 @@ in
       default = "yaml";
       description = ''
         Default sops format used for all secrets.
-      '';
-    };
-
-    defaultSopsKey = lib.mkOption {
-      type = lib.types.nullOr lib.types.str;
-      default = null;
-      description = ''
-        Default key used to lookup in all secrets.
-        This option is ignored if format is binary.
-        "" means whole file.
       '';
     };
 
@@ -289,26 +280,6 @@ in
       '';
     };
 
-    useTmpfs = lib.mkOption {
-      type = lib.types.bool;
-      default = false;
-      description = ''
-        Use tmpfs in place of ramfs for secrets storage.
-
-        *WARNING*
-        Enabling this option has the potential to write secrets to disk unencrypted if the tmpfs volume is written to swap. Do not use unless absolutely necessary.
-
-        When using a swap file or device, consider enabling swap encryption by setting the `randomEncryption.enable` option
-
-        ```
-        swapDevices = [{
-          device = "/dev/sdXY";
-          randomEncryption.enable = true;
-        }];
-        ```
-      '';
-    };
-
     age = {
       keyFile = lib.mkOption {
         type = lib.types.nullOr pathNotInStore;
@@ -363,29 +334,8 @@ in
   imports = [
     ./templates
     ./secrets-for-users
-    (lib.mkRenamedOptionModule
-      [
-        "sops"
-        "gnupgHome"
-      ]
-      [
-        "sops"
-        "gnupg"
-        "home"
-      ]
-    )
-    (lib.mkRenamedOptionModule
-      [
-        "sops"
-        "sshKeyPaths"
-      ]
-      [
-        "sops"
-        "gnupg"
-        "sshKeyPaths"
-      ]
-    )
   ];
+
   config = lib.mkMerge [
     (lib.mkIf (cfg.secrets != { }) {
       assertions =
@@ -428,62 +378,24 @@ in
           )
         );
 
+      system.build.sops-nix-manifest = manifest;
+      system.activationScripts = {
+        postActivation.text = lib.mkAfter installScript;
+      };
+
+      launchd.daemons.sops-install-secrets = {
+        command = installScript;
+        serviceConfig = {
+          RunAtLoad = true;
+          KeepAlive = false;
+        };
+      };
+    })
+
+    {
       sops.environment.SOPS_GPG_EXEC = lib.mkIf (cfg.gnupg.home != null || cfg.gnupg.sshKeyPaths != [ ]) (
         lib.mkDefault "${pkgs.gnupg}/bin/gpg"
       );
-
-      # When using sysusers we no longer are started as an activation script because those are started in initrd while sysusers is started later.
-      systemd.services.sops-install-secrets = lib.mkIf (regularSecrets != { } && useSystemdActivation) {
-        wantedBy = [ "sysinit.target" ];
-        after = [ "systemd-sysusers.service" ];
-        environment = cfg.environment;
-        unitConfig.DefaultDependencies = "no";
-
-        serviceConfig = {
-          Type = "oneshot";
-          ExecStart = [ "${cfg.package}/bin/sops-install-secrets ${manifest}" ];
-          RemainAfterExit = true;
-        };
-      };
-
-      system.activationScripts = {
-        setupSecrets = lib.mkIf (regularSecrets != { } && !useSystemdActivation) (
-          lib.stringAfter
-            (
-              [
-                "specialfs"
-                "users"
-                "groups"
-              ]
-              ++ lib.optional cfg.age.generateKey "generate-age-key"
-            )
-            ''
-              [ -e /run/current-system ] || echo setting up secrets...
-              ${withEnvironment "${sops-install-secrets}/bin/sops-install-secrets ${manifest}"}
-            ''
-          // lib.optionalAttrs (config.system ? dryActivationScript) {
-            supportsDryActivation = true;
-          }
-        );
-
-        generate-age-key =
-          let
-            escapedKeyFile = lib.escapeShellArg cfg.age.keyFile;
-          in
-          lib.mkIf cfg.age.generateKey (
-            lib.stringAfter [ ] ''
-              if [[ ! -f ${escapedKeyFile} ]]; then
-                echo generating machine-specific age key...
-                mkdir -p $(dirname ${escapedKeyFile})
-                # age-keygen sets 0600 by default, no need to chmod.
-                ${pkgs.age}/bin/age-keygen -o ${escapedKeyFile}
-              fi
-            ''
-          );
-      };
-    })
-    {
-      system.build.sops-nix-manifest = manifest;
     }
   ];
 }

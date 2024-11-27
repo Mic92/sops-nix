@@ -674,8 +674,7 @@ JSON/YAML files. Unlike the other two formats, for binary files, one file corres
 To encrypt an binary file use the following command:
 
 ``` console
-$ cp /etc/krb5/krb5.keytab krb5.keytab
-$ sops -e krb5.keytab
+$ sops -e /etc/krb5/krb5.keytab > krb5.keytab
 # an example of what this might result in:
 $ head krb5.keytab
 {
@@ -706,6 +705,44 @@ This is how it can be included in your `configuration.nix`:
     sopsFile = ./krb5.keytab;
   };
 }
+```
+
+## Emit plain file for yaml and json formats
+
+By default, sops-nix extracts a single key from yaml and json files. If you
+need the plain file instead of extracting a specific key from the input document,
+you can set `key` to an empty string.
+
+For example, the input document `my-config.yaml` likes this:
+
+```yaml
+my-secret1: ENC[AES256_GCM,data:tkyQPQODC3g=,iv:yHliT2FJ74EtnLIeeQtGbOoqVZnF0q5HiXYMJxYx6HE=,tag:EW5LV4kG4lcENaN2HIFiow==,type:str]
+my-secret2: ENC[AES256_GCM,data:tkyQPQODC3g=,iv:yHliT2FJ74EtnLIeeQtGbOoqVZnF0q5HiXYMJxYx6HE=,tag:EW5LV4kG4lcENaN2HIFiow==,type:str]
+sops:
+    kms: []
+    gcp_kms: []
+    azure_kv: []
+    hc_vault: []
+...
+```
+
+This is how it can be included in your NixOS module:
+
+```nix
+{
+  sops.secrets.my-config = {
+    format = "yaml";
+    sopsFile = ./my-config.yaml;
+    key = "";
+  };
+}
+```
+
+Then, it will be mounted as `/run/secrets/my-config`:
+
+```yaml
+my-secret1: hello
+my-secret2: hello
 ```
 
 ## Use with home manager
@@ -783,6 +820,31 @@ The secrets are decrypted in a systemd user service called `sops-nix`, so other 
 ```nix
 {
   systemd.user.services.mbsync.Unit.After = [ "sops-nix.service" ];
+}
+```
+
+### Qubes Split GPG support
+
+If you are using Qubes with the [Split GPG](https://www.qubes-os.org/doc/split-gpg),
+then you can configure sops to utilize the `qubes-gpg-client-wrapper` with the `sops.gnupg.qubes-split-gpg` options.
+The example above updated looks like this:
+```nix
+{
+  sops = {
+    gnupg.qubes-split-gpg = {
+      enable = true;
+      domain = "vault-gpg";
+    };
+    defaultSopsFile = ./secrets.yaml;
+    secrets.test = {
+      # sopsFile = ./secrets.yml.enc; # optionally define per-secret files
+
+      # %r gets replaced with a runtime directory, use %% to specify a '%'
+      # sign. Runtime dir is $XDG_RUNTIME_DIR on linux and $(getconf
+      # DARWIN_USER_TEMP_DIR) on darwin.
+      path = "%r/test.txt";
+    };
+  };
 }
 ```
 

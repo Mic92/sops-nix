@@ -12,8 +12,6 @@ let
     mapAttrs
     types
     ;
-
-  users = config.users.users;
 in
 {
   options.sops = {
@@ -35,7 +33,7 @@ in
                 description = "Path where the rendered file will be placed";
                 type = types.singleLineStr;
                 # Keep this in sync with `RenderedSubdir` in `pkgs/sops-install-secrets/main.go`
-                default = "/run/secrets/rendered/${config.name}";
+                default = "${config.xdg.configHome}/sops-nix/secrets/rendered/${config.name}";
               };
               content = mkOption {
                 type = types.lines;
@@ -49,21 +47,6 @@ in
                 default = "0400";
                 description = ''
                   Permissions mode of the rendered secret file in octal.
-                '';
-              };
-              owner = mkOption {
-                type = types.singleLineStr;
-                default = "root";
-                description = ''
-                  User of the file.
-                '';
-              };
-              group = mkOption {
-                type = types.singleLineStr;
-                default = users.${config.owner}.group;
-                defaultText = lib.literalExpression ''config.users.users.''${cfg.owner}.group'';
-                description = ''
-                  Group of the file.
                 '';
               };
               file = mkOption {

@@ -16,7 +16,7 @@ writeTextFile {
       sshKeyPaths = cfg.gnupg.sshKeyPaths;
       ageKeyFile = cfg.age.keyFile;
       ageSshKeyPaths = cfg.age.sshKeyPaths;
-      useTmpfs = cfg.useTmpfs;
+      useTmpfs = false;
       placeholderBySecretName = cfg.placeholder;
       userMode = false;
       logging = {
