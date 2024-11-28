@@ -698,7 +698,11 @@ func (app *appContext) validateManifest() error {
 		// The Nix module only defines placeholders for secrets if there are
 		// templates.
 		if len(m.Templates) > 0 {
-			placeholder := m.PlaceholderBySecretName[secret.Name]
+			placeholder, present := m.PlaceholderBySecretName[secret.Name]
+			if !present {
+				return fmt.Errorf("placeholder for %s not found in manifest", secret.Name)
+			}
+
 			app.secretByPlaceholder[placeholder] = secret
 		}
 	}

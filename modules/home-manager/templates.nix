@@ -12,6 +12,8 @@ let
     mapAttrs
     types
     ;
+
+  hmConfig = config;
 in
 {
   options.sops = {
@@ -33,7 +35,7 @@ in
                 description = "Path where the rendered file will be placed";
                 type = types.singleLineStr;
                 # Keep this in sync with `RenderedSubdir` in `pkgs/sops-install-secrets/main.go`
-                default = "${config.xdg.configHome}/sops-nix/secrets/rendered/${config.name}";
+                default = "${hmConfig.xdg.configHome}/sops-nix/secrets/rendered/${config.name}";
               };
               content = mkOption {
                 type = types.lines;
@@ -97,10 +99,10 @@ in
   };
 
   config = lib.optionalAttrs (options ? sops.secrets) (
-    lib.mkIf (config.sops.templates != { }) {
+    lib.mkIf (hmConfig.sops.templates != { }) {
       sops.placeholder = mapAttrs (
         name: _: mkDefault "<SOPS:${builtins.hashString "sha256" name}:PLACEHOLDER>"
-      ) config.sops.secrets;
+      ) hmConfig.sops.secrets;
     }
   );
 }
