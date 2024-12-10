@@ -14,6 +14,9 @@ rec {
 
   sops-import-keys-hook = pkgs.callPackage ./pkgs/sops-import-keys-hook { };
 
+  age-fido2-hmac = pkgs.callPackage ./pkgs/age-fido2-hmac {};
+  sops-fido2-hmac = pkgs.callPackage ./pkgs/sops-fido2-hmac {};
+
   # backwards compatibility
   inherit (pkgs) ssh-to-pgp;
 
