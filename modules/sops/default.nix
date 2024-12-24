@@ -321,7 +321,9 @@ in
 
       plugins = lib.mkOption {
         type = lib.types.listOf lib.types.package;
-        default = [];
+        default = [
+            pkgs.age-plugin-fido2-hmac
+        ];
         description = ''
           List of plugins to use for sops decryption.
         '';
