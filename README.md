@@ -193,7 +193,7 @@ Your `age` public key or GPG fingerprint can be written to your [`.sops.yaml`](h
 ```yaml
 # This example uses YAML anchors which allows reuse of multiple keys 
 # without having to repeat yourself.
-# Also see https://github.com/Mic92/dotfiles/blob/master/nixos/.sops.yaml
+# Also see https://github.com/Mic92/dotfiles/blob/d6114726d859df36ccaa32891c4963ae5717ef7f/nixos/.sops.yaml
 # for a more complex example.
 keys:
   - &admin_alice 2504791468b153b8a3963cc97ba53d1919c5dfd4
