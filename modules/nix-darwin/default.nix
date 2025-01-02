@@ -384,7 +384,7 @@ in
       };
 
       launchd.daemons.sops-install-secrets = {
-        command = installScript;
+        command = "sh -c ${lib.escapeShellArg installScript}";
         serviceConfig = {
           RunAtLoad = true;
           KeepAlive = false;

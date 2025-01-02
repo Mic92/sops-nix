@@ -42,7 +42,7 @@ in
   };
 
   launchd.daemons.sops-install-secrets-for-users = lib.mkIf (secretsForUsers != [ ]) {
-    command = installScript;
+    command = "sh -c ${lib.escapeShellArg installScript}";
     serviceConfig = {
       RunAtLoad = true;
       KeepAlive = false;
