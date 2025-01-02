@@ -53,6 +53,8 @@
         in
         {
           inherit (localPkgs)
+            sops
+            sops-fido2-hmac
             sops-install-secrets
             sops-init-gpg-key
             sops-pgp-hook
