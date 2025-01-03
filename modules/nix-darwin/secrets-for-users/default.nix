@@ -37,11 +37,11 @@ in
     }
   ];
 
-  system.activationScripts = lib.mkIf (secretsForUsers != [ ]) {
+  system.activationScripts = lib.mkIf (secretsForUsers != { }) {
     postActivation.text = lib.mkAfter installScript;
   };
 
-  launchd.daemons.sops-install-secrets-for-users = lib.mkIf (secretsForUsers != [ ]) {
+  launchd.daemons.sops-install-secrets-for-users = lib.mkIf (secretsForUsers != { }) {
     command = "sh -c ${lib.escapeShellArg installScript}";
     serviceConfig = {
       RunAtLoad = true;
