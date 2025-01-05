@@ -1,6 +1,6 @@
 {
   pkgs ? import <nixpkgs> { },
-  vendorHash ? "sha256-QL/IH82TRNLAvG86ypU8u2lf75eAP11L2I62J+9O1n8=",
+  vendorHash ? "sha256-T1adRBiWpkbmlQ01UfuPu694bSFnRXDxmdz+GdgwpNw=",
 }:
 let
   sops-install-secrets = pkgs.callPackage ./pkgs/sops-install-secrets {
@@ -13,6 +13,11 @@ rec {
   default = sops-init-gpg-key;
 
   sops-import-keys-hook = pkgs.callPackage ./pkgs/sops-import-keys-hook { };
+
+  sops = pkgs.callPackage ./pkgs/sops {};
+
+  age-fido2-hmac = pkgs.callPackage ./pkgs/age-fido2-hmac { };
+  sops-fido2-hmac = pkgs.callPackage ./pkgs/sops-fido2-hmac { inherit sops; };
 
   # backwards compatibility
   inherit (pkgs) ssh-to-pgp;
