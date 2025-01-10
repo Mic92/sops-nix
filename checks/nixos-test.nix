@@ -170,6 +170,9 @@ in
         boot.initrd.postDeviceCommands = ''
           cp -r ${testAssets + "/age-keys.txt"} /run/age-keys.txt
           chmod -R 700 /run/age-keys.txt
+
+          # if the directory exists, sops-nix should replace it with a symlink
+          mkdir /run/secrets
         '';
       };
 
