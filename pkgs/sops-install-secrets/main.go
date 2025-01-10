@@ -70,19 +70,19 @@ type template struct {
 }
 
 type manifest struct {
-	Secrets                 []secret             `json:"secrets"`
-	Templates               []template           `json:"templates"`
-	PlaceholderBySecretName map[string]string    `json:"placeholderBySecretName"`
-	SecretsMountPoint       string               `json:"secretsMountPoint"`
-	SymlinkPath             string               `json:"symlinkPath"`
-	KeepGenerations         int                  `json:"keepGenerations"`
-	SSHKeyPaths             []string             `json:"sshKeyPaths"`
-	GnupgHome               string               `json:"gnupgHome"`
-	AgeKeyFile              string               `json:"ageKeyFile"`
-	AgeSSHKeyPaths          []string             `json:"ageSshKeyPaths"`
-	UseTmpfs                bool                 `json:"useTmpfs"`
-	UserMode                bool                 `json:"userMode"`
-	Logging                 loggingConfig        `json:"logging"`
+	Secrets                 []secret          `json:"secrets"`
+	Templates               []template        `json:"templates"`
+	PlaceholderBySecretName map[string]string `json:"placeholderBySecretName"`
+	SecretsMountPoint       string            `json:"secretsMountPoint"`
+	SymlinkPath             string            `json:"symlinkPath"`
+	KeepGenerations         int               `json:"keepGenerations"`
+	SSHKeyPaths             []string          `json:"sshKeyPaths"`
+	GnupgHome               string            `json:"gnupgHome"`
+	AgeKeyFile              string            `json:"ageKeyFile"`
+	AgeSSHKeyPaths          []string          `json:"ageSshKeyPaths"`
+	UseTmpfs                bool              `json:"useTmpfs"`
+	UserMode                bool              `json:"userMode"`
+	Logging                 loggingConfig     `json:"logging"`
 }
 
 type secretFile struct {
@@ -379,7 +379,13 @@ func prepareSecretsDir(secretMountpoint string, linkName string, keysGID int, us
 			}
 		}
 	} else if !os.IsNotExist(err) {
-		return nil, fmt.Errorf("cannot access %s: %w", linkName, err)
+		if _, err2 := os.Lstat(linkName); err2 != nil {
+			return nil, fmt.Errorf("cannot access %s: %w", linkName, err)
+		}
+		// if `/run/secrets` exists, but is not a symlink, we need to remove it
+		if err = os.RemoveAll(linkName); err != nil {
+			return nil, fmt.Errorf("cannot remove %s: %w", linkName, err)
+		}
 	}
 	generation++
 	dir := filepath.Join(secretMountpoint, strconv.Itoa(int(generation)))
@@ -718,39 +724,35 @@ func (app *appContext) validateManifest() error {
 
 func atomicSymlink(oldname, newname string) error {
 	if err := os.MkdirAll(filepath.Dir(newname), 0o755); err != nil {
-		return err
+		return fmt.Errorf("cannot create directory %s: %w", filepath.Dir(newname), err)
 	}
 
 	// Fast path: if newname does not exist yet, we can skip the whole dance
 	// below.
 	if err := os.Symlink(oldname, newname); err == nil || !os.IsExist(err) {
-		return err
+		return fmt.Errorf("cannot create symlink %s: %w", newname, err)
 	}
 
 	// We need to use ioutil.TempDir, as we cannot overwrite a ioutil.TempFile,
 	// and removing+symlinking creates a TOCTOU race.
 	d, err := os.MkdirTemp(filepath.Dir(newname), "."+filepath.Base(newname))
 	if err != nil {
-		return err
+		return fmt.Errorf("cannot create temporary directory: %w", err)
 	}
-	cleanup := true
 	defer func() {
-		if cleanup {
-			os.RemoveAll(d)
-		}
+		os.RemoveAll(d)
 	}()
 
 	symlink := filepath.Join(d, "tmp.symlink")
 	if err := os.Symlink(oldname, symlink); err != nil {
-		return err
+		return fmt.Errorf("cannot create symlink %s: %w", symlink, err)
 	}
 
 	if err := os.Rename(symlink, newname); err != nil {
-		return err
+		return fmt.Errorf("cannot rename %s to %s: %w", symlink, newname, err)
 	}
 
-	cleanup = false
-	return os.RemoveAll(d)
+	return nil
 }
 
 func pruneGenerations(secretsMountPoint, secretsDir string, keepGenerations int) error {
