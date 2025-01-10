@@ -557,8 +557,7 @@ in
       chmod -R 700 /run/age-keys.txt
     '';
   };
-}
-// lib.optionalAttrs (lib.versionAtLeast (lib.versions.majorMinor lib.version) "24.05") {
+
   user-passwords-sysusers = userPasswordTest "sops-user-passwords-sysusers" (
     { pkgs, ... }:
     {
@@ -575,8 +574,7 @@ in
       '';
     }
   );
-}
-// lib.optionalAttrs (lib.versionAtLeast (lib.versions.majorMinor lib.version) "24.11") {
+
   user-passwords-userborn = userPasswordTest "sops-user-passwords-userborn" (
     { pkgs, ... }:
     {
