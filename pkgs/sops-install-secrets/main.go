@@ -730,7 +730,7 @@ func atomicSymlink(oldname, newname string) error {
 	// Fast path: if newname does not exist yet, we can skip the whole dance
 	// below.
 	if err := os.Symlink(oldname, newname); err == nil || !os.IsExist(err) {
-		return fmt.Errorf("cannot create symlink %s: %w", newname, err)
+		return err
 	}
 
 	// We need to use ioutil.TempDir, as we cannot overwrite a ioutil.TempFile,
