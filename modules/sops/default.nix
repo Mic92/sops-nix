@@ -407,16 +407,6 @@ in
           lib.concatLists (
             lib.mapAttrsToList (name: secret: [
               {
-                assertion = builtins.pathExists secret.sopsFile;
-                message = "Cannot find path '${secret.sopsFile}' set in sops.secrets.${lib.strings.escapeNixIdentifier name}.sopsFile";
-              }
-              {
-                assertion =
-                  builtins.isPath secret.sopsFile
-                  || (builtins.isString secret.sopsFile && lib.hasPrefix builtins.storeDir secret.sopsFile);
-                message = "'${secret.sopsFile}' is not in the Nix store. Either add it to the Nix store or set sops.validateSopsFiles to false";
-              }
-              {
                 assertion = secret.uid != null && secret.uid != 0 -> secret.owner == null;
                 message = "In ${secret.name} exactly one of sops.owner and sops.uid must be set";
               }
