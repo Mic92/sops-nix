@@ -24,7 +24,7 @@ let
   ) [ ] (builtins.attrValues secrets);
 
 in
-if failedAssertions != [ ] then
+if cfg.validateSopsFiles && failedAssertions != [ ] then
   throw "\nFailed assertions:\n${lib.concatStringsSep "\n" (map (x: "- ${x}") failedAssertions)}"
 else
   writeTextFile {
