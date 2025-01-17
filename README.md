@@ -571,9 +571,18 @@ $y$j9T$WFoiErKnEnMcGq0ruQK4K.$4nJAY3LBeBsZBTYSkdTOejKU6KlDmhnfUV3Ll1K/1b.
 }
 ```
 
-**Note:** If you are using Impermanence, you must set `sops.age.keyFile` to a keyfile inside your persist directory or it will not exist at boot time. 
-For example: `/nix/persist/var/lib/sops-nix/key.txt`
-Similarly if ssh host keys are used instead, they also need to be placed inside the persisted storage.
+**Note:** If you are using Impermanence, the key used for secret decryption (`sops.age.keyFile`, or the host SSH keys) must be in a persisted directory,
+loaded early enough during boot. For example:
+
+```nix
+sops.age.keyFile = "/nix/persist/var/lib/sops-nix/key.txt";
+```
+
+or:
+
+```nix
+fileSystems."/etc/ssh".neededForBoot = true;
+```
 
 ## Different file formats
 
