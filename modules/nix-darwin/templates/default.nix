@@ -49,18 +49,32 @@ in
                 '';
               };
               owner = mkOption {
-                type = types.singleLineStr;
-                default = "root";
+                type = with lib.types; nullOr singleLineStr;
+                default = null;
                 description = ''
-                  User of the file.
+                  User of the file. Can only be set if uid is 0;
+                '';
+              };
+              uid = mkOption {
+                type = with lib.types; nullOr int;
+                default = 0;
+                description = ''
+                  UID of the template, only applied with owner is null. the UID will be applied even if the corresponding user doesn't exist.
                 '';
               };
               group = mkOption {
-                type = types.singleLineStr;
-                default = "staff";
+                type = with lib.types; nullOr singleLineStr;
+                default = if config.owner != null then "staff" else null;
                 defaultText = "staff";
                 description = ''
-                  Group of the file. Default on darwin in staff.
+                  Group of the file. Can only be set if gid is 0. Default on darwin to 'staff'
+                '';
+              };
+              gid = mkOption {
+                type = with lib.types; nullOr int;
+                default = 0;
+                description = ''
+                  GID of the template, only applied when group is null. The GID will be applied even if the corresponding group doesn't exist.
                 '';
               };
               file = mkOption {
@@ -97,6 +111,26 @@ in
       sops.placeholder = mapAttrs (
         name: _: mkDefault "<SOPS:${builtins.hashString "sha256" name}:PLACEHOLDER>"
       ) config.sops.secrets;
+
+      assertions =
+        lib.mapAttrsToList (name: cfg: {
+          assertion = !(cfg.owner != null && cfg.uid != 0);
+          message = ''
+            Assertion failed for `sops.templates.${name}`:
+            Both `owner` and `uid` cannot be defined at the same time. Use either `owner` or leave `uid` as 0.
+            owner: ${cfg.owner}
+            uid: ${toString cfg.uid}
+          '';
+        }) (lib.traceVal config.sops.templates)
+        ++ lib.mapAttrsToList (name: cfg: {
+          assertion = !(cfg.group != null && cfg.gid != 0);
+          message = ''
+            Assertion failed for `sops.templates.${name}`:
+            Both `group` and `gid` cannot be defined at the same time. Use either `group` or leave `gid` as 0.
+            owner: ${cfg.group}
+            uid: ${toString cfg.gid}
+          '';
+        }) config.sops.templates;
     }
   );
 }
