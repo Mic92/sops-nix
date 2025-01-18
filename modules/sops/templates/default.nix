@@ -107,22 +107,6 @@ in
                   This works the same way as <xref linkend="opt-systemd.services._name_.reloadTriggers" />.
                 '';
               };
-              assertions = [
-                {
-                  assertion = !((config.owner != null) && (config.uid != 0));
-                  message = ''
-                    Both `owner` and `uid` cannot be set at the same time in sops.template.${config.name}.
-                    If you set `owner`, leave `uid` as 0 (default).
-                  '';
-                }
-                {
-                  assertion = !((config.group != null) && (config.gid != 0));
-                  message = ''
-                    Both `group` and `gid` cannot be set at the same time in sops.template.${config.name}.
-                    If you set `group`, leave `gid` as 0 (default).
-                  '';
-                }
-              ];
             };
           }
         )
@@ -149,5 +133,27 @@ in
         name: _: mkDefault "<SOPS:${builtins.hashString "sha256" name}:PLACEHOLDER>"
       ) config.sops.secrets;
     }
+  );
+  ### Adding Assertions outside `options`
+  ### Assertions must be added to the top level of final config
+  assertions = lib.optionalAttrs (config ? sops.templates) (
+    mapAttrsToList
+    (name: cfg: {
+      assertion = !(cfg.owner != null && cfg.uid != 0);
+      message = ''
+        Assertion failed for `sops.templates.${name}`:
+        Both `owner` and `uid` cannot be defined at the same time. Use either `owner` or leave `uid` as 0.
+      '';
+    })
+    config.sops.templates
+    ++ mapAttrsToList
+    (name: cfg: {
+      assertion = !(cfg.group != null && cfg.gid != 0);
+      message = ''
+        Assertion failed for `sops.templates.${name}`:
+        Both `group` and `gid` cannot be defined at the same time. Use either `group` or leave `gid` as 0.
+      '';
+    })
+    config.sops.templates
   );
 }
