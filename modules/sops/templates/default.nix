@@ -107,6 +107,22 @@ in
                   This works the same way as <xref linkend="opt-systemd.services._name_.reloadTriggers" />.
                 '';
               };
+              assertions = [
+                {
+                  assertion = !((config.owner != null) && (config.uid != 0));
+                  message = ''
+                    Both `owner` and `uid` cannot be set at the same time in sops.template.${config.name}.
+                    If you set `owner`, leave `uid` as 0 (default).
+                  '';
+                }
+                {
+                  assertion = !((config.group != null) && (config.gid != 0));
+                  message = ''
+                    Both `group` and `gid` cannot be set at the same time in sops.template.${config.name}.
+                    If you set `group`, leave `gid` as 0 (default).
+                  '';
+                }
+              ];
             };
           }
         )
@@ -129,7 +145,6 @@ in
 
   config = lib.optionalAttrs (options ? sops.secrets) (
     lib.mkIf (config.sops.templates != { }) {
-      # TODO: i'm not sure how to add assertions, could use help here.
       sops.placeholder = mapAttrs (
         name: _: mkDefault "<SOPS:${builtins.hashString "sha256" name}:PLACEHOLDER>"
       ) config.sops.secrets;
