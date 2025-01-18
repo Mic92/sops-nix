@@ -321,6 +321,14 @@ in
           path = "/etc/externally/linked";
         };
 
+        sops.templates.test_uid_gid = {
+          uid = 420;
+          gid = 420;
+          content = ''
+            Test value: ${config.sops.placeholder.test_key}
+          '';
+        };
+
         users.groups.somegroup = { };
         users.users.someuser = {
           isSystemUser = true;
@@ -339,6 +347,8 @@ in
       machine.succeed("[ $(stat -c%G /run/secrets/rendered/test_template) = 'somegroup' ]")
       machine.succeed("[ $(stat -c%U /run/secrets/rendered/test_default) = 'root' ]")
       machine.succeed("[ $(stat -c%G /run/secrets/rendered/test_default) = 'root' ]")
+      machine.succeed("[ $(stat -c%u /run/secrets/rendered/test_uid_gid) = '420' ]")
+      machine.succeed("[ $(stat -c%g /run/secrets/rendered/test_uid_gid) = '420' ]")
 
       expected = """\
       This line is not modified.
