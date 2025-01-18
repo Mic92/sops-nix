@@ -137,7 +137,7 @@ in
   ### Adding Assertions outside `options`
   ### Assertions must be added to the top level of final config
   assertions = lib.optionalAttrs (config ? sops.templates) (
-    mapAttrsToList
+    lib.mapAttrsToList
     (name: cfg: {
       assertion = !(cfg.owner != null && cfg.uid != 0);
       message = ''
@@ -146,7 +146,7 @@ in
       '';
     })
     config.sops.templates
-    ++ mapAttrsToList
+    ++ lib.mapAttrsToList
     (name: cfg: {
       assertion = !(cfg.group != null && cfg.gid != 0);
       message = ''
