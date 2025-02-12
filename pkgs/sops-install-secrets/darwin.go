@@ -23,42 +23,6 @@ func RuntimeDir() (string, error) {
 	return strings.TrimSuffix(rundir, "/"), nil
 }
 
-func SecureSymlinkChown(symlinkToCheck string, expectedTarget string, owner, group int) error {
-	// The flag combination of `O_NOFOLLOW|O_PATH` is used on Linux systems to
-	// provide a reference to a symlink directly, instead of following the link,
-	// however on Darwin systems `O_PATH` is not available. The `O_SYMLINK` flag
-	// is instead used to get a file descriptor to the symlink itself, and not
-	// to follow the link to the target file.
-	fd, err := unix.Open(
-		symlinkToCheck,
-		unix.O_CLOEXEC|unix.O_SYMLINK,
-		unix.O_RDONLY)
-	if err != nil {
-		return fmt.Errorf("failed to open %s: %w", symlinkToCheck, err)
-	}
-	defer unix.Close(fd)
-
-	// Verify that the symlink points to the expected target file.
-	buf := make([]byte, len(expectedTarget)+1) // oversize by one to detect trunc
-	n, err := unix.Readlink(symlinkToCheck, buf)
-	if err != nil {
-		return fmt.Errorf("couldn't readlink %s, %w", symlinkToCheck, err)
-	}
-	if n > len(expectedTarget) || string(buf[:n]) != expectedTarget {
-		return fmt.Errorf("symlink %s does not point to %s", symlinkToCheck, expectedTarget)
-	}
-
-	// Note: on Darwin, `Fchown` does not follow symlinks, and operates on the
-	// link itself. Fchown does not take flag arguments, like in the Linux
-	// implementation where it's used to prevent `Fchownat` from following
-	// symlinks.
-	err = unix.Fchown(fd, owner, group)
-	if err != nil {
-		return fmt.Errorf("cannot change owner of '%s' to %d/%d: %w", symlinkToCheck, owner, group, err)
-	}
-	return nil
-}
-
 // Does:
 // mkdir /tmp/mymount
 // NUMSECTORS=128000       # a sector is 512 bytes
