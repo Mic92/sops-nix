@@ -9,8 +9,6 @@ import (
 	"os"
 	"os/exec"
 	"strings"
-
-	"golang.org/x/sys/unix"
 )
 
 func RuntimeDir() (string, error) {
