@@ -185,17 +185,47 @@ func linksAreEqual(linkTarget, targetFile string, info os.FileInfo, owner int, g
 	return linkTarget == targetFile && validUG
 }
 
+func SecureSymlinkChown(targetFile string, path string, owner int, group int) error {
+	// Create directory to temporarily house the symlink while we change it's
+	// permissions, by default the directory permissions are 0700.
+	dir, err := os.MkdirTemp("", "")
+	if err != nil {
+		return fmt.Errorf("cannot create temporary symlink directory: %w", err)
+	}
+	defer os.RemoveAll(dir)
+
+	// Symlink a temporary file to `targetFile`, before chowning it.
+	var tmpSymlink = filepath.Join(dir, "tmplink")
+	if err = os.Symlink(targetFile, tmpSymlink); err != nil {
+		return fmt.Errorf(
+			"cannot create symlink '%s' pointing to '%s': %w", path, targetFile, err)
+	}
+
+	err = os.Lchown(tmpSymlink, owner, group)
+	if err != nil {
+		return fmt.Errorf(
+			"cannot change owner of symlink '%s' (pointing to '%s') to owner/group: %d/%d: %w",
+			tmpSymlink, targetFile, owner, group, err)
+	}
+
+	// Move the chowned symlink to the correct location.
+	err = os.Rename(tmpSymlink, path)
+	if err != nil {
+		return fmt.Errorf("cannot move symlink '%s' to '%s': %w", tmpSymlink, path, err)
+	}
+	return nil
+}
+
 func createSymlink(targetFile string, path string, owner int, group int, userMode bool) error {
 	for {
 		stat, err := os.Lstat(path)
 		if os.IsNotExist(err) {
-			if err = os.Symlink(targetFile, path); err != nil {
-				return fmt.Errorf("cannot create symlink '%s': %w", path, err)
-			}
 			if !userMode {
-				if err = SecureSymlinkChown(path, targetFile, owner, group); err != nil {
+				if err = SecureSymlinkChown(targetFile, path, owner, group); err != nil {
 					return fmt.Errorf("cannot chown symlink '%s': %w", path, err)
 				}
+			} else if err = os.Symlink(targetFile, path); err != nil {
+				return fmt.Errorf("cannot create symlink '%s': %w", path, err)
 			}
 			return nil
 		} else if err != nil {

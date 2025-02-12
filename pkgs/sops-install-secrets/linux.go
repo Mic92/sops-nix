@@ -18,38 +18,6 @@ func RuntimeDir() (string, error) {
 	return rundir, nil
 }
 
-func SecureSymlinkChown(symlinkToCheck, expectedTarget string, owner, group int) error {
-	// fd, err := unix.Open(symlinkToCheck, unix.O_CLOEXEC|unix.O_PATH|unix.O_NOFOLLOW, 0)
-	fd, err := unix.Open(symlinkToCheck, unix.O_CLOEXEC|unix.O_PATH|unix.O_NOFOLLOW, 0)
-	if err != nil {
-		return fmt.Errorf("failed to open %s: %w", symlinkToCheck, err)
-	}
-	defer unix.Close(fd)
-
-	buf := make([]byte, len(expectedTarget)+1) // oversize by one to detect trunc
-	n, err := unix.Readlinkat(fd, "", buf)
-	if err != nil {
-		return fmt.Errorf("couldn't readlinkat %s", symlinkToCheck)
-	}
-	if n > len(expectedTarget) || string(buf[:n]) != expectedTarget {
-		return fmt.Errorf("symlink %s does not point to %s", symlinkToCheck, expectedTarget)
-	}
-	stat := unix.Stat_t{}
-	err = unix.Fstat(fd, &stat)
-	if err != nil {
-		return fmt.Errorf("cannot stat '%s': %w", symlinkToCheck, err)
-	}
-	if stat.Uid == uint32(owner) && stat.Gid == uint32(group) {
-		return nil // already correct
-	}
-
-	err = unix.Fchownat(fd, "", owner, group, unix.AT_EMPTY_PATH)
-	if err != nil {
-		return fmt.Errorf("cannot change owner of '%s' to %d/%d: %w", symlinkToCheck, owner, group, err)
-	}
-	return nil
-}
-
 func MountSecretFs(mountpoint string, keysGID int, useTmpfs bool, userMode bool) error {
 	if err := os.MkdirAll(mountpoint, 0o751); err != nil {
 		return fmt.Errorf("cannot create directory '%s': %w", mountpoint, err)
