@@ -198,7 +198,7 @@ func SecureSymlinkChown(targetFile string, path string, owner int, group int) er
 	defer os.RemoveAll(dir)
 
 	// Create symlink to `targetFile` in the temp dir, before chowning it.
-	var tmpSymlink = filepath.Join(dir, "tmplink")
+	var tmpSymlink = filepath.Join(dir, filepath.Base(path))
 	if err = os.Symlink(targetFile, tmpSymlink); err != nil {
 		return fmt.Errorf(
 			"cannot create symlink '%s' (pointing to '%s'): %w", path, targetFile, err)
