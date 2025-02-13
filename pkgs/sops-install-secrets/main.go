@@ -185,17 +185,50 @@ func linksAreEqual(linkTarget, targetFile string, info os.FileInfo, owner int, g
 	return linkTarget == targetFile && validUG
 }
 
+func SecureSymlinkChown(targetFile string, path string, owner int, group int) error {
+	// Create a temp directory to house the symlink while we change it's
+	// ownership. `os.MkdirTemp` creates a directory with the permissions 0700.
+	// The temp dir is created in the same parent directory of the final
+	// symlink, because the later `os.Rename` operation won't work across disk
+	// devices.
+	dir, err := os.MkdirTemp(filepath.Dir(path), "")
+	if err != nil {
+		return fmt.Errorf("cannot create temporary symlink directory: %w", err)
+	}
+	defer os.RemoveAll(dir)
+
+	// Create symlink to `targetFile` in the temp dir, before chowning it.
+	var tmpSymlink = filepath.Join(dir, filepath.Base(path))
+	if err = os.Symlink(targetFile, tmpSymlink); err != nil {
+		return fmt.Errorf(
+			"cannot create symlink '%s' (pointing to '%s'): %w", path, targetFile, err)
+	}
+
+	err = os.Lchown(tmpSymlink, owner, group)
+	if err != nil {
+		return fmt.Errorf(
+			"cannot change owner of symlink '%s' (pointing to '%s') to owner/group: %d/%d: %w",
+			tmpSymlink, targetFile, owner, group, err)
+	}
+
+	// Move the chowned symlink to it's final location.
+	err = os.Rename(tmpSymlink, path)
+	if err != nil {
+		return fmt.Errorf("cannot move symlink '%s' to '%s': %w", tmpSymlink, path, err)
+	}
+	return nil
+}
+
 func createSymlink(targetFile string, path string, owner int, group int, userMode bool) error {
 	for {
 		stat, err := os.Lstat(path)
 		if os.IsNotExist(err) {
-			if err = os.Symlink(targetFile, path); err != nil {
-				return fmt.Errorf("cannot create symlink '%s': %w", path, err)
-			}
 			if !userMode {
-				if err = SecureSymlinkChown(path, targetFile, owner, group); err != nil {
+				if err = SecureSymlinkChown(targetFile, path, owner, group); err != nil {
 					return fmt.Errorf("cannot chown symlink '%s': %w", path, err)
 				}
+			} else if err = os.Symlink(targetFile, path); err != nil {
+				return fmt.Errorf("cannot create symlink '%s': %w", path, err)
 			}
 			return nil
 		} else if err != nil {
