@@ -187,8 +187,10 @@ func linksAreEqual(linkTarget, targetFile string, info os.FileInfo, owner int, g
 
 func SecureSymlinkChown(targetFile string, path string, owner int, group int) error {
 	// Create directory to temporarily house the symlink while we change it's
-	// permissions, by default the directory permissions are 0700.
-	dir, err := os.MkdirTemp("", "")
+	// permissions, by default the directory permissions are 0700. The temp dir
+	// is created in the same parent directory of the final symlink, as the
+	// later `os.Rename` operation won't work across disk devices.
+	dir, err := os.MkdirTemp(filepath.Dir(path), "")
 	if err != nil {
 		return fmt.Errorf("cannot create temporary symlink directory: %w", err)
 	}
