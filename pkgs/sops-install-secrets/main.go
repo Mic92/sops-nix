@@ -186,21 +186,22 @@ func linksAreEqual(linkTarget, targetFile string, info os.FileInfo, owner int, g
 }
 
 func SecureSymlinkChown(targetFile string, path string, owner int, group int) error {
-	// Create directory to temporarily house the symlink while we change it's
-	// permissions, by default the directory permissions are 0700. The temp dir
-	// is created in the same parent directory of the final symlink, as the
-	// later `os.Rename` operation won't work across disk devices.
+	// Create a temp directory to house the symlink while we change it's
+	// ownership. `os.MkdirTemp` creates a directory with the permissions 0700.
+	// The temp dir is created in the same parent directory of the final
+	// symlink, because the later `os.Rename` operation won't work across disk
+	// devices.
 	dir, err := os.MkdirTemp(filepath.Dir(path), "")
 	if err != nil {
 		return fmt.Errorf("cannot create temporary symlink directory: %w", err)
 	}
 	defer os.RemoveAll(dir)
 
-	// Symlink a temporary file to `targetFile`, before chowning it.
+	// Create symlink to `targetFile` in the temp dir, before chowning it.
 	var tmpSymlink = filepath.Join(dir, "tmplink")
 	if err = os.Symlink(targetFile, tmpSymlink); err != nil {
 		return fmt.Errorf(
-			"cannot create symlink '%s' pointing to '%s': %w", path, targetFile, err)
+			"cannot create symlink '%s' (pointing to '%s'): %w", path, targetFile, err)
 	}
 
 	err = os.Lchown(tmpSymlink, owner, group)
@@ -210,7 +211,7 @@ func SecureSymlinkChown(targetFile string, path string, owner int, group int) er
 			tmpSymlink, targetFile, owner, group, err)
 	}
 
-	// Move the chowned symlink to the correct location.
+	// Move the chowned symlink to it's final location.
 	err = os.Rename(tmpSymlink, path)
 	if err != nil {
 		return fmt.Errorf("cannot move symlink '%s' to '%s': %w", tmpSymlink, path, err)
