@@ -99,7 +99,7 @@ let
         sshKeyPaths = cfg.gnupg.sshKeyPaths;
         ageKeyFile = cfg.age.keyFile;
         ageSshKeyPaths = cfg.age.sshKeyPaths;
-        placeholderBySecretName = cfg.placeholder;
+        placeholderBySecretKey = cfg.placeholder;
         userMode = true;
         logging = {
           keyImport = builtins.elem "keyImport" cfg.log;
