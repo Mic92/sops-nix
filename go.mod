@@ -8,7 +8,7 @@ require (
 	github.com/getsops/sops/v3 v3.8.1
 	github.com/joho/godotenv v1.5.1
 	github.com/mozilla-services/yaml v0.0.0-20201007153854-c369669a6625
-	golang.org/x/crypto v0.33.0
+	golang.org/x/crypto v0.35.0
 	golang.org/x/sys v0.30.0
 	gopkg.in/ini.v1 v1.67.0
 )
