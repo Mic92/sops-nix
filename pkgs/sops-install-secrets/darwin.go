@@ -9,8 +9,6 @@ import (
 	"os"
 	"os/exec"
 	"strings"
-
-	"golang.org/x/sys/unix"
 )
 
 func RuntimeDir() (string, error) {
@@ -21,29 +19,6 @@ func RuntimeDir() (string, error) {
 		return "", fmt.Errorf("cannot get DARWIN_USER_TEMP_DIR: %v", err)
 	}
 	return strings.TrimSuffix(rundir, "/"), nil
-}
-
-func SecureSymlinkChown(symlinkToCheck string, expectedTarget string, owner, group int) error {
-	// not sure what O_PATH is needed for anyways
-	fd, err := unix.Open(symlinkToCheck, unix.O_CLOEXEC|unix.O_SYMLINK|unix.O_NOFOLLOW, 0)
-	if err != nil {
-		return fmt.Errorf("failed to open %s: %w", symlinkToCheck, err)
-	}
-	defer unix.Close(fd)
-
-	buf := make([]byte, len(expectedTarget)+1) // oversize by one to detect trunc
-	n, err := unix.Readlinkat(fd, "", buf)
-	if err != nil {
-		return fmt.Errorf("couldn't readlinkat %s", symlinkToCheck)
-	}
-	if n > len(expectedTarget) || string(buf[:n]) != expectedTarget {
-		return fmt.Errorf("symlink %s does not point to %s", symlinkToCheck, expectedTarget)
-	}
-	err = unix.Fchownat(fd, "", owner, group, unix.AT_SYMLINK_NOFOLLOW)
-	if err != nil {
-		return fmt.Errorf("cannot change owner of '%s' to %d/%d: %w", symlinkToCheck, owner, group, err)
-	}
-	return nil
 }
 
 // Does:
