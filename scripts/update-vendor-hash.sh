@@ -3,6 +3,7 @@
 
 set -exuo pipefail
 
+go mod tidy
 failedbuild=$(nix build --impure --expr '(with import <nixpkgs> {}; pkgs.callPackage ./. { vendorHash = ""; }).sops-install-secrets' 2>&1 || true)
 echo "$failedbuild"
 checksum=$(echo "$failedbuild" | awk '/got:.*sha256/ { print $2 }')
