@@ -66,7 +66,10 @@
         sops = ./modules/sops;
         default = self.nixosModules.sops;
       };
-      homeManagerModules.sops = ./modules/home-manager/sops.nix;
+      homeManagerModules = {
+        sops = ./modules/home-manager/sops.nix;
+        default = self.homeManagerModules.sops;
+      };
       homeManagerModule = self.homeManagerModules.sops;
       darwinModules = {
         sops = ./modules/nix-darwin;
