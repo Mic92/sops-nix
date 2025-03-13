@@ -1,6 +1,8 @@
 module github.com/Mic92/sops-nix
 
-go 1.18
+go 1.23.0
+
+toolchain go1.23.6
 
 require (
 	github.com/Mic92/ssh-to-age v0.0.0-20240115094500-460a2109aaf0
