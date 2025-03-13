@@ -72,7 +72,7 @@ type template struct {
 type manifest struct {
 	Secrets                 []secret          `json:"secrets"`
 	Templates               []template        `json:"templates"`
-	PlaceholderBySecretName map[string]string `json:"placeholderBySecretName"`
+	PlaceholderBySecretKey  map[string]string `json:"placeholderBySecretKey"`
 	SecretsMountPoint       string            `json:"secretsMountPoint"`
 	SymlinkPath             string            `json:"symlinkPath"`
 	KeepGenerations         int               `json:"keepGenerations"`
@@ -704,9 +704,9 @@ func (app *appContext) validateManifest() error {
 		// The Nix module only defines placeholders for secrets if there are
 		// templates.
 		if len(m.Templates) > 0 {
-			placeholder, present := m.PlaceholderBySecretName[secret.Name]
+			placeholder, present := m.PlaceholderBySecretKey[secret.Key]
 			if !present {
-				return fmt.Errorf("placeholder for %s not found in manifest", secret.Name)
+				return fmt.Errorf("placeholder for %s not found in manifest", secret.Key)
 			}
 
 			app.secretByPlaceholder[placeholder] = secret
