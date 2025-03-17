@@ -5,9 +5,6 @@ on:
   schedule:
     - cron:  '51 2 * * 0'
 
-permissions:
-  pull-requests: write
-
 jobs:
   createPullRequest:
     runs-on: ubuntu-latest
