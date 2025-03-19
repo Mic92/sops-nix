@@ -121,7 +121,7 @@ in
             owner: ${cfg.owner}
             uid: ${toString cfg.uid}
           '';
-        }) (lib.traceVal config.sops.templates)
+        }) config.sops.templates
         ++ lib.mapAttrsToList (name: cfg: {
           assertion = !(cfg.group != null && cfg.gid != 0);
           message = ''
