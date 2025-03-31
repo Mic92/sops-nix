@@ -1,6 +1,6 @@
 {
   pkgs ? import <nixpkgs> { },
-  vendorHash ? "sha256-blqc0NRRmPlIE/WrAqsmx/smPM9JOT8tu9yEuanolcE=",
+  vendorHash ? "sha256-kcizStmT4e2YZpqmE9ag55LW1foEYb0L41IjbTaSyxY=",
 }:
 let
   sops-install-secrets = pkgs.callPackage ./pkgs/sops-install-secrets {
