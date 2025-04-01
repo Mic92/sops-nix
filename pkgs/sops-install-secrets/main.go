@@ -198,7 +198,7 @@ func SecureSymlinkChown(targetFile string, path string, owner int, group int) er
 	defer os.RemoveAll(dir)
 
 	// Create symlink to `targetFile` in the temp dir, before chowning it.
-	var tmpSymlink = filepath.Join(dir, filepath.Base(path))
+	tmpSymlink := filepath.Join(dir, filepath.Base(path))
 	if err = os.Symlink(targetFile, tmpSymlink); err != nil {
 		return fmt.Errorf(
 			"cannot create symlink '%s' (pointing to '%s'): %w", path, targetFile, err)
@@ -1196,21 +1196,59 @@ func replaceRuntimeDir(path, rundir string) (ret string) {
 	return
 }
 
+func writeTemplate(targetDir string, template template, keysGID int, userMode bool) error {
+	templatePath := filepath.Join(targetDir, template.Name)
+
+	if err := createParentDirs(targetDir, template.Name, keysGID, userMode); err != nil {
+		return err
+	}
+
+	dir := filepath.Dir(templatePath)
+	tempFile, err := os.CreateTemp(dir, "sops-*")
+	tempfileRemoved := false
+	if err != nil {
+		return fmt.Errorf("cannot create temporary file in directory %s: %w", dir, err)
+	}
+	defer func() {
+		tempFile.Close() // noop if already closed
+
+		if !tempfileRemoved {
+			if err := os.Remove(tempFile.Name()); err != nil {
+				fmt.Fprintf(os.Stderr, "failed to remove temporary file %s: %s\n", tempFile.Name(),
+					err)
+			}
+		}
+	}()
+
+	if _, err := tempFile.Write(template.value); err != nil {
+		return fmt.Errorf("cannot write to temporary file %s: %w", tempFile.Name(), err)
+	}
+
+	if err := tempFile.Chmod(template.mode); err != nil {
+		return fmt.Errorf("cannot change mode of temporary file %s to %o: %w", tempFile.Name(), template.mode, err)
+	}
+
+	if !userMode {
+		if err := tempFile.Chown(template.owner, template.group); err != nil {
+			return fmt.Errorf("cannot change owner/group of '%s' to %d/%d: %w", templatePath, template.owner, template.group, err)
+		}
+	}
+
+	if err := tempFile.Close(); err != nil {
+		return fmt.Errorf("cannot close temporary file %s: %w", tempFile.Name(), err)
+	}
+
+	if err := os.Rename(tempFile.Name(), templatePath); err != nil {
+		return fmt.Errorf("cannot rename temporary file %s to %s: %w", tempFile.Name(), templatePath, err)
+	}
+	tempfileRemoved = true
+	return nil
+}
+
 func writeTemplates(targetDir string, templates []template, keysGID int, userMode bool) error {
 	for _, template := range templates {
-		fp := filepath.Join(targetDir, template.Name)
-
-		if err := createParentDirs(targetDir, template.Name, keysGID, userMode); err != nil {
+		if err := writeTemplate(targetDir, template, keysGID, userMode); err != nil {
 			return err
-		}
-
-		if err := os.WriteFile(fp, []byte(template.value), template.mode); err != nil {
-			return fmt.Errorf("cannot write %s: %w", fp, err)
-		}
-		if !userMode {
-			if err := os.Chown(fp, template.owner, template.group); err != nil {
-				return fmt.Errorf("cannot change owner/group of '%s' to %d/%d: %w", fp, template.owner, template.group, err)
-			}
 		}
 	}
 	return nil
