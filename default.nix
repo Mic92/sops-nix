@@ -1,6 +1,6 @@
 {
   pkgs ? import <nixpkgs> { },
-  vendorHash ? "sha256-blqc0NRRmPlIE/WrAqsmx/smPM9JOT8tu9yEuanolcE=",
+  vendorHash ? "sha256-kcizStmT4e2YZpqmE9ag55LW1foEYb0L41IjbTaSyxY=",
 }:
 let
   sops-install-secrets = pkgs.callPackage ./pkgs/sops-install-secrets {
@@ -23,12 +23,13 @@ rec {
   };
   unit-tests = pkgs.callPackage ./pkgs/unit-tests.nix { };
 }
-// (pkgs.lib.optionalAttrs pkgs.stdenv.isLinux {
+// pkgs.lib.optionalAttrs (pkgs ? buildGo124Module) {
   lint = pkgs.callPackage ./pkgs/lint.nix {
     inherit sops-install-secrets;
   };
-
+}
+// pkgs.lib.optionalAttrs pkgs.stdenv.isLinux {
   cross-build = pkgs.callPackage ./pkgs/cross-build.nix {
     inherit sops-install-secrets;
   };
-})
+}
