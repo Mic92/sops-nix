@@ -34,7 +34,17 @@ let
     || (options.services ? userborn && config.services.userborn.enable);
 
   withEnvironment = import ./with-environment.nix {
-    inherit cfg lib;
+    # sops >=3.10.0 now unconditionally searches 
+    # for an SSH key in $HOME/.ssh/, introduced in #1692 [0]. Since in the
+    # activation script $HOME is never set, it just spits out a slew a
+    # warnings [1].
+    #
+    # [0] https://github.com/Mic92/sops-nix/issues/764
+    # [1] https://github.com/getsops/sops/pull/1692
+    cfg = lib.recursiveUpdate cfg {
+      environment.HOME = "/var/empty";
+    };
+    inherit lib;
   };
   secretType = lib.types.submodule (
     { config, ... }:
