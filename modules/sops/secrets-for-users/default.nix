@@ -14,7 +14,11 @@ let
     inherit (pkgs) writeTextFile;
   };
   withEnvironment = import ../with-environment.nix {
-    inherit cfg lib;
+    # See also the default NixOS module.
+    cfg = lib.recursiveUpdate cfg {
+      environment.HOME = "/var/empty";
+    };
+    inherit lib;
   };
   manifestForUsers = manifestFor "-for-users" secretsForUsers templatesForUsers {
     secretsMountPoint = "/run/secrets-for-users.d";
