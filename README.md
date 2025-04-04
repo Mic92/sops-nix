@@ -759,7 +759,7 @@ my-secret2: hello
 sops-nix also provides a home-manager module.
 This module provides a subset of features provided by the system-wide sops-nix since features like the creation of the ramfs and changing the owner of the secrets are not available for non-root users.
 
-Instead of running as an activation script, sops-nix runs as a systemd user service called `sops-nix.service`.
+The home-manager module requires systemd/user as it runs a service called `sops-nix.service` rather than an activation script.
 While the sops-nix _system_ module decrypts secrets to the system non-persistent `/run/secrets`, the _home-manager_ module places them in the users non-persistent `$XDG_RUNTIME_DIR/secrets.d`.
 Additionally secrets are symlinked to the users home at `$HOME/.config/sops-nix/secrets` which are referenced for the `.path` value in sops-nix.
 This requires that the home-manager option `home.homeDirectory` is set to determine the home-directory on evaluation.  It will have to be manually set if home-manager is configured as stand-alone or on non NixOS systems.
