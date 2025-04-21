@@ -98,6 +98,7 @@ let
         gnupgHome = cfg.gnupg.home;
         sshKeyPaths = cfg.gnupg.sshKeyPaths;
         ageKeyFile = cfg.age.keyFile;
+        ageSshKeyFile = cfg.age.sshKeyFile;
         ageSshKeyPaths = cfg.age.sshKeyPaths;
         placeholderBySecretName = cfg.placeholder;
         userMode = true;
@@ -267,11 +268,23 @@ in
         '';
       };
 
+      sshKeyFile = lib.mkOption {
+        type = lib.types.nullOr pathNotInStore;
+        default = null;
+        example = "/home/someuser/.ssh/id_ed25519";
+        description = ''
+          Path to ssh key file that will be used by age for sops decryption.
+        '';
+      };
+
       sshKeyPaths = lib.mkOption {
         type = lib.types.listOf lib.types.path;
         default = [ ];
         description = ''
-          Paths to ssh keys added as age keys during sops description.
+          Paths to ssh keys added as age keys during sops description. The ssh
+          keys will be converted into age keys manually using ssh-to-age.
+
+          This option is deprecated and will be removed in the future. Use sops.age.sshKeyFile instead.
         '';
       };
     };
@@ -327,6 +340,7 @@ in
           || cfg.gnupg.sshKeyPaths != [ ]
           || cfg.gnupg.qubes-split-gpg.enable == true
           || cfg.age.keyFile != null
+          || cfg.age.sshKeyFile != null
           || cfg.age.sshKeyPaths != [ ];
         message = "No key source configured for sops. Either set services.openssh.enable or set sops.age.keyFile or sops.gnupg.home or sops.gnupg.qubes-split-gpg.enable";
       }
@@ -347,6 +361,19 @@ in
           );
         message = "sops.gnupg.qubes-split-gpg.domain is required when sops.gnupg.qubes-split-gpg.enable is set to true";
       }
+    ];
+
+    warnings = [
+      (lib.mkIf
+        (
+          cfg.age.sshKeyPaths != [ ]
+          && cfg.gnupg.sshKeyPaths == [ ]
+          && cfg.gnupg.home == null
+          && cfg.age.keyFile == null
+          && cfg.age.sshKeyFile == null
+        )
+        "The option sops.age.sshKeyPaths has been deprecated, since age now has native SSH support. Use option sops.age.sshKeyFile instead."
+      )
     ];
 
     home.sessionVariables = lib.mkIf cfg.gnupg.qubes-split-gpg.enable {
