@@ -229,6 +229,30 @@ in
     '';
   };
 
+  age-ssh-key-file = testers.runNixOSTest {
+    name = "sops-age-ssh-key-file";
+    nodes.machine = {
+      imports = [ ../modules/sops ];
+      sops = {
+        defaultSopsFile = testAssets + "/secrets-native-ssh.yaml";
+        secrets.test_key = { };
+        age.sshKeyFile = "/etc/ssh-test-key";
+      };
+
+      # place file at a known location, and outside of the store to
+      # satisfy sops.age.sshKeyFile's pathNotInStore type.
+      environment.etc."ssh-test-key" = {
+        source = testAssets + "/ssh-ed25519-key";
+        mode = "0600";
+      };
+    };
+
+    testScript = ''
+      start_all()
+      machine.succeed("cat /run/secrets/test_key | grep -q test_value")
+    '';
+  };
+
   pgp-keys = testers.runNixOSTest {
     name = "sops-pgp-keys";
     nodes.server =
