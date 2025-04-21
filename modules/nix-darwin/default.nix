@@ -300,12 +300,24 @@ in
         '';
       };
 
+      sshKeyFile = lib.mkOption {
+        type = lib.types.nullOr pathNotInStore;
+        default = null;
+        example = "/etc/ssh/ssh_host_ed25519_key";
+        description = ''
+          Path to ssh key file that will be used by age for sops decryption.
+        '';
+      };
+
       sshKeyPaths = lib.mkOption {
         type = lib.types.listOf lib.types.path;
         default = defaultImportKeys "ed25519";
         defaultText = lib.literalMD "The ed25519 keys from {option}`config.services.openssh.hostKeys`";
         description = ''
-          Paths to ssh keys added as age keys during sops description.
+          Paths to ssh keys added as age keys during sops description. The ssh
+          keys will be converted into age keys manually using ssh-to-age.
+
+          This option is deprecated and will be removed in the future. Use sops.age.sshKeyFile instead.
         '';
       };
     };
@@ -345,6 +357,7 @@ in
               cfg.gnupg.home != null
               || cfg.gnupg.sshKeyPaths != [ ]
               || cfg.age.keyFile != null
+              || cfg.age.sshKeyFile != null
               || cfg.age.sshKeyPaths != [ ];
             message = "No key source configured for sops. Either set services.openssh.enable or set sops.age.keyFile or sops.gnupg.home";
           }
@@ -383,6 +396,19 @@ in
     })
 
     {
+      warnings = [
+        (lib.mkIf
+          (
+            cfg.age.sshKeyPaths != [ ]
+            && cfg.gnupg.sshKeyPaths == [ ]
+            && cfg.gnupg.home == null
+            && cfg.age.keyFile == null
+            && cfg.age.sshKeyFile == null
+          )
+          "The option sops.age.sshKeyPaths has been deprecated, since age now has native SSH support. Use option sops.age.sshKeyFile instead."
+        )
+      ];
+
       sops.environment.SOPS_GPG_EXEC = lib.mkIf (cfg.gnupg.home != null || cfg.gnupg.sshKeyPaths != [ ]) (
         lib.mkDefault "${pkgs.gnupg}/bin/gpg"
       );
