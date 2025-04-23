@@ -308,6 +308,14 @@ in
           Paths to ssh keys added as age keys during sops description.
         '';
       };
+
+      plugins = lib.mkOption {
+        type = lib.types.listOf lib.types.package;
+        default = [ ];
+        description = ''
+          List of plugins to use for sops decryption.
+        '';
+      };
     };
 
     gnupg = {
@@ -395,6 +403,7 @@ in
       sops.environment.SOPS_GPG_EXEC = lib.mkIf (cfg.gnupg.home != null || cfg.gnupg.sshKeyPaths != [ ]) (
         lib.mkDefault "${cfg.gnupg.package}/bin/gpg"
       );
+      sops.environment.PATH = lib.mkIf (cfg.age.plugins != [ ]) (lib.makeBinPath cfg.age.plugins);
     }
   ];
 }
