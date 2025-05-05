@@ -329,6 +329,16 @@ in
         '';
       };
 
+      plugins = lib.mkOption {
+        type = lib.types.listOf lib.types.package;
+        default = [
+          pkgs.age-plugin-fido2-hmac
+        ];
+        description = ''
+          List of plugins to use for sops decryption.
+        '';
+      };
+
       generateKey = lib.mkOption {
         type = lib.types.bool;
         default = false;
@@ -432,12 +442,15 @@ in
         lib.mkDefault "${pkgs.gnupg}/bin/gpg"
       );
 
+      sops.environment.PATH = lib.makeBinPath cfg.age.plugins;
+
       # When using sysusers we no longer are started as an activation script because those are started in initrd while sysusers is started later.
       systemd.services.sops-install-secrets = lib.mkIf (regularSecrets != { } && useSystemdActivation) {
         wantedBy = [ "sysinit.target" ];
         after = [ "systemd-sysusers.service" ];
-        environment = cfg.environment;
+        environment = cfg.environment // {PATH = lib.mkForce "${cfg.environment.PATH}:${lib.makeSearchPathOutput "bin" "sbin" cfg.age.plugins}";};
         unitConfig.DefaultDependencies = "no";
+        path = config.sops.age.plugins;
 
         serviceConfig = {
           Type = "oneshot";

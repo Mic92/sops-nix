@@ -34,8 +34,9 @@ in
       {
         wantedBy = [ "systemd-sysusers.service" ];
         before = [ "systemd-sysusers.service" ];
-        environment = cfg.environment;
+        environment = cfg.environment // {PATH = lib.mkForce "${cfg.environment.PATH}:${lib.makeSearchPathOutput "bin" "sbin" cfg.age.plugins}";};
         unitConfig.DefaultDependencies = "no";
+        path = config.sops.age.plugins;
 
         serviceConfig = {
           Type = "oneshot";

@@ -240,6 +240,16 @@ in
         '';
       };
 
+      plugins = lib.mkOption {
+        type = lib.types.listOf lib.types.package;
+        default = [
+          pkgs.age-plugin-fido2-hmac
+        ];
+        description = ''
+          List of plugins to use for sops decryption.
+        '';
+      };
+
       generateKey = lib.mkOption {
         type = lib.types.bool;
         default = false;
@@ -338,6 +348,8 @@ in
           lib.mkDefault config.home.sessionVariables.SOPS_GPG_EXEC
         ))
       ];
+
+      PATH = lib.makeBinPath cfg.age.plugins;
 
       QUBES_GPG_DOMAIN = lib.mkIf cfg.gnupg.qubes-split-gpg.enable (
         lib.mkDefault cfg.gnupg.qubes-split-gpg.domain

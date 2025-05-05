@@ -290,6 +290,16 @@ in
         '';
       };
 
+      plugins = lib.mkOption {
+        type = lib.types.listOf lib.types.package;
+        default = [
+          pkgs.age-plugin-fido2-hmac
+        ];
+        description = ''
+          List of plugins to use for sops decryption.
+        '';
+      };
+
       generateKey = lib.mkOption {
         type = lib.types.bool;
         default = false;
@@ -386,6 +396,8 @@ in
       sops.environment.SOPS_GPG_EXEC = lib.mkIf (cfg.gnupg.home != null || cfg.gnupg.sshKeyPaths != [ ]) (
         lib.mkDefault "${pkgs.gnupg}/bin/gpg"
       );
+
+      sops.environment.PATH = lib.makeBinPath cfg.age.plugins;
     }
   ];
 }
