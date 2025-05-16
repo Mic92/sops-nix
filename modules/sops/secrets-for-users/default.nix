@@ -36,6 +36,7 @@ in
         before = [ "systemd-sysusers.service" ];
         environment = cfg.environment;
         unitConfig.DefaultDependencies = "no";
+        path = cfg.age.plugins;
 
         serviceConfig = {
           Type = "oneshot";
