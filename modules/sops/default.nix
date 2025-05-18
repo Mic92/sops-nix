@@ -329,6 +329,14 @@ in
         '';
       };
 
+      plugins = lib.mkOption {
+        type = lib.types.listOf lib.types.package;
+        default = [ ];
+        description = ''
+          List of plugins to use for sops decryption.
+        '';
+      };
+
       generateKey = lib.mkOption {
         type = lib.types.bool;
         default = false;
@@ -438,6 +446,7 @@ in
         after = [ "systemd-sysusers.service" ];
         environment = cfg.environment;
         unitConfig.DefaultDependencies = "no";
+        path = cfg.age.plugins;
 
         serviceConfig = {
           Type = "oneshot";
