@@ -61,8 +61,7 @@ If you use experimental nix flakes support:
 ``` nix
 {
   inputs.sops-nix.url = "github:Mic92/sops-nix";
-  # optional, not necessary for the module
-  #inputs.sops-nix.inputs.nixpkgs.follows = "nixpkgs";
+  inputs.sops-nix.inputs.nixpkgs.follows = "nixpkgs";
 
   outputs = { self, nixpkgs, sops-nix }: {
     # change `yourhostname` to your actual hostname
