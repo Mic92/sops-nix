@@ -71,6 +71,7 @@
         default = self.homeManagerModules.sops;
       };
       homeManagerModule = self.homeManagerModules.sops;
+      homeModules = self.homeManagerModules;
       darwinModules = {
         sops = ./modules/nix-darwin;
         default = self.darwinModules.sops;
