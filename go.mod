@@ -6,7 +6,7 @@ toolchain go1.24.1
 
 require (
 	github.com/Mic92/ssh-to-age v0.0.0-20240115094500-460a2109aaf0
-	github.com/ProtonMail/go-crypto v1.2.0
+	github.com/ProtonMail/go-crypto v1.3.0
 	github.com/getsops/sops/v3 v3.10.2
 	github.com/joho/godotenv v1.5.1
 	github.com/mozilla-services/yaml v0.0.0-20201007153854-c369669a6625
