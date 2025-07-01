@@ -7,7 +7,7 @@
 
 let
   cfg = config.sops;
-  sops-install-secrets = (pkgs.callPackage ../.. { }).sops-install-secrets;
+  sops-install-secrets = cfg.package;
   secretType = lib.types.submodule (
     { name, ... }:
     {
@@ -227,6 +227,15 @@ in
         Environment variables to set before calling sops-install-secrets.
 
         To properly quote strings with quotes use lib.escapeShellArg.
+      '';
+    };
+
+    package = lib.mkOption {
+      type = lib.types.package;
+      default = (pkgs.callPackage ../.. { }).sops-install-secrets;
+      defaultText = lib.literalExpression "(pkgs.callPackage ../.. {}).sops-install-secrets";
+      description = ''
+        sops-install-secrets package to use.
       '';
     };
 
