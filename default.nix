@@ -10,6 +10,7 @@ in
 rec {
   inherit sops-install-secrets;
   sops-init-gpg-key = pkgs.callPackage ./pkgs/sops-init-gpg-key { };
+  sops-pgp-hook = pkgs.callPackage ./pkgs/sops-pgp-hook { };
   default = sops-init-gpg-key;
 
   sops-import-keys-hook = pkgs.callPackage ./pkgs/sops-import-keys-hook { };
