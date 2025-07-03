@@ -86,7 +86,10 @@
             packages-stable = import ./default.nix {
               pkgs = privateInputs.nixpkgs-stable.legacyPackages.${system};
             };
-            dropOverride = attrs: nixpkgs.lib.removeAttrs attrs [ "override" ];
+            dropOverride = attrs: nixpkgs.lib.removeAttrs attrs [
+              "override"
+              "overrideDerivation"
+            ];
             tests = dropOverride (pkgs.callPackage ./checks/nixos-test.nix { });
             tests-stable = dropOverride (
               privateInputs.nixpkgs-stable.legacyPackages.${system}.callPackage ./checks/nixos-test.nix { }
