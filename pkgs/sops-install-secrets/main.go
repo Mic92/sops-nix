@@ -287,7 +287,7 @@ type plainData struct {
 	binary []byte
 }
 
-func recurseSecretKey(keys map[string]interface{}, wantedKey string) (string, error) {
+func recurseSecretKey(format FormatType, keys map[string]interface{}, wantedKey string) (string, error) {
 	var val interface{}
 	var ok bool
 	currentKey := wantedKey
@@ -318,22 +318,44 @@ func recurseSecretKey(keys map[string]interface{}, wantedKey string) (string, er
 		if !ok {
 			return "", fmt.Errorf("the key '%s' cannot be found", keyUntilNow)
 		}
-		var valWithWrongType map[interface{}]interface{}
-		valWithWrongType, ok = val.(map[interface{}]interface{})
-		if !ok {
-			return "", fmt.Errorf("key '%s' does not refer to a dictionary", keyUntilNow)
-		}
-		currentData = make(map[string]interface{})
-		for key, value := range valWithWrongType {
-			currentData[key.(string)] = value
+		if format == JSON {
+			var valWithWrongType map[string]interface{}
+			valWithWrongType, ok = val.(map[string]interface{})
+			if !ok {
+				return "", fmt.Errorf("key '%s' does not refer to a dictionary", keyUntilNow)
+			}
+			currentData = make(map[string]interface{})
+			for key, value := range valWithWrongType {
+				currentData[fmt.Sprintf("%v", key)] = value
+			}
+		} else {
+			var valWithWrongType map[interface{}]interface{}
+			valWithWrongType, ok = val.(map[interface{}]interface{})
+			if !ok {
+				return "", fmt.Errorf("key '%s' does not refer to a dictionary", keyUntilNow)
+			}
+			currentData = make(map[string]interface{})
+			for key, value := range valWithWrongType {
+				currentData[fmt.Sprintf("%v", key)] = value
+			}
 		}
 	}
 
-	strVal, ok := val.(string)
-	if !ok {
-		return "", fmt.Errorf("the value of key '%s' is not a string", keyUntilNow)
+	// If the value is a string, do not marshal it.
+	if strVal, ok := val.(string); ok {
+		return strVal, nil
 	}
-	return strVal, nil
+
+	switch format {
+	case JSON:
+		strVal, err := json.Marshal(val)
+		if err != nil {
+			return "", fmt.Errorf("cannot marshal the value of key '%s': %w", keyUntilNow, err)
+		}
+		return string(strVal), nil
+	default:
+		return "", fmt.Errorf("nested secrets are not supported for %s", format)
+	}
 }
 
 func decryptSecret(s *secret, sourceFiles map[string]plainData) error {
@@ -374,7 +396,7 @@ func decryptSecret(s *secret, sourceFiles map[string]plainData) error {
 		if s.Key == "" {
 			s.value = sourceFile.binary
 		} else {
-			strVal, err := recurseSecretKey(sourceFile.data, s.Key)
+			strVal, err := recurseSecretKey(s.Format, sourceFile.data, s.Key)
 			if err != nil {
 				return fmt.Errorf("secret %s in %s is not valid: %w", s.Name, s.SopsFile, err)
 			}
@@ -555,7 +577,7 @@ func (app *appContext) validateSopsFile(s *secret, file *secretFile) error {
 			file.firstSecret.Format, file.firstSecret.Name)
 	}
 	if app.checkMode != Manifest && !(s.Format == Binary || s.Format == Dotenv || s.Format == Ini) && s.Key != "" {
-		_, err := recurseSecretKey(file.keys, s.Key)
+		_, err := recurseSecretKey(s.Format, file.keys, s.Key)
 		if err != nil {
 			return fmt.Errorf("secret %s in %s is not valid: %w", s.Name, s.SopsFile, err)
 		}
