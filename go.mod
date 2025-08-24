@@ -9,6 +9,7 @@ require (
 	github.com/ProtonMail/go-crypto v1.3.0
 	github.com/getsops/sops/v3 v3.10.2
 	github.com/joho/godotenv v1.5.1
+	github.com/moby/sys/mountinfo v0.7.2
 	github.com/mozilla-services/yaml v0.0.0-20201007153854-c369669a6625
 	golang.org/x/crypto v0.41.0
 	golang.org/x/sys v0.36.0

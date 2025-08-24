@@ -4,10 +4,12 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"os"
 
 	"golang.org/x/sys/unix"
+	"github.com/moby/sys/mountinfo"
 )
 
 func RuntimeDir() (string, error) {
@@ -30,18 +32,31 @@ func MountSecretFs(mountpoint string, keysGID int, useTmpfs bool, userMode bool)
 
 	var fstype = "ramfs"
 	var fsmagic = RamfsMagic
+	var fsoptions = "mode=0751"
 	if useTmpfs {
 		fstype = "tmpfs"
 		fsmagic = TmpfsMagic
+		fsoptions += ",noswap"
 	}
 
 	buf := unix.Statfs_t{}
 	if err := unix.Statfs(mountpoint, &buf); err != nil {
 		return fmt.Errorf("cannot get statfs for directory '%s': %w", mountpoint, err)
 	}
-	if int32(buf.Type) != fsmagic {
-		if err := unix.Mount("none", mountpoint, fstype, unix.MS_NODEV|unix.MS_NOSUID, "mode=0751"); err != nil {
-			return fmt.Errorf("cannot mount: %w", err)
+	mounted, err := mountinfo.Mounted(mountpoint)
+	if err != nil {
+		return fmt.Errorf("cannot check if directory '%s' is a mountpoint: %w", mountpoint, err)
+	}
+	if !mounted || int32(buf.Type) != fsmagic {
+		flags := uintptr(unix.MS_NODEV | unix.MS_NOSUID | unix.MS_NOEXEC)
+		if err := unix.Mount("none", mountpoint, fstype, flags, fsoptions); err != nil {
+			if useTmpfs && errors.Is(err, unix.EINVAL) {
+				if err := unix.Mount("none", mountpoint, fstype, flags, "mode=0751"); err != nil {
+					return fmt.Errorf("cannot mount (fallback without noswap failed): %w", err)
+				}
+			} else {
+				return fmt.Errorf("cannot mount: %w", err)
+			}
 		}
 	}
 

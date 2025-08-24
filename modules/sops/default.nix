@@ -306,7 +306,7 @@ in
         Use tmpfs in place of ramfs for secrets storage.
 
         *WARNING*
-        Enabling this option has the potential to write secrets to disk unencrypted if the tmpfs volume is written to swap. Do not use unless absolutely necessary.
+        On Linux kernels earlier than 6.4, enabling this option has the potential to write secrets to disk unencrypted if the tmpfs volume is written to swap. Do not use unless absolutely necessary.
 
         When using a swap file or device, consider enabling swap encryption by setting the `randomEncryption.enable` option
 
