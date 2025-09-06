@@ -966,8 +966,8 @@ func handleModifications(isDry bool, logcfg loggingConfig, symlinkPath string, s
 		// Read the old file
 		oldData, err := os.ReadFile(oldPath)
 		if err != nil {
-			if os.IsNotExist(err) {
-				// File did not exist before
+			// File did not exist before or the path changed from a file to a directory or vice versa
+			if os.IsNotExist(err) || errors.Is(err, syscall.ENOTDIR) || errors.Is(err, syscall.EISDIR) {
 				restart = append(restart, secret.RestartUnits...)
 				reload = append(reload, secret.ReloadUnits...)
 				newSecrets[secret.Name] = true
@@ -997,8 +997,8 @@ func handleModifications(isDry bool, logcfg loggingConfig, symlinkPath string, s
 		// Read the old file
 		oldData, err := os.ReadFile(oldPath)
 		if err != nil {
-			if os.IsNotExist(err) {
-				// File did not exist before
+			// File did not exist before or the path changed from a file to a directory or vice versa
+			if os.IsNotExist(err) || errors.Is(err, syscall.ENOTDIR) || errors.Is(err, syscall.EISDIR) {
 				restart = append(restart, template.RestartUnits...)
 				reload = append(reload, template.ReloadUnits...)
 				newTemplates[template.Name] = true
