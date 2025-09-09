@@ -1,11 +1,11 @@
 {
   lib,
-  buildGoModule,
+  buildGo124Module,
   stdenv,
   vendorHash,
   go,
 }:
-buildGoModule {
+buildGo124Module {
   pname = "sops-install-secrets";
   version = "0.0.1";
 
