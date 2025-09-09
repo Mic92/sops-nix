@@ -42,7 +42,7 @@ func writeManifest(t *testing.T, dir string, m *manifest) string {
 	ok(t, err)
 	encoder := json.NewEncoder(f)
 	ok(t, encoder.Encode(m))
-	f.Close()
+	_ = f.Close()
 	return filename
 }
 
@@ -60,7 +60,7 @@ type testDir struct {
 }
 
 func (dir testDir) Remove() {
-	os.RemoveAll(dir.path)
+	_ = os.RemoveAll(dir.path)
 }
 
 func newTestDir(t *testing.T) testDir {
@@ -215,7 +215,7 @@ func testSSHKey(t *testing.T) {
 	target := path.Join(testdir.path, "existing-target")
 	file, err := os.Create(target)
 	ok(t, err)
-	file.Close()
+	_ = file.Close()
 
 	nobody := "nobody"
 	nogroup := "nogroup"
@@ -250,7 +250,7 @@ func TestAge(t *testing.T) {
 	target := path.Join(testdir.path, "existing-target")
 	file, err := os.Create(target)
 	ok(t, err)
-	file.Close()
+	_ = file.Close()
 
 	nobody := "nobody"
 	nogroup := "nogroup"
@@ -285,7 +285,7 @@ func TestAgeWithSSH(t *testing.T) {
 	target := path.Join(testdir.path, "existing-target")
 	file, err := os.Create(target)
 	ok(t, err)
-	file.Close()
+	_ = file.Close()
 
 	nobody := "nobody"
 	nogroup := "nogroup"

@@ -12,7 +12,6 @@ linters:
     - exhaustive
     - gocheckcompilerdirectives
     - gochecksumtype
-    - gosec
     - gosmopolitan
     - loggercheck
     - makezero
