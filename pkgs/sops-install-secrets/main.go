@@ -165,7 +165,7 @@ func readManifest(path string) (*manifest, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to open manifest: %w", err)
 	}
-	defer file.Close()
+	defer func() { _ = file.Close() }()
 	dec := json.NewDecoder(file)
 	var m manifest
 	if err := dec.Decode(&m); err != nil {
@@ -195,7 +195,7 @@ func SecureSymlinkChown(targetFile string, path string, owner int, group int) er
 	if err != nil {
 		return fmt.Errorf("cannot create temporary symlink directory: %w", err)
 	}
-	defer os.RemoveAll(dir)
+	defer func() { _ = os.RemoveAll(dir) }()
 
 	// Create symlink to `targetFile` in the temp dir, before chowning it.
 	tmpSymlink := filepath.Join(dir, filepath.Base(path))
@@ -352,7 +352,7 @@ func decryptSecret(s *secret, sourceFiles map[string]plainData) error {
 				sourceFile.binary = plain
 			} else {
 				if err := yaml.Unmarshal(plain, &sourceFile.data); err != nil {
-					return fmt.Errorf("Cannot parse yaml of '%s': %w", s.SopsFile, err)
+					return fmt.Errorf("cannot parse yaml of '%s': %w", s.SopsFile, err)
 				}
 			}
 		case JSON:
@@ -360,7 +360,7 @@ func decryptSecret(s *secret, sourceFiles map[string]plainData) error {
 				sourceFile.binary = plain
 			} else {
 				if err := json.Unmarshal(plain, &sourceFile.data); err != nil {
-					return fmt.Errorf("Cannot parse json of '%s': %w", s.SopsFile, err)
+					return fmt.Errorf("cannot parse json of '%s': %w", s.SopsFile, err)
 				}
 			}
 		default:
@@ -554,7 +554,7 @@ func (app *appContext) validateSopsFile(s *secret, file *secretFile) error {
 			s.Name, s.SopsFile, s.Format,
 			file.firstSecret.Format, file.firstSecret.Name)
 	}
-	if app.checkMode != Manifest && !(s.Format == Binary || s.Format == Dotenv || s.Format == Ini) && s.Key != "" {
+	if app.checkMode != Manifest && (s.Format != Binary && s.Format != Dotenv && s.Format != Ini) && s.Key != "" {
 		_, err := recurseSecretKey(file.keys, s.Key)
 		if err != nil {
 			return fmt.Errorf("secret %s in %s is not valid: %w", s.Name, s.SopsFile, err)
@@ -773,7 +773,7 @@ func atomicSymlink(oldname, newname string) error {
 		return fmt.Errorf("cannot create temporary directory: %w", err)
 	}
 	defer func() {
-		os.RemoveAll(d)
+		_ = os.RemoveAll(d)
 	}()
 
 	symlink := filepath.Join(d, "tmp.symlink")
@@ -804,7 +804,7 @@ func pruneGenerations(secretsMountPoint, secretsDir string, keepGenerations int)
 	if err != nil {
 		return fmt.Errorf("cannot open %s: %w", secretsMountPoint, err)
 	}
-	defer file.Close()
+	defer func() { _ = file.Close() }()
 
 	generations, err := file.Readdirnames(0)
 	if err != nil {
@@ -822,7 +822,10 @@ func pruneGenerations(secretsMountPoint, secretsDir string, keepGenerations int)
 			continue
 		}
 		if currentGeneration-keepGenerations >= generationNum {
-			os.RemoveAll(path.Join(secretsMountPoint, generationName))
+			err = os.RemoveAll(path.Join(secretsMountPoint, generationName))
+			if err != nil {
+				return err
+			}
 		}
 	}
 
@@ -837,13 +840,17 @@ func importSSHKeys(logcfg loggingConfig, keyPaths []string, gpgHome string) erro
 	if err != nil {
 		return fmt.Errorf("cannot create %s: %w", secringPath, err)
 	}
-	defer secring.Close()
+	defer func() {
+		_ = secring.Close()
+	}()
 
 	pubring, err := os.OpenFile(pubringPath, os.O_WRONLY|os.O_CREATE, 0o600)
 	if err != nil {
 		return fmt.Errorf("cannot create %s: %w", pubringPath, err)
 	}
-	defer pubring.Close()
+	defer func() {
+		_ = pubring.Close()
+	}()
 
 	for _, p := range keyPaths {
 		sshKey, err := os.ReadFile(p)
@@ -875,7 +882,7 @@ func importSSHKeys(logcfg loggingConfig, keyPaths []string, gpgHome string) erro
 	return nil
 }
 
-func importAgeSSHKeys(logcfg loggingConfig, keyPaths []string, ageFile os.File) error {
+func importAgeSSHKeys(logcfg loggingConfig, keyPaths []string, ageFile os.File) {
 	for _, p := range keyPaths {
 		// Read the key
 		sshKey, err := os.ReadFile(p)
@@ -901,8 +908,6 @@ func importAgeSSHKeys(logcfg loggingConfig, keyPaths []string, ageFile os.File) 
 			continue
 		}
 	}
-
-	return nil
 }
 
 // Like filepath.Walk but symlink-aware.
@@ -1020,15 +1025,14 @@ func handleModifications(isDry bool, logcfg loggingConfig, symlinkPath string, s
 			if _, err := os.Stat(filepath.Dir(file)); err != nil {
 				if os.IsNotExist(err) {
 					return nil
-				} else {
-					return err
 				}
+				return err
 			}
 			f, err := os.OpenFile(file, os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0o600)
 			if err != nil {
 				return err
 			}
-			defer f.Close()
+			defer func() { _ = f.Close() }()
 			for _, unit := range list {
 				if _, err = f.WriteString(unit + "\n"); err != nil {
 					return err
@@ -1134,8 +1138,8 @@ type keyring struct {
 }
 
 func (k *keyring) Remove() {
-	os.RemoveAll(k.path)
-	os.Unsetenv("GNUPGHOME")
+	_ = os.RemoveAll(k.path)
+	_ = os.Unsetenv("GNUPGHOME")
 }
 
 func setupGPGKeyring(logcfg loggingConfig, sshKeys []string, parentDir string) (*keyring, error) {
@@ -1146,10 +1150,10 @@ func setupGPGKeyring(logcfg loggingConfig, sshKeys []string, parentDir string) (
 	k := keyring{dir}
 
 	if err := importSSHKeys(logcfg, sshKeys, dir); err != nil {
-		os.RemoveAll(dir)
+		err = os.RemoveAll(dir)
 		return nil, err
 	}
-	os.Setenv("GNUPGHOME", dir)
+	_ = os.Setenv("GNUPGHOME", dir)
 
 	return &k, nil
 }
@@ -1158,7 +1162,10 @@ func parseFlags(args []string) (*options, error) {
 	var opts options
 	fs := flag.NewFlagSet(args[0], flag.ContinueOnError)
 	fs.Usage = func() {
-		fmt.Fprintf(flag.CommandLine.Output(), "Usage: %s [OPTION] manifest.json\n", args[0])
+		_, err := fmt.Fprintf(flag.CommandLine.Output(), "Usage: %s [OPTION] manifest.json\n", args[0])
+		if err != nil {
+			return
+		}
 		fs.PrintDefaults()
 	}
 	var checkMode string
@@ -1210,7 +1217,7 @@ func writeTemplate(targetDir string, template template, keysGID int, userMode bo
 		return fmt.Errorf("cannot create temporary file in directory %s: %w", dir, err)
 	}
 	defer func() {
-		tempFile.Close() // noop if already closed
+		_ = tempFile.Close() // noop if already closed
 
 		if !tempfileRemoved {
 			if err := os.Remove(tempFile.Name()); err != nil {
@@ -1321,28 +1328,37 @@ func installSecrets(args []string) error {
 		}
 		defer keyring.Remove()
 	} else if manifest.GnupgHome != "" {
-		os.Setenv("GNUPGHOME", manifest.GnupgHome)
+		err = os.Setenv("GNUPGHOME", manifest.GnupgHome)
+		if err != nil {
+			return err
+		}
 	}
 
 	// Import age keys
 	if len(manifest.AgeSSHKeyPaths) != 0 || manifest.AgeKeyFile != "" {
 		keyfile := filepath.Join(manifest.SecretsMountPoint, "age-keys.txt")
-		os.Setenv("SOPS_AGE_KEY_FILE", keyfile)
+		err = os.Setenv("SOPS_AGE_KEY_FILE", keyfile)
+		if err != nil {
+			return err
+		}
+
 		// Create the keyfile
 		var ageFile *os.File
 		ageFile, err = os.OpenFile(keyfile, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0o600)
 		if err != nil {
 			return fmt.Errorf("cannot create '%s': %w", keyfile, err)
 		}
-		defer ageFile.Close()
-		fmt.Fprintf(ageFile, "# generated by sops-nix at %s\n", time.Now().Format(time.RFC3339))
+		defer func() {
+			_ = ageFile.Close()
+		}()
+		_, err = fmt.Fprintf(ageFile, "# generated by sops-nix at %s\n", time.Now().Format(time.RFC3339))
+		if err != nil {
+			return err
+		}
 
 		// Import SSH keys
 		if len(manifest.AgeSSHKeyPaths) != 0 {
-			err = importAgeSSHKeys(manifest.Logging, manifest.AgeSSHKeyPaths, *ageFile)
-			if err != nil {
-				return err
-			}
+			importAgeSSHKeys(manifest.Logging, manifest.AgeSSHKeyPaths, *ageFile)
 		}
 		// Import the keyfile
 		if manifest.AgeKeyFile != "" {
