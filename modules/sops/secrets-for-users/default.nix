@@ -17,6 +17,7 @@ let
     # See also the default NixOS module.
     cfg = lib.recursiveUpdate cfg {
       environment.HOME = "/var/empty";
+      environment.PATH = lib.makeBinPath cfg.age.plugins;
     };
     inherit lib;
   };
@@ -36,6 +37,7 @@ in
         before = [ "systemd-sysusers.service" ];
         environment = cfg.environment;
         unitConfig.DefaultDependencies = "no";
+        path = cfg.age.plugins;
 
         serviceConfig = {
           Type = "oneshot";
