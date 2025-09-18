@@ -306,6 +306,9 @@ in
         example = "/etc/ssh/ssh_host_ed25519_key";
         description = ''
           Path to ssh key file that will be used by age for sops decryption.
+          
+          Unlike {option}`config.sops.age.sshKeyPaths`, this option makes use of
+          the native ssh key support in age and requires no conversion.
         '';
       };
 
@@ -314,10 +317,10 @@ in
         default = defaultImportKeys "ed25519";
         defaultText = lib.literalMD "The ed25519 keys from {option}`config.services.openssh.hostKeys`";
         description = ''
-          Paths to ssh keys added as age keys during sops description. The ssh
-          keys will be converted into age keys manually using ssh-to-age.
-
-          This option is deprecated and will be removed in the future. Use sops.age.sshKeyFile instead.
+          Paths to ssh keys added as age keys during sops description.
+          
+          These ssh keys will be converted into age keys automatically using
+          ssh-to-age before they are fed to age.
         '';
       };
     };

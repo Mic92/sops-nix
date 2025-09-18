@@ -257,6 +257,8 @@ in
         example = "/home/someuser/.ssh/id_ed25519";
         description = ''
           Path to ssh key file that will be used by age for sops decryption.
+          
+          Unlike {option}`config.sops.age.sshKeyPaths`, this option makes use of the native ssh key support in age and requires no conversion.
         '';
       };
 
@@ -264,10 +266,10 @@ in
         type = lib.types.listOf lib.types.path;
         default = [ ];
         description = ''
-          Paths to ssh keys added as age keys during sops description. The ssh
-          keys will be converted into age keys manually using ssh-to-age.
-
-          This option is deprecated and will be removed in the future. Use sops.age.sshKeyFile instead.
+          Paths to ssh keys added as age keys during sops description.
+          
+          These ssh keys will be converted into age keys automatically using
+          ssh-to-age before they are fed to age.
         '';
       };
     };
