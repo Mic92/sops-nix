@@ -346,7 +346,8 @@ in
         description = ''
           Path to ssh key file that will be used by age for sops decryption.
           
-          Unlike {option}`config.sops.age.sshKeyPaths`, this option makes use of the native ssh key support in age and requires no conversion.
+          Unlike {option}`config.sops.age.sshKeyPaths`, this option makes use of
+          the native ssh key support in age and requires no conversion.
         '';
       };
 
