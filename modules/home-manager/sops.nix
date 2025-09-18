@@ -337,19 +337,6 @@ in
       }
     ];
 
-    warnings = [
-      (lib.mkIf
-        (
-          cfg.age.sshKeyPaths != [ ]
-          && cfg.gnupg.sshKeyPaths == [ ]
-          && cfg.gnupg.home == null
-          && cfg.age.keyFile == null
-          && cfg.age.sshKeyFile == null
-        )
-        "The option sops.age.sshKeyPaths has been deprecated, since age now has native SSH support. Use option sops.age.sshKeyFile instead."
-      )
-    ];
-
     home.sessionVariables = lib.mkIf cfg.gnupg.qubes-split-gpg.enable {
       # TODO: Add this package to nixpkgs and use it from the store
       # https://github.com/QubesOS/qubes-app-linux-split-gpg
