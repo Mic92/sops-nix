@@ -40,6 +40,7 @@ else
         gnupgHome = cfg.gnupg.home;
         sshKeyPaths = cfg.gnupg.sshKeyPaths;
         ageKeyFile = cfg.age.keyFile;
+        ageSshKeyFile = cfg.age.sshKeyFile;
         ageSshKeyPaths = cfg.age.sshKeyPaths;
         useTmpfs = cfg.useTmpfs;
         placeholderBySecretName = cfg.placeholder;
