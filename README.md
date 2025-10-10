@@ -363,7 +363,7 @@ $ tree .
 After configuring `.sops.yaml`, you can open a new file with sops:
 
 ```console
-$ nix-shell -p sops --run "sops secrets/example.yaml"
+$ nix-shell -p sops --run "sops --encrypt secrets/example.yaml"
 ```
 
 This will start your configured editor located at the `$EDITOR` environment variable.  
