@@ -43,6 +43,7 @@ let
     # [1] https://github.com/getsops/sops/pull/1692
     cfg = lib.recursiveUpdate cfg {
       environment.HOME = "/var/empty";
+      environment.PATH = lib.makeBinPath cfg.age.plugins;
     };
     inherit lib;
   };
@@ -329,6 +330,14 @@ in
         '';
       };
 
+      plugins = lib.mkOption {
+        type = lib.types.listOf lib.types.package;
+        default = [ ];
+        description = ''
+          List of plugins to use for sops decryption.
+        '';
+      };
+
       generateKey = lib.mkOption {
         type = lib.types.bool;
         default = false;
@@ -438,6 +447,7 @@ in
         after = [ "systemd-sysusers.service" ];
         environment = cfg.environment;
         unitConfig.DefaultDependencies = "no";
+        path = cfg.age.plugins;
 
         serviceConfig = {
           Type = "oneshot";
