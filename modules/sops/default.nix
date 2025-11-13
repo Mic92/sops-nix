@@ -29,10 +29,6 @@ let
   # Currently, all templates are "regular" (there's no support for `neededForUsers` for templates.)
   regularTemplates = cfg.templates;
 
-  useSystemdActivation =
-    (options.systemd ? sysusers && config.systemd.sysusers.enable)
-    || (options.services ? userborn && config.services.userborn.enable);
-
   withEnvironment = import ./with-environment.nix {
     # sops >=3.10.0 now unconditionally searches 
     # for an SSH key in $HOME/.ssh/, introduced in #1692 [0]. Since in the
@@ -319,6 +315,19 @@ in
       '';
     };
 
+    useSystemdActivation = lib.mkOption {
+      type = lib.types.bool;
+      default =
+        (options.systemd ? sysusers && config.systemd.sysusers.enable)
+        || (options.services ? userborn && config.services.userborn.enable);
+      description = ''
+        Use a systemd unit to install secrets, instead of deploying them using an activation script.
+
+        This option is automatically enabled when systemd-sysusers or userborn are used to manage users and groups.
+        It can also be useful to specify additional dependencies to be satisfied before secrets are installed, such as required mountpoints for SOPS key files.
+      '';
+    };
+
     age = {
       keyFile = lib.mkOption {
         type = lib.types.nullOr pathNotInStore;
@@ -433,7 +442,7 @@ in
       );
 
       # When using sysusers we no longer are started as an activation script because those are started in initrd while sysusers is started later.
-      systemd.services.sops-install-secrets = lib.mkIf (regularSecrets != { } && useSystemdActivation) {
+      systemd.services.sops-install-secrets = lib.mkIf (regularSecrets != { } && cfg.useSystemdActivation) {
         wantedBy = [ "sysinit.target" ];
         after = [ "systemd-sysusers.service" ];
         environment = cfg.environment;
@@ -447,7 +456,7 @@ in
       };
 
       system.activationScripts = {
-        setupSecrets = lib.mkIf (regularSecrets != { } && !useSystemdActivation) (
+        setupSecrets = lib.mkIf (regularSecrets != { } && !cfg.useSystemdActivation) (
           lib.stringAfter
             (
               [
