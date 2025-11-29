@@ -851,7 +851,7 @@ The actual sops configuration is in the `sops` namespace in your home.nix (or in
 The secrets are decrypted in a systemd user service called `sops-nix`, so other services needing secrets must order after it:
 ```nix
 {
-  systemd.user.services.mbsync.unitConfig.After = [ "sops-nix.service" ];
+  systemd.user.services.mbsync.Unit.After = [ "sops-nix.service" ];
 }
 ```
 
