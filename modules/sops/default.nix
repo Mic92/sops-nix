@@ -448,7 +448,9 @@ in
       # When using sysusers we no longer are started as an activation script because those are started in initrd while sysusers is started later.
       systemd.services.sops-install-secrets = lib.mkIf (regularSecrets != { } && cfg.useSystemdActivation) {
         wantedBy = [ "sysinit.target" ];
-        after = [ "systemd-sysusers.service" ];
+        after = [ "systemd-sysusers.service" "userborn.service" ];
+        requiredBy = [ "sysinit-reactivation.target" ];
+        before = [ "sysinit-reactivation.target" ];
         environment = cfg.environment;
         unitConfig.DefaultDependencies = "no";
 
