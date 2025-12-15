@@ -28,7 +28,7 @@ jobs:
            popd
            nix run .#update-dev-private-narHash
       - name: Create Pull Request
-        uses: peter-evans/create-pull-request@v7
+        uses: peter-evans/create-pull-request@v8
         with:
           title: Update flakes
           token: ${{ steps.app-token.outputs.token }}
