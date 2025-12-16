@@ -320,6 +320,15 @@ in
         '';
       };
 
+      package = lib.mkOption {
+        type = lib.types.package;
+        default = pkgs.gnupg;
+        defaultText = lib.literalExpression "pkgs.gnupg";
+        description = ''
+          The gnupg package to use for sops operations.
+        '';
+      };
+
       sshKeyPaths = lib.mkOption {
         type = lib.types.listOf lib.types.path;
         default = defaultImportKeys "rsa";
@@ -384,7 +393,7 @@ in
 
     {
       sops.environment.SOPS_GPG_EXEC = lib.mkIf (cfg.gnupg.home != null || cfg.gnupg.sshKeyPaths != [ ]) (
-        lib.mkDefault "${pkgs.gnupg}/bin/gpg"
+        lib.mkDefault "${cfg.gnupg.package}/bin/gpg"
       );
     }
   ];
