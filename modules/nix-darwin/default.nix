@@ -384,7 +384,7 @@ in
 
     {
       sops.environment.SOPS_GPG_EXEC = lib.mkIf (cfg.gnupg.home != null || cfg.gnupg.sshKeyPaths != [ ]) (
-        lib.mkDefault "${pkgs.gnupg}/bin/gpg"
+        lib.mkDefault "${cfg.gnupg.package}/bin/gpg"
       );
     }
   ];
