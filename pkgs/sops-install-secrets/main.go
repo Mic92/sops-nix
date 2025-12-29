@@ -1410,11 +1410,11 @@ func installSecrets(args []string) error {
 	if isDry {
 		return nil
 	}
-	if err := symlinkSecretsAndTemplates(manifest.SymlinkPath, manifest.Secrets, manifest.Templates, manifest.UserMode); err != nil {
-		return fmt.Errorf("failed to prepare symlinks to secret store: %w", err)
-	}
 	if err := atomicSymlink(*secretDir, manifest.SymlinkPath); err != nil {
 		return fmt.Errorf("cannot update secrets symlink: %w", err)
+	}
+	if err := symlinkSecretsAndTemplates(manifest.SymlinkPath, manifest.Secrets, manifest.Templates, manifest.UserMode); err != nil {
+		return fmt.Errorf("failed to prepare symlinks to secret store: %w", err)
 	}
 	if err := pruneGenerations(manifest.SecretsMountPoint, *secretDir, manifest.KeepGenerations); err != nil {
 		return fmt.Errorf("cannot prune old secrets generations: %w", err)
