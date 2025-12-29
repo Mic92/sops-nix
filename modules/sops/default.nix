@@ -381,6 +381,16 @@ in
           This option must be explicitly unset if <literal>config.sops.gnupg.home</literal> is set.
         '';
       };
+
+      package = lib.mkOption {
+        type = lib.types.package;
+        default = pkgs.gnupg;
+        defaultText = lib.literalExpression "pkgs.gnupg";
+        description = ''
+          The gnupg package to use for sops operations.
+        '';
+      };
+      
     };
   };
   imports = [
@@ -442,7 +452,7 @@ in
         );
 
       sops.environment.SOPS_GPG_EXEC = lib.mkIf (cfg.gnupg.home != null || cfg.gnupg.sshKeyPaths != [ ]) (
-        lib.mkDefault "${pkgs.gnupg}/bin/gpg"
+        lib.mkDefault "${cfg.gnupg.package}/bin/gpg"
       );
 
       # When using sysusers we no longer are started as an activation script because those are started in initrd while sysusers is started later.

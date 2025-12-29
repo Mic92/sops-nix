@@ -269,6 +269,16 @@ in
     };
 
     gnupg = {
+      package = lib.mkOption {
+        type = lib.types.package;
+        default = pkgs.gnupg;
+        defaultText = lib.literalExpression "pkgs.gnupg";
+        description = ''
+          The gnupg package to use for sops operations. 
+          Useful if you need a specific version or a wrapped instance.
+        '';
+      };
+
       home = lib.mkOption {
         type = lib.types.nullOr lib.types.str;
         default = null;
@@ -341,7 +351,7 @@ in
     sops.environment = {
       SOPS_GPG_EXEC = lib.mkMerge [
         (lib.mkIf (cfg.gnupg.home != null || cfg.gnupg.sshKeyPaths != [ ]) (
-          lib.mkDefault "${pkgs.gnupg}/bin/gpg"
+          lib.mkDefault "${cfg.gnupg.package}/bin/gpg"
         ))
         (lib.mkIf cfg.gnupg.qubes-split-gpg.enable (
           lib.mkDefault config.home.sessionVariables.SOPS_GPG_EXEC
