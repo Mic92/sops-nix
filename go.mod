@@ -2,8 +2,6 @@ module github.com/Mic92/sops-nix
 
 go 1.24.0
 
-toolchain go1.24.1
-
 require (
 	github.com/Mic92/ssh-to-age v0.0.0-20240115094500-460a2109aaf0
 	github.com/ProtonMail/go-crypto v1.3.0
