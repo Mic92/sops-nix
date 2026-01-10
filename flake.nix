@@ -147,13 +147,16 @@
                 nix --extra-experimental-features "nix-command flakes" hash path ./dev/private | tr -d '\n' > ./dev/private.narHash
               ''}";
             };
+            unit-tests = {
+              type = "app";
+              program = "${pkgs.callPackage ./pkgs/unit-tests.nix { }}/bin/unit-tests";
+            };
           }
         );
 
         devShells = eachSystem (
           { pkgs, ... }:
           {
-            unit-tests = pkgs.callPackage ./pkgs/unit-tests.nix { };
             default = pkgs.callPackage ./shell.nix { };
           }
         );
