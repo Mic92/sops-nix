@@ -15,4 +15,4 @@ jobs:
     - name: Add keys group (needed for go tests)
       run: sudo groupadd keys
     - name: Run unit tests
-      run: nix develop .#unit-tests --command "true"
+      run: nix run .#unit-tests
