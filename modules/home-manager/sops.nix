@@ -25,7 +25,7 @@ let
           default = if cfg.defaultSopsKey != null then cfg.defaultSopsKey else name;
           description = ''
             Key used to lookup in the sops file.
-            No tested data structures are supported right now.
+            To access nested data structures, use / as a separator.
             This option is ignored if format is binary.
             "" means whole file.
           '';
