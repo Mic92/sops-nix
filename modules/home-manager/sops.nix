@@ -274,6 +274,31 @@ in
           Paths to ssh keys added as age keys during sops description.
         '';
       };
+
+      # Options for hardware key support (YubiKey, FIDO2, etc.)
+      systemdDeps = lib.mkOption {
+        type = lib.types.listOf lib.types.str;
+        default = [ ];
+        example = [ "pcscd.socket" ];
+        description = ''
+          Additional systemd units that the sops-nix user service should depend on.
+          This is useful when using age plugins that require external services like pcscd.
+        '';
+      };
+
+      requirePcscd = lib.mkOption {
+        type = lib.types.bool;
+        default = false;
+        description = ''
+          Whether pcscd (PC/SC Smart Card Daemon) is required for age decryption.
+          Enable this when using hardware key plugins like age-plugin-yubikey
+          or age-plugin-fido2-hmac. This automatically configures the systemd
+          service to depend on pcscd.socket.
+
+          Note: The system must have pcscd available (usually via
+          `services.pcscd.enable = true` in your NixOS configuration).
+        '';
+      };
     };
 
     gnupg = {
@@ -375,6 +400,8 @@ in
     systemd.user.services.sops-nix = lib.mkIf pkgs.stdenv.hostPlatform.isLinux {
       Unit = {
         Description = "sops-nix activation";
+        After = cfg.age.systemdDeps;
+        Wants = cfg.age.systemdDeps;
       };
       Service = {
         Type = "oneshot";
@@ -386,6 +413,9 @@ in
       Install.WantedBy =
         if cfg.gnupg.home != null then [ "graphical-session-pre.target" ] else [ "default.target" ];
     };
+
+    # Auto-configure pcscd dependency when requirePcscd is enabled
+    sops.age.systemdDeps = lib.mkIf cfg.age.requirePcscd [ "pcscd.socket" ];
 
     # Darwin: load secrets once on login
     launchd.agents.sops-nix = {
