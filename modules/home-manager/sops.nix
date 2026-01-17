@@ -292,11 +292,14 @@ in
         description = ''
           Whether pcscd (PC/SC Smart Card Daemon) is required for age decryption.
           Enable this when using hardware key plugins like age-plugin-yubikey
-          or age-plugin-fido2-hmac. This automatically configures the systemd
-          service to depend on pcscd.socket.
+          or age-plugin-fido2-hmac.
 
-          Note: The system must have pcscd available (usually via
-          `services.pcscd.enable = true` in your NixOS configuration).
+          This adds a pre-start check to wait for pcscd to be available before
+          attempting decryption.
+
+          Note: You must also enable `services.pcscd.enable = true` in your
+          NixOS configuration. The pcscd service runs at the system level and
+          will be socket-activated when the YubiKey is accessed.
         '';
       };
     };
@@ -397,6 +400,9 @@ in
       );
     };
 
+    # Note: pcscd.socket is a system service, not a user service, so we cannot
+    # add it as a direct dependency for requirePcscd. Instead, we add a pre-start
+    # script that waits for pcscd to be available.
     systemd.user.services.sops-nix = lib.mkIf pkgs.stdenv.hostPlatform.isLinux {
       Unit = {
         Description = "sops-nix activation";
@@ -409,13 +415,29 @@ in
           lib.mapAttrsToList (name: value: "'${name}=${value}'") cfg.environment
         );
         ExecStart = script;
+        ExecStartPre = lib.mkIf cfg.age.requirePcscd [
+          "${pkgs.writeShellScript "wait-for-pcscd" ''
+            # Ensure pcscd is available for YubiKey communication.
+            # When pcscd.socket is enabled, systemd creates /run/pcscd/pcscd.comm
+            # and starts pcscd.service on-demand when the socket is accessed.
+            
+            for i in $(seq 1 30); do
+              # Check if the pcscd socket file exists - this is the most reliable check
+              # and doesn't require D-Bus access
+              if [ -e /run/pcscd/pcscd.comm ]; then
+                exit 0
+              fi
+              sleep 0.2
+            done
+            
+            echo "Warning: pcscd socket not found at /run/pcscd/pcscd.comm" >&2
+            echo "YubiKey decryption may fail. Ensure services.pcscd.enable = true" >&2
+          ''}"
+        ];
       };
       Install.WantedBy =
         if cfg.gnupg.home != null then [ "graphical-session-pre.target" ] else [ "default.target" ];
     };
-
-    # Auto-configure pcscd dependency when requirePcscd is enabled
-    sops.age.systemdDeps = lib.mkIf cfg.age.requirePcscd [ "pcscd.socket" ];
 
     # Darwin: load secrets once on login
     launchd.agents.sops-nix = {
