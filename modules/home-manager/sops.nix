@@ -365,7 +365,12 @@ in
         ))
       ];
 
-      PATH = lib.makeBinPath cfg.age.plugins;
+      PATH =
+        let
+          pluginPaths = lib.makeBinPath cfg.age.plugins;
+          systemPaths = lib.optionalString pkgs.stdenv.isDarwin "/usr/bin:/bin:/usr/sbin:/sbin";
+        in
+        lib.concatStringsSep ":" (lib.filter (p: p != "") [ pluginPaths systemPaths ]);
 
       QUBES_GPG_DOMAIN = lib.mkIf cfg.gnupg.qubes-split-gpg.enable (
         lib.mkDefault cfg.gnupg.qubes-split-gpg.domain
