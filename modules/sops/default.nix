@@ -369,6 +369,43 @@ in
           Paths to ssh keys added as age keys during sops description.
         '';
       };
+
+      # Options for hardware key support (YubiKey, FIDO2, etc.)
+      activationScriptDeps = lib.mkOption {
+        type = lib.types.listOf lib.types.str;
+        default = [ ];
+        example = [ "setupPcscdForSops" ];
+        description = ''
+          Additional activation script names that must complete before
+          setupSecrets and setupSecretsForUsers run. This is useful when
+          using age plugins that require external services like pcscd.
+        '';
+      };
+
+      systemdDeps = lib.mkOption {
+        type = lib.types.listOf lib.types.str;
+        default = [ ];
+        example = [ "pcscd.socket" ];
+        description = ''
+          Additional systemd units that sops-install-secrets should depend on
+          when using systemd activation mode. This is useful when using age
+          plugins that require external services like pcscd.
+        '';
+      };
+
+      requirePcscd = lib.mkOption {
+        type = lib.types.bool;
+        default = false;
+        description = ''
+          Whether pcscd (PC/SC Smart Card Daemon) is required for age decryption.
+          Enable this when using hardware key plugins like age-plugin-yubikey
+          or age-plugin-fido2-hmac. This automatically configures the necessary
+          dependencies to ensure pcscd is running before secrets are decrypted.
+
+          Note: You must also enable `services.pcscd.enable = true` in your
+          NixOS configuration for this to work.
+        '';
+      };
     };
 
     gnupg = {
@@ -467,7 +504,8 @@ in
       # When using sysusers we no longer are started as an activation script because those are started in initrd while sysusers is started later.
       systemd.services.sops-install-secrets = lib.mkIf (regularSecrets != { } && cfg.useSystemdActivation) {
         wantedBy = [ "sysinit.target" ];
-        after = [ "systemd-sysusers.service" "userborn.service" ];
+        after = [ "systemd-sysusers.service" "userborn.service" ] ++ cfg.age.systemdDeps;
+        wants = cfg.age.systemdDeps;
         requiredBy = [ "sysinit-reactivation.target" ];
         before = [ "sysinit-reactivation.target" ];
         environment = cfg.environment;
@@ -491,6 +529,7 @@ in
                 "groups"
               ]
               ++ lib.optional cfg.age.generateKey "generate-age-key"
+              ++ cfg.age.activationScriptDeps
             )
             ''
               [ -e /run/current-system ] || echo setting up secrets...
@@ -520,5 +559,40 @@ in
     {
       system.build.sops-nix-manifest = manifest;
     }
+
+    # Automatic pcscd configuration for hardware key plugins
+    (lib.mkIf cfg.age.requirePcscd {
+      assertions = [
+        {
+          assertion = config.services.pcscd.enable or false;
+          message = ''
+            sops.age.requirePcscd is enabled but services.pcscd.enable is not set.
+            Please add `services.pcscd.enable = true;` to your configuration.
+          '';
+        }
+      ];
+
+      # Add pcscd.socket as a systemd dependency
+      sops.age.systemdDeps = [ "pcscd.socket" ];
+
+      # For activation script mode, ensure pcscd is started before secrets
+      system.activationScripts.setupPcscdForSops = lib.mkIf (!cfg.useSystemdActivation) (
+        lib.stringAfter [ "specialfs" ] ''
+          # Ensure pcscd drivers are available
+          mkdir -p /var/lib/pcsc
+          ln -sfn ${pkgs.ccid}/pcsc/drivers /var/lib/pcsc/drivers
+
+          # Try to start pcscd via socket activation, or directly if needed
+          if ! ${pkgs.systemd}/bin/systemctl is-active --quiet pcscd.socket 2>/dev/null; then
+            if ! ${pkgs.systemd}/bin/systemctl is-active --quiet pcscd.service 2>/dev/null; then
+              # Start pcscd directly with auto-exit for activation script context
+              ${pkgs.pcsclite}/bin/pcscd --auto-exit 2>/dev/null || true
+            fi
+          fi
+        ''
+      );
+
+      sops.age.activationScriptDeps = lib.mkIf (!cfg.useSystemdActivation) [ "setupPcscdForSops" ];
+    })
   ];
 }
