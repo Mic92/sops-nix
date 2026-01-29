@@ -420,23 +420,30 @@ in
             # Ensure pcscd is available for YubiKey communication.
             # When pcscd.socket is enabled, systemd creates /run/pcscd/pcscd.comm
             # and starts pcscd.service on-demand when the socket is accessed.
-            
-            for i in $(seq 1 30); do
+
+            i=0
+            while [ $i -lt 30 ]; do
               # Check if the pcscd socket file exists - this is the most reliable check
               # and doesn't require D-Bus access
               if [ -e /run/pcscd/pcscd.comm ]; then
                 exit 0
               fi
               sleep 0.2
+              i=$((i + 1))
             done
-            
+
             echo "Warning: pcscd socket not found at /run/pcscd/pcscd.comm" >&2
             echo "YubiKey decryption may fail. Ensure services.pcscd.enable = true" >&2
           ''}"
         ];
       };
       Install.WantedBy =
-        if cfg.gnupg.home != null then [ "graphical-session-pre.target" ] else [ "default.target" ];
+        # When pcscd is required, we need to wait for the graphical session to be active
+        # so that polkit recognizes it as an active session and allows pcscd access.
+        # Otherwise, we run at default.target for faster boot times.
+        if cfg.gnupg.home != null || cfg.age.requirePcscd
+        then [ "graphical-session-pre.target" ]
+        else [ "default.target" ];
     };
 
     # Darwin: load secrets once on login
