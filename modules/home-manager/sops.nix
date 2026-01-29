@@ -8,9 +8,6 @@
 let
   cfg = config.sops;
   sops-install-secrets = cfg.package;
-
-  # Check if yubikey-touch-detector is enabled for ordering dependency
-  yubikeyTouchDetectorEnabled = config.services.yubikey-touch-detector.enable or false;
   secretType = lib.types.submodule (
     { name, ... }:
     {
@@ -410,8 +407,7 @@ in
       Unit = {
         Description = "sops-nix activation";
         After = cfg.age.systemdDeps
-          ++ lib.optional (cfg.age.requirePcscd && yubikeyTouchDetectorEnabled)
-            "yubikey-touch-detector.service";
+          ++ lib.optional cfg.age.requirePcscd "yubikey-touch-detector.service";
         Wants = cfg.age.systemdDeps;
       };
       Service = {
