@@ -10,7 +10,7 @@ buildGo124Module {
   version = "0.0.1";
 
   src = lib.sourceByRegex ../.. [
-    "go\.(mod|sum)"
+    "go\\.(mod|sum)"
     "pkgs"
     "pkgs/sops-install-secrets.*"
   ];
