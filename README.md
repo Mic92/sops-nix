@@ -45,6 +45,109 @@ The other method is `age` which is based on [`age`](https://github.com/FiloSotti
 The tool ([`ssh-to-age`](https://github.com/Mic92/ssh-to-age)) can convert SSH host or user keys in Ed25519
 format to `age` keys.
 
+## Using hardware keys (YubiKey/FIDO2) with age
+
+sops-nix supports using age keys stored on hardware security devices like YubiKeys through age plugins. This provides an additional layer of security by requiring physical access to the hardware key for decryption.
+
+### Supported plugins
+
+- [`age-plugin-yubikey`](https://github.com/str4d/age-plugin-yubikey): For YubiKey devices
+- [`age-plugin-fido2-hmac`](https://github.com/olastor/age-plugin-fido2-hmac): For any FIDO2-compatible security key
+
+### Setup
+
+1. **Enable pcscd service** (required for communication with the hardware key):
+
+   ```nix
+   {
+     services.pcscd.enable = true;
+   }
+   ```
+
+2. **Generate a YubiKey-hosted age identity**:
+
+   ```console
+   $ nix-shell -p age-plugin-yubikey
+   $ age-plugin-yubikey --generate
+   ```
+
+   This creates an identity file (e.g., `age-yubikey-identity-XXXXXXXX.txt`) containing:
+   - The age recipient (public key) as a comment
+   - The age identity for decryption
+
+3. **Add the age recipient to your `.sops.yaml`**:
+
+   ```yaml
+   keys:
+     - &yubikey age1yubikey1q...your-recipient-here...
+   creation_rules:
+     - path_regex: secrets/[^/]+\.(yaml|json|env|ini)$
+       key_groups:
+       - age:
+         - *yubikey
+   ```
+
+4. **Configure sops-nix**:
+
+   ```nix
+   {
+     services.pcscd.enable = true;
+
+     sops = {
+       age = {
+         keyFile = "/path/to/age-yubikey-identity-XXXXXXXX.txt";
+         plugins = [ pkgs.age-plugin-yubikey ];
+         requirePcscd = true;  # Ensures pcscd is available during decryption
+       };
+
+       secrets.my-secret = {
+         sopsFile = ./secrets.yaml;
+       };
+     };
+   }
+   ```
+
+### Home-Manager configuration
+
+For home-manager users:
+
+```nix
+{
+  sops = {
+    age = {
+      keyFile = "/home/user/age-yubikey-identity.txt";
+      plugins = [ pkgs.age-plugin-yubikey ];
+      requirePcscd = true;
+    };
+
+    secrets.my-secret = { };
+  };
+}
+```
+
+### Advanced: Custom dependencies
+
+If you need more control over the activation order or have custom requirements, you can use the lower-level options:
+
+```nix
+{
+  sops.age = {
+    # For activation script mode: additional scripts to run before setupSecrets
+    activationScriptDeps = [ "my-custom-setup-script" ];
+
+    # For systemd activation mode: additional units to depend on
+    systemdDeps = [ "my-custom.service" ];
+  };
+}
+```
+
+### Troubleshooting
+
+- **"No key source configured"**: Ensure `sops.age.keyFile` points to your YubiKey identity file
+- **Plugin not found**: Make sure `age-plugin-yubikey` is in `sops.age.plugins`
+- **pcscd not running**: Enable `services.pcscd.enable = true` and ensure `sops.age.requirePcscd = true`
+- **Touch required**: Some YubiKey configurations require physical touch during decryption; ensure you're present during system activation
+
 ## Usage example
 
 If you prefer video over the textual description below, you can also checkout this [6min tutorial](https://www.youtube.com/watch?v=G5f6GC7SnhU) by [@vimjoyer](https://github.com/vimjoyer).

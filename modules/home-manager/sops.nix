@@ -274,6 +274,34 @@ in
           Paths to ssh keys added as age keys during sops description.
         '';
       };
+
+      # Options for hardware key support (YubiKey, FIDO2, etc.)
+      systemdDeps = lib.mkOption {
+        type = lib.types.listOf lib.types.str;
+        default = [ ];
+        example = [ "pcscd.socket" ];
+        description = ''
+          Additional systemd units that the sops-nix user service should depend on.
+          This is useful when using age plugins that require external services like pcscd.
+        '';
+      };
+
+      requirePcscd = lib.mkOption {
+        type = lib.types.bool;
+        default = false;
+        description = ''
+          Whether pcscd (PC/SC Smart Card Daemon) is required for age decryption.
+          Enable this when using hardware key plugins like age-plugin-yubikey
+          or age-plugin-fido2-hmac.
+
+          This adds a pre-start check to wait for pcscd to be available before
+          attempting decryption.
+
+          Note: You must also enable `services.pcscd.enable = true` in your
+          NixOS configuration. The pcscd service runs at the system level and
+          will be socket-activated when the YubiKey is accessed.
+        '';
+      };
     };
 
     gnupg = {
@@ -377,9 +405,15 @@ in
       );
     };
 
+    # Note: pcscd.socket is a system service, not a user service, so we cannot
+    # add it as a direct dependency for requirePcscd. Instead, we add a pre-start
+    # script that waits for pcscd to be available.
     systemd.user.services.sops-nix = lib.mkIf pkgs.stdenv.hostPlatform.isLinux {
       Unit = {
         Description = "sops-nix activation";
+        After = cfg.age.systemdDeps
+          ++ lib.optional cfg.age.requirePcscd "yubikey-touch-detector.service";
+        Wants = cfg.age.systemdDeps;
       };
       Service = {
         Type = "oneshot";
@@ -387,9 +421,35 @@ in
           lib.mapAttrsToList (name: value: "'${name}=${value}'") cfg.environment
         );
         ExecStart = script;
+        ExecStartPre = lib.mkIf cfg.age.requirePcscd [
+          "${pkgs.writeShellScript "wait-for-pcscd" ''
+            # Ensure pcscd is available for YubiKey communication.
+            # When pcscd.socket is enabled, systemd creates /run/pcscd/pcscd.comm
+            # and starts pcscd.service on-demand when the socket is accessed.
+
+            i=0
+            while [ $i -lt 30 ]; do
+              # Check if the pcscd socket file exists - this is the most reliable check
+              # and doesn't require D-Bus access
+              if [ -e /run/pcscd/pcscd.comm ]; then
+                exit 0
+              fi
+              sleep 0.2
+              i=$((i + 1))
+            done
+
+            echo "Warning: pcscd socket not found at /run/pcscd/pcscd.comm" >&2
+            echo "YubiKey decryption may fail. Ensure services.pcscd.enable = true" >&2
+          ''}"
+        ];
       };
       Install.WantedBy =
-        if cfg.gnupg.home != null then [ "graphical-session-pre.target" ] else [ "default.target" ];
+        # When pcscd is required, we need to wait for the graphical session to be active
+        # so that polkit recognizes it as an active session and allows pcscd access.
+        # Otherwise, we run at default.target for faster boot times.
+        if cfg.gnupg.home != null || cfg.age.requirePcscd
+        then [ "graphical-session-pre.target" ]
+        else [ "default.target" ];
     };
 
     # Darwin: load secrets once on login
