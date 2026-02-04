@@ -1,5 +1,4 @@
 //go:build linux
-// +build linux
 
 package main
 
@@ -8,8 +7,8 @@ import (
 	"fmt"
 	"os"
 
-	"golang.org/x/sys/unix"
 	"github.com/moby/sys/mountinfo"
+	"golang.org/x/sys/unix"
 )
 
 func RuntimeDir() (string, error) {

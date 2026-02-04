@@ -30,7 +30,7 @@ let
   regularTemplates = cfg.templates;
 
   withEnvironment = import ./with-environment.nix {
-    # sops >=3.10.0 now unconditionally searches 
+    # sops >=3.10.0 now unconditionally searches
     # for an SSH key in $HOME/.ssh/, introduced in #1692 [0]. Since in the
     # activation script $HOME is never set, it just spits out a slew a
     # warnings [1].

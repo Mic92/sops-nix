@@ -23,8 +23,7 @@ rec {
     inherit vendorHash;
   };
   unit-tests = pkgs.callPackage ./pkgs/unit-tests.nix { };
-}
-// pkgs.lib.optionalAttrs (pkgs ? buildGo124Module) {
+
   lint = pkgs.callPackage ./pkgs/lint.nix {
     inherit sops-install-secrets;
   };

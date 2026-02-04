@@ -97,7 +97,7 @@
             suffix-version =
               version: attrs:
               nixpkgs.lib.mapAttrs' (name: value: nixpkgs.lib.nameValuePair (name + version) value) attrs;
-            suffix-stable = suffix-version "-25_05";
+            suffix-stable = suffix-version "-25_11";
           in
           {
             home-manager = self.legacyPackages.${system}.homeConfigurations.sops.activation-script;
@@ -107,7 +107,7 @@
           // nixpkgs.lib.optionalAttrs pkgs.stdenv.isLinux (suffix-stable tests-stable)
           // nixpkgs.lib.optionalAttrs pkgs.stdenv.isDarwin {
             darwin-sops =
-              self.darwinConfigurations."sops-${pkgs.hostPlatform.darwinArch}".config.system.build.toplevel;
+              self.darwinConfigurations."sops-${pkgs.stdenv.hostPlatform.darwinArch}".config.system.build.toplevel;
           }
         );
 
