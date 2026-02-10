@@ -316,6 +316,22 @@ in
           List of plugins to use for sops decryption.
         '';
       };
+
+      # Options for hardware key support (YubiKey, FIDO2, etc.)
+      requirePcscd = lib.mkOption {
+        type = lib.types.bool;
+        default = false;
+        description = ''
+          Whether pcscd (PC/SC Smart Card Daemon) is required for age decryption.
+          Enable this when using hardware key plugins like age-plugin-yubikey
+          or age-plugin-fido2-hmac.
+
+          On macOS, the system's built-in smart card services (CryptoTokenKit)
+          typically handle YubiKey communication automatically. This option
+          is provided for consistency with Linux but may not require additional
+          configuration on macOS.
+        '';
+      };
     };
 
     gnupg = {

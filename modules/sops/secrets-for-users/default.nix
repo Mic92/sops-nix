@@ -35,6 +35,8 @@ in
       {
         wantedBy = [ "systemd-sysusers.service" ];
         before = [ "systemd-sysusers.service" ];
+        after = cfg.age.systemdDeps;
+        wants = cfg.age.systemdDeps;
         environment = cfg.environment;
         unitConfig.DefaultDependencies = "no";
         path = cfg.age.plugins;
@@ -48,7 +50,11 @@ in
 
   system.activationScripts = lib.mkIf (secretsForUsers != { } && !useSystemdActivation) {
     setupSecretsForUsers =
-      lib.stringAfter ([ "specialfs" ] ++ lib.optional cfg.age.generateKey "generate-age-key") ''
+      lib.stringAfter (
+        [ "specialfs" ]
+        ++ lib.optional cfg.age.generateKey "generate-age-key"
+        ++ cfg.age.activationScriptDeps
+      ) ''
         [ -e /run/current-system ] || echo setting up secrets for users...
         ${withEnvironment "${cfg.package}/bin/sops-install-secrets -ignore-passwd ${manifestForUsers}"}
       ''
