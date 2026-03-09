@@ -253,6 +253,25 @@ in
     '';
   };
 
+  age-ssh-key-cmd = testers.runNixOSTest {
+    name = "sops-age-ssh-key-cmd";
+    nodes.machine =
+      { pkgs, ... }:
+      {
+        imports = [ ../modules/sops ];
+        sops = {
+          defaultSopsFile = testAssets + "/secrets-native-ssh.yaml";
+          secrets.test_key = { };
+          age.sshKeyCmd = "${pkgs.coreutils}/bin/cat ${testAssets + "/ssh-ed25519-key"}";
+        };
+      };
+
+    testScript = ''
+      start_all()
+      machine.succeed("cat /run/secrets/test_key | grep -q test_value")
+    '';
+  };
+
   pgp-keys = testers.runNixOSTest {
     name = "sops-pgp-keys";
     nodes.server =
