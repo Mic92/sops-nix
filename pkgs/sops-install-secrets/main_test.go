@@ -345,6 +345,41 @@ func TestAgeWithSSHKeyFile(t *testing.T) {
 	testInstallSecret(t, testdir, &m)
 }
 
+func TestAgeWithSSHKeyCmd(t *testing.T) {
+	assets := testAssetPath()
+
+	testdir := newTestDir(t)
+	defer testdir.Remove()
+
+	target := path.Join(testdir.path, "existing-target")
+	file, err := os.Create(target)
+	ok(t, err)
+	_ = file.Close()
+
+	nobody := "nobody"
+	nogroup := "nogroup"
+	s := secret{
+		Name:         "test",
+		Key:          "test_key",
+		Owner:        &nobody,
+		Group:        &nogroup,
+		SopsFile:     path.Join(assets, "secrets-native-ssh.yaml"),
+		Path:         target,
+		Mode:         "0400",
+		RestartUnits: []string{"affected-service"},
+		ReloadUnits:  []string{"affected-reload-service"},
+	}
+
+	m := manifest{
+		Secrets:           []secret{s},
+		SecretsMountPoint: testdir.secretsPath,
+		SymlinkPath:       testdir.symlinkPath,
+		AgeSSHKeyCmd:      fmt.Sprintf("cat %s", path.Join(assets, "ssh-ed25519-key")),
+	}
+
+	testInstallSecret(t, testdir, &m)
+}
+
 func TestAll(t *testing.T) {
 	// we can't test in parallel because we rely on GNUPGHOME environment variable
 	testGPG(t)
