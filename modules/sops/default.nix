@@ -350,6 +350,16 @@ in
           the native ssh key support in age and requires no conversion.
         '';
       };
+      
+      sshKeyCmd = lib.mkOption {
+        type = lib.types.nullOr lib.types.str;
+        default = null;
+        description = ''
+          Command that outputs a (non-password protected) ssh private key that will be used by age for sops decryption.
+
+          Uses native ssh key support in age and requires no conversion.
+        '';
+      };
 
       sshKeyPaths = lib.mkOption {
         type = lib.types.listOf lib.types.path;
@@ -421,6 +431,7 @@ in
               || cfg.gnupg.sshKeyPaths != [ ]
               || cfg.age.keyFile != null
               || cfg.age.sshKeyFile != null
+              || cfg.age.sshKeyCmd != null
               || cfg.age.sshKeyPaths != [ ];
             message = "No key source configured for sops. Either set services.openssh.enable or set sops.age.keyFile or sops.gnupg.home";
           }

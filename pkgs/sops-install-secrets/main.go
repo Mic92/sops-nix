@@ -80,6 +80,7 @@ type manifest struct {
 	GnupgHome               string            `json:"gnupgHome"`
 	AgeKeyFile              string            `json:"ageKeyFile"`
 	AgeSSHKeyFile           string            `json:"ageSshKeyFile"`
+	AgeSSHKeyCmd            string            `json:"ageSshKeyCmd"`
 	AgeSSHKeyPaths          []string          `json:"ageSshKeyPaths"`
 	UseTmpfs                bool              `json:"useTmpfs"`
 	UserMode                bool              `json:"userMode"`
@@ -1326,7 +1327,7 @@ func installSecrets(args []string) error {
 	}
 
 	// Import age keys
-	if (len(manifest.AgeSSHKeyPaths) != 0 || manifest.AgeKeyFile != "") && manifest.AgeSSHKeyFile == "" {
+	if (len(manifest.AgeSSHKeyPaths) != 0 || manifest.AgeKeyFile != "") && manifest.AgeSSHKeyFile == "" && manifest.AgeSSHKeyCmd == "" {
 		keyfile := filepath.Join(manifest.SecretsMountPoint, "age-keys.txt")
 		os.Setenv("SOPS_AGE_KEY_FILE", keyfile)
 		// Create the keyfile
@@ -1363,6 +1364,10 @@ func installSecrets(args []string) error {
 
 	if manifest.AgeSSHKeyFile != "" {
 		os.Setenv("SOPS_AGE_SSH_PRIVATE_KEY_FILE", manifest.AgeSSHKeyFile)
+	}
+
+	if manifest.AgeSSHKeyCmd != "" {
+		os.Setenv("SOPS_AGE_SSH_PRIVATE_KEY_CMD", manifest.AgeSSHKeyCmd)
 	}
 
 	if err := decryptSecrets(manifest.Secrets); err != nil {

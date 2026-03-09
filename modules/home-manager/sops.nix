@@ -99,6 +99,7 @@ let
         sshKeyPaths = cfg.gnupg.sshKeyPaths;
         ageKeyFile = cfg.age.keyFile;
         ageSshKeyFile = cfg.age.sshKeyFile;
+        ageSshKeyCmd = cfg.age.sshKeyCmd;
         ageSshKeyPaths = cfg.age.sshKeyPaths;
         placeholderBySecretName = cfg.placeholder;
         userMode = true;
@@ -263,6 +264,16 @@ in
         '';
       };
 
+      sshKeyCmd = lib.mkOption {
+        type = lib.types.nullOr lib.types.str;
+        default = null;
+        description = ''
+          Command that outputs a (non-password protected) ssh private key that will be used by age for sops decryption.
+
+          Uses native ssh key support in age and requires no conversion.
+        '';
+      };
+
       sshKeyPaths = lib.mkOption {
         type = lib.types.listOf lib.types.path;
         default = [ ];
@@ -318,6 +329,7 @@ in
           || cfg.gnupg.qubes-split-gpg.enable == true
           || cfg.age.keyFile != null
           || cfg.age.sshKeyFile != null
+          || cfg.age.sshKeyCmd != null
           || cfg.age.sshKeyPaths != [ ];
         message = "No key source configured for sops. Either set services.openssh.enable or set sops.age.keyFile or sops.gnupg.home or sops.gnupg.qubes-split-gpg.enable";
       }
