@@ -484,6 +484,12 @@ in
               ExecStart = [ "${cfg.package}/bin/sops-install-secrets ${manifest}" ];
               RemainAfterExit = true;
             };
+            unitConfig.RequiresMountsFor = lib.concatLists [
+              (lib.lists.optional (cfg.gnupg.home != null) cfg.gnupg.home)
+              cfg.gnupg.sshKeyPaths
+              (lib.lists.optional (cfg.age.keyFile != null) cfg.age.keyFile)
+              cfg.age.sshKeyPaths
+            ];
           };
 
       system.activationScripts = {
