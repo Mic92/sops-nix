@@ -430,56 +430,61 @@ in
   ];
   config = lib.mkMerge [
     (lib.mkIf (cfg.secrets != { }) {
-      assertions =
-        [
-          {
-            assertion =
-              cfg.gnupg.home != null
-              || cfg.gnupg.sshKeyPaths != [ ]
-              || cfg.age.keyFile != null
-              || cfg.age.sshKeyPaths != [ ];
-            message = "No key source configured for sops. Either set services.openssh.enable or set sops.age.keyFile or sops.gnupg.home";
-          }
-          {
-            assertion = !(cfg.gnupg.home != null && cfg.gnupg.sshKeyPaths != [ ]);
-            message = "Exactly one of sops.gnupg.home and sops.gnupg.sshKeyPaths must be set";
-          }
-        ]
-        ++ lib.optionals cfg.validateSopsFiles (
-          lib.concatLists (
-            lib.mapAttrsToList (name: secret: [
-              {
-                assertion = secret.uid != null && secret.uid != 0 -> secret.owner == null;
-                message = "In ${secret.name} exactly one of sops.owner and sops.uid must be set";
-              }
-              {
-                assertion = secret.gid != null && secret.gid != 0 -> secret.group == null;
-                message = "In ${secret.name} exactly one of sops.group and sops.gid must be set";
-              }
-            ]) cfg.secrets
-          )
-        );
+      assertions = [
+        {
+          assertion =
+            cfg.gnupg.home != null
+            || cfg.gnupg.sshKeyPaths != [ ]
+            || cfg.age.keyFile != null
+            || cfg.age.sshKeyPaths != [ ];
+          message = "No key source configured for sops. Either set services.openssh.enable or set sops.age.keyFile or sops.gnupg.home";
+        }
+        {
+          assertion = !(cfg.gnupg.home != null && cfg.gnupg.sshKeyPaths != [ ]);
+          message = "Exactly one of sops.gnupg.home and sops.gnupg.sshKeyPaths must be set";
+        }
+      ]
+      ++ lib.optionals cfg.validateSopsFiles (
+        lib.concatLists (
+          lib.mapAttrsToList (name: secret: [
+            {
+              assertion = secret.uid != null && secret.uid != 0 -> secret.owner == null;
+              message = "In ${secret.name} exactly one of sops.owner and sops.uid must be set";
+            }
+            {
+              assertion = secret.gid != null && secret.gid != 0 -> secret.group == null;
+              message = "In ${secret.name} exactly one of sops.group and sops.gid must be set";
+            }
+          ]) cfg.secrets
+        )
+      );
 
       sops.environment.SOPS_GPG_EXEC = lib.mkIf (cfg.gnupg.home != null || cfg.gnupg.sshKeyPaths != [ ]) (
         lib.mkDefault "${cfg.gnupg.package}/bin/gpg"
       );
 
       # When using sysusers we no longer are started as an activation script because those are started in initrd while sysusers is started later.
-      systemd.services.sops-install-secrets = lib.mkIf (regularSecrets != { } && cfg.useSystemdActivation) {
-        wantedBy = [ "sysinit.target" ];
-        after = [ "local-fs.target" "systemd-sysusers.service" "userborn.service" ];
-        requiredBy = [ "sysinit-reactivation.target" ];
-        before = [ "sysinit-reactivation.target" ];
-        environment = cfg.environment;
-        unitConfig.DefaultDependencies = "no";
-        path = cfg.age.plugins;
+      systemd.services.sops-install-secrets =
+        lib.mkIf (regularSecrets != { } && cfg.useSystemdActivation)
+          {
+            wantedBy = [ "sysinit.target" ];
+            after = [
+              "local-fs.target"
+              "systemd-sysusers.service"
+              "userborn.service"
+            ];
+            requiredBy = [ "sysinit-reactivation.target" ];
+            before = [ "sysinit-reactivation.target" ];
+            environment = cfg.environment;
+            unitConfig.DefaultDependencies = "no";
+            path = cfg.age.plugins;
 
-        serviceConfig = {
-          Type = "oneshot";
-          ExecStart = [ "${cfg.package}/bin/sops-install-secrets ${manifest}" ];
-          RemainAfterExit = true;
-        };
-      };
+            serviceConfig = {
+              Type = "oneshot";
+              ExecStart = [ "${cfg.package}/bin/sops-install-secrets ${manifest}" ];
+              RemainAfterExit = true;
+            };
+          };
 
       system.activationScripts = {
         setupSecrets = lib.mkIf (regularSecrets != { } && !cfg.useSystemdActivation) (
