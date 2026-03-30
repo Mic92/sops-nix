@@ -35,7 +35,9 @@ in
       {
         wantedBy = [ "systemd-sysusers.service" ];
         before = [ "systemd-sysusers.service" ];
-        environment = cfg.environment;
+        environment = cfg.environment // {
+          SOPS_RESTART_UNITS_VIA_SYSTEMCTL = "1";
+        };
         unitConfig.DefaultDependencies = "no";
         path = cfg.age.plugins;
 
