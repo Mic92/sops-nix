@@ -121,7 +121,7 @@ let
     pkgs.writeShellScript "sops-nix-user" (
       lib.optionalString cfg.age.generateKey ''
         if [[ ! -f ${escapedAgeKeyFile} ]]; then
-          echo generating machine-specific age key...
+          echo generating user-specific age key...
           ${pkgs.coreutils}/bin/mkdir -p $(${pkgs.coreutils}/bin/dirname ${escapedAgeKeyFile})
           # age-keygen sets 0600 by default, no need to chmod.
           ${pkgs.age}/bin/age-keygen -o ${escapedAgeKeyFile} ${lib.escapeShellArgs cfg.age.extraGenerateKeyArgs}
