@@ -1069,6 +1069,15 @@ Here's how to use it:
    }
    ```
 
+### Templates and binary files
+
+When you use binary sops files in templates, 
+it can happend that the secret contains a linebreak at the end
+which might break your template if you want to use the secret inline.
+
+To mitigate this formatting error you can set `sops.secrets.your-secret.trimWhitespaces = true`.
+This will strim leading and trailing whitespaces before inserting the secret into your template.
+
 ## Related projects
 
 - [agenix](https://github.com/ryantm/agenix): Similar features as sops-nix but
