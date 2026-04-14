@@ -57,6 +57,15 @@ let
           '';
         };
 
+        trimWhitespaces = lib.mkOption {
+          type = lib.types.bool;
+          default = false;
+          description = ''
+            Remove leading and trailing whitespaces from the secret.
+            This option can only be used with binary secrets.
+          '';
+        };
+
         mode = lib.mkOption {
           type = lib.types.str;
           default = "0400";

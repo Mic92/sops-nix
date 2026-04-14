@@ -27,22 +27,23 @@ import (
 )
 
 type secret struct {
-	Name         string     `json:"name"`
-	Key          string     `json:"key"`
-	Path         string     `json:"path"`
-	Owner        *string    `json:"owner,omitempty"`
-	UID          int        `json:"uid"`
-	Group        *string    `json:"group,omitempty"`
-	GID          int        `json:"gid"`
-	SopsFile     string     `json:"sopsFile"`
-	Format       FormatType `json:"format"`
-	Mode         string     `json:"mode"`
-	RestartUnits []string   `json:"restartUnits"`
-	ReloadUnits  []string   `json:"reloadUnits"`
-	value        []byte
-	mode         os.FileMode
-	owner        int
-	group        int
+	Name            string     `json:"name"`
+	Key             string     `json:"key"`
+	Path            string     `json:"path"`
+	Owner           *string    `json:"owner,omitempty"`
+	UID             int        `json:"uid"`
+	Group           *string    `json:"group,omitempty"`
+	GID             int        `json:"gid"`
+	SopsFile        string     `json:"sopsFile"`
+	Format          FormatType `json:"format"`
+	TrimWhitespaces bool       `json:"trimWhitespaces"`
+	Mode            string     `json:"mode"`
+	RestartUnits    []string   `json:"restartUnits"`
+	ReloadUnits     []string   `json:"reloadUnits"`
+	value           []byte
+	mode            os.FileMode
+	owner           int
+	group           int
 }
 
 type loggingConfig struct {
@@ -346,7 +347,12 @@ func decryptSecret(s *secret, sourceFiles map[string]plainData) error {
 
 		switch s.Format {
 		case Binary, Dotenv, Ini:
-			sourceFile.binary = plain
+			if s.Format == Binary && s.TrimWhitespaces {
+				trimmed := strings.TrimSpace(string(plain))
+				sourceFile.binary = []byte(trimmed)
+			} else {
+				sourceFile.binary = plain
+			}
 		case Yaml:
 			if s.Key == "" {
 				sourceFile.binary = plain
