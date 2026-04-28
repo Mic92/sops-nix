@@ -3,7 +3,7 @@ module github.com/Mic92/sops-nix
 go 1.25.0
 
 require (
-	github.com/Mic92/ssh-to-age v0.0.0-20240115094500-460a2109aaf0
+	github.com/Mic92/ssh-to-age v1.3.0
 	github.com/ProtonMail/go-crypto v1.4.1
 	github.com/getsops/sops/v3 v3.12.2
 	github.com/joho/godotenv v1.5.1
@@ -26,7 +26,7 @@ require (
 	cloud.google.com/go/monitoring v1.24.3 // indirect
 	cloud.google.com/go/storage v1.60.0 // indirect
 	filippo.io/age v1.3.1 // indirect
-	filippo.io/edwards25519 v1.1.1 // indirect
+	filippo.io/edwards25519 v1.2.0 // indirect
 	filippo.io/hpke v0.4.0 // indirect
 	github.com/Azure/azure-sdk-for-go/sdk/azcore v1.21.0 // indirect
 	github.com/Azure/azure-sdk-for-go/sdk/azidentity v1.13.1 // indirect
