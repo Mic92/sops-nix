@@ -121,10 +121,10 @@ let
     pkgs.writeShellScript "sops-nix-user" (
       lib.optionalString cfg.age.generateKey ''
         if [[ ! -f ${escapedAgeKeyFile} ]]; then
-          echo generating machine-specific age key...
+          echo generating user-specific age key...
           ${pkgs.coreutils}/bin/mkdir -p $(${pkgs.coreutils}/bin/dirname ${escapedAgeKeyFile})
           # age-keygen sets 0600 by default, no need to chmod.
-          ${pkgs.age}/bin/age-keygen -o ${escapedAgeKeyFile}
+          ${pkgs.age}/bin/age-keygen -o ${escapedAgeKeyFile} ${lib.escapeShellArgs cfg.age.extraGenerateKeyArgs}
         fi
       ''
       + ''
@@ -267,6 +267,15 @@ in
         '';
       };
 
+      extraGenerateKeyArgs = lib.mkOption {
+        type = lib.types.listOf lib.types.str;
+        default = [ ];
+        example = [ "-pq" ];
+        description = ''
+          List of arguments to use when generating the age key.
+        '';
+      };
+
       sshKeyPaths = lib.mkOption {
         type = lib.types.listOf lib.types.path;
         default = [ ];
@@ -346,6 +355,14 @@ in
             && cfg.gnupg.qubes-split-gpg.domain != ""
           );
         message = "sops.gnupg.qubes-split-gpg.domain is required when sops.gnupg.qubes-split-gpg.enable is set to true";
+      }
+      {
+        assertion =
+          !(
+            builtins.elem "-o" cfg.age.extraGenerateKeyArgs
+            || builtins.elem "--output" cfg.age.extraGenerateKeyArgs
+          );
+        message = "Cannot use '-o' or '--output' in sops.age.extraGenerateKeyArgs. The output path is managed by sops.age.keyFile.";
       }
     ];
 
