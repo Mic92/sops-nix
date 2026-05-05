@@ -11,7 +11,7 @@ require (
 	github.com/mozilla-services/yaml v0.0.0-20201007153854-c369669a6625
 	golang.org/x/crypto v0.50.0
 	golang.org/x/sys v0.43.0
-	gopkg.in/ini.v1 v1.67.1
+	gopkg.in/ini.v1 v1.67.2
 )
 
 require (
