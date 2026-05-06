@@ -3,14 +3,11 @@
   lib,
   pkgs,
   ...
-}:
-
-let
+}: let
   cfg = config.sops;
   sops-install-secrets = cfg.package;
   secretType = lib.types.submodule (
-    { name, ... }:
-    {
+    {name, ...}: {
       options = {
         name = lib.mkOption {
           type = lib.types.str;
@@ -22,7 +19,10 @@ let
 
         key = lib.mkOption {
           type = lib.types.str;
-          default = if cfg.defaultSopsKey != null then cfg.defaultSopsKey else name;
+          default =
+            if cfg.defaultSopsKey != null
+            then cfg.defaultSopsKey
+            else name;
           description = ''
             Key used to lookup in the sops file.
             To access nested data structures, use / as a separator.
@@ -85,8 +85,7 @@ let
     merge = lib.mergeEqualOption;
   };
 
-  manifestFor =
-    suffix: secrets: templates:
+  manifestFor = suffix: secrets: templates:
     pkgs.writeTextFile {
       name = "manifest${suffix}.json";
       text = builtins.toJSON {
@@ -108,7 +107,9 @@ let
       };
       checkPhase = ''
         ${sops-install-secrets}/bin/sops-install-secrets -check-mode=${
-          if cfg.validateSopsFiles then "sopsfile" else "manifest"
+          if cfg.validateSopsFiles
+          then "sopsfile"
+          else "manifest"
         } "$out"
       '';
     };
@@ -132,8 +133,7 @@ let
       ''
     )
   );
-in
-{
+in {
   imports = [
     ./templates.nix
   ];
@@ -141,7 +141,7 @@ in
   options.sops = {
     secrets = lib.mkOption {
       type = lib.types.attrsOf secretType;
-      default = { };
+      default = {};
       description = ''
         Secrets to decrypt.
       '';
@@ -222,7 +222,7 @@ in
 
     environment = lib.mkOption {
       type = lib.types.attrsOf (lib.types.either lib.types.str lib.types.path);
-      default = { };
+      default = {};
       description = ''
         Environment variables to set before calling sops-install-secrets.
 
@@ -232,7 +232,7 @@ in
 
     package = lib.mkOption {
       type = lib.types.package;
-      default = (pkgs.callPackage ../.. { }).sops-install-secrets;
+      default = (pkgs.callPackage ../.. {}).sops-install-secrets;
       defaultText = lib.literalExpression "(pkgs.callPackage ../.. {}).sops-install-secrets";
       description = ''
         sops-install-secrets package to use.
@@ -251,7 +251,7 @@ in
 
       plugins = lib.mkOption {
         type = lib.types.listOf lib.types.package;
-        default = [ ];
+        default = [];
         description = ''
           List of plugins to use for sops decryption.
         '';
@@ -269,7 +269,7 @@ in
 
       sshKeyPaths = lib.mkOption {
         type = lib.types.listOf lib.types.path;
-        default = [ ];
+        default = [];
         description = ''
           Paths to ssh keys added as age keys during sops description.
         '';
@@ -310,7 +310,7 @@ in
 
       sshKeyPaths = lib.mkOption {
         type = lib.types.listOf lib.types.path;
-        default = [ ];
+        default = [];
         description = ''
           Path to ssh keys added as GPG keys during sops description.
           This option must be explicitly unset if <literal>config.sops.gnupg.sshKeyPaths</literal> is set.
@@ -319,29 +319,32 @@ in
     };
   };
 
-  config = lib.mkIf (cfg.secrets != { }) {
+  config = lib.mkIf (cfg.secrets != {}) {
     assertions = [
       {
         assertion =
-          cfg.gnupg.home != null
-          || cfg.gnupg.sshKeyPaths != [ ]
+          cfg.gnupg.home
+          != null
+          || cfg.gnupg.sshKeyPaths != []
           || cfg.gnupg.qubes-split-gpg.enable == true
           || cfg.age.keyFile != null
-          || cfg.age.sshKeyPaths != [ ];
+          || cfg.age.sshKeyPaths != [];
         message = "No key source configured for sops. Either set services.openssh.enable or set sops.age.keyFile or sops.gnupg.home or sops.gnupg.qubes-split-gpg.enable";
       }
       {
         assertion =
-          !(cfg.gnupg.home != null && cfg.gnupg.sshKeyPaths != [ ])
+          !(cfg.gnupg.home != null && cfg.gnupg.sshKeyPaths != [])
           && !(cfg.gnupg.home != null && cfg.gnupg.qubes-split-gpg.enable == true)
-          && !(cfg.gnupg.sshKeyPaths != [ ] && cfg.gnupg.qubes-split-gpg.enable == true);
+          && !(cfg.gnupg.sshKeyPaths != [] && cfg.gnupg.qubes-split-gpg.enable == true);
         message = "Exactly one of sops.gnupg.home, sops.gnupg.qubes-split-gpg.enable and sops.gnupg.sshKeyPaths must be set";
       }
       {
         assertion =
-          cfg.gnupg.qubes-split-gpg.enable == false
+          cfg.gnupg.qubes-split-gpg.enable
+          == false
           || (
-            cfg.gnupg.qubes-split-gpg.enable == true
+            cfg.gnupg.qubes-split-gpg.enable
+            == true
             && cfg.gnupg.qubes-split-gpg.domain != null
             && cfg.gnupg.qubes-split-gpg.domain != ""
           );
@@ -357,7 +360,7 @@ in
 
     sops.environment = {
       SOPS_GPG_EXEC = lib.mkMerge [
-        (lib.mkIf (cfg.gnupg.home != null || cfg.gnupg.sshKeyPaths != [ ]) (
+        (lib.mkIf (cfg.gnupg.home != null || cfg.gnupg.sshKeyPaths != []) (
           lib.mkDefault "${cfg.gnupg.package}/bin/gpg"
         ))
         (lib.mkIf cfg.gnupg.qubes-split-gpg.enable (
@@ -365,12 +368,11 @@ in
         ))
       ];
 
-      PATH =
-        let
-          pluginPaths = lib.makeBinPath cfg.age.plugins;
-          systemPaths = lib.optionalString pkgs.stdenv.isDarwin "/usr/bin:/bin:/usr/sbin:/sbin";
-        in
-        lib.concatStringsSep ":" (lib.filter (p: p != "") [ pluginPaths systemPaths ]);
+      PATH = let
+        pluginPaths = lib.makeBinPath cfg.age.plugins;
+        systemPaths = lib.optionalString pkgs.stdenv.isDarwin "/usr/bin:/bin:/usr/sbin:/sbin";
+      in
+        lib.concatStringsSep ":" (lib.filter (p: p != "") [pluginPaths systemPaths]);
 
       QUBES_GPG_DOMAIN = lib.mkIf cfg.gnupg.qubes-split-gpg.enable (
         lib.mkDefault cfg.gnupg.qubes-split-gpg.domain
@@ -389,7 +391,9 @@ in
         ExecStart = script;
       };
       Install.WantedBy =
-        if cfg.gnupg.home != null then [ "graphical-session-pre.target" ] else [ "default.target" ];
+        if cfg.gnupg.home != null
+        then ["graphical-session-pre.target"]
+        else ["default.target"];
     };
 
     # Darwin: load secrets once on login
@@ -406,36 +410,32 @@ in
     };
 
     # [re]load secrets on home-manager activation
-    home.activation =
-      let
-        darwin =
-          let
-            domain-target = "gui/$(id -u ${config.home.username})";
-          in
-          ''
-            /bin/launchctl bootout ${domain-target}/org.nix-community.home.sops-nix && true
-            /bin/launchctl bootstrap ${domain-target} ${config.home.homeDirectory}/Library/LaunchAgents/org.nix-community.home.sops-nix.plist
-          '';
+    home.activation = let
+      darwin = let
+        domain-target = "gui/$(id -u ${config.home.username})";
+      in ''
+        /bin/launchctl bootout ${domain-target}/org.nix-community.home.sops-nix && true
+        /bin/launchctl bootstrap ${domain-target} ${config.home.homeDirectory}/Library/LaunchAgents/org.nix-community.home.sops-nix.plist
+      '';
 
-        linux =
-          let
-            systemctl = config.systemd.user.systemctlPath;
-          in
-          ''
-            systemdStatus=$(${systemctl} --user is-system-running 2>&1 || true)
+      linux = let
+        systemctl = config.systemd.user.systemctlPath;
+      in ''
+        systemdStatus=$(${systemctl} --user is-system-running 2>&1 || true)
 
-            if [[ $systemdStatus == 'running' || $systemdStatus == 'degraded' ]]; then
-              ${systemctl} restart --user sops-nix
-            else
-              echo "User systemd daemon not running. Probably executed on boot where no manual start/reload is needed."
-            fi
+        if [[ $systemdStatus == 'running' || $systemdStatus == 'degraded' ]]; then
+          ${systemctl} restart --user sops-nix
+        else
+          echo "User systemd daemon not running. Probably executed on boot where no manual start/reload is needed."
+        fi
 
-            unset systemdStatus
-          '';
-
-      in
-      {
-        sops-nix = if pkgs.stdenv.isLinux then linux else darwin;
-      };
+        unset systemdStatus
+      '';
+    in {
+      sops-nix =
+        if pkgs.stdenv.isLinux
+        then linux
+        else darwin;
+    };
   };
 }
