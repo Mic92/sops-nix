@@ -73,6 +73,18 @@
             Sops file the secret is loaded from.
           '';
         };
+
+        materializePath = lib.mkOption {
+          type = lib.types.nullOr lib.types.str;
+          default = null;
+          description = ''
+            Optional absolute path where this secret should be copied as a real
+            file during home-manager activation.
+
+            If the destination already exists (regular file or symlink),
+            activation verifies checksums match and fails if they differ.
+          '';
+        };
       };
     }
   );
@@ -431,11 +443,38 @@ in {
 
         unset systemdStatus
       '';
-    in {
-      sops-nix =
-        if pkgs.stdenv.isLinux
-        then linux
-        else darwin;
-    };
+
+      secretsToMaterialize = lib.filter (secret: secret.materializePath != null) (builtins.attrValues cfg.secrets);
+      materializeSecret = secret: let
+        src = lib.escapeShellArg secret.path;
+        dst = lib.escapeShellArg secret.materializePath;
+        dstDir = lib.escapeShellArg (builtins.dirOf secret.materializePath);
+      in ''
+        mkdir -p ${dstDir}
+
+        if [ -e ${dst} ] || [ -L ${dst} ]; then
+          src_sha="$(${pkgs.coreutils}/bin/sha256sum ${src} | cut -d ' ' -f1)"
+          dst_sha="$(${pkgs.coreutils}/bin/sha256sum ${dst} | cut -d ' ' -f1)"
+
+          if [ "$src_sha" != "$dst_sha" ]; then
+            echo "ERROR: materialized secret exists but checksum differs: ${secret.materializePath}" >&2
+            exit 1
+          fi
+        else
+          ${pkgs.coreutils}/bin/cp --no-clobber --no-preserve=mode,ownership ${src} ${dst}
+          ${pkgs.coreutils}/bin/chmod 600 ${dst}
+        fi
+      '';
+      materializeScript = lib.concatMapStringsSep "\n\n" materializeSecret secretsToMaterialize;
+    in
+      {
+        sops-nix =
+          if pkgs.stdenv.isLinux
+          then linux
+          else darwin;
+      }
+      // lib.optionalAttrs (secretsToMaterialize != []) {
+        sops-materialize-secrets = lib.hm.dag.entryAfter ["sops-nix" "writeBoundary"] materializeScript;
+      };
   };
 }
