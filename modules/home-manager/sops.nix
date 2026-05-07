@@ -80,9 +80,6 @@
           description = ''
             Optional absolute path where this secret should be copied as a real
             file during home-manager activation.
-
-            If the destination already exists (regular file or symlink),
-            activation verifies checksums match and fails if they differ.
           '';
         };
       };
