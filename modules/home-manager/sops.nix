@@ -480,7 +480,7 @@ in {
           else darwin;
       }
       // lib.optionalAttrs (secretsToMaterialize != []) {
-        sops-materialize-secrets = lib.hm.dag.entryAfter ["sops-nix" "writeBoundary"] materializeScript;
+        sops-materialize-secrets = lib.hm.dag.entryAfter ["sops-nix"] materializeScript;
       };
   };
 }
