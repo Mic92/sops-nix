@@ -8,6 +8,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"os/exec"
 	"os/user"
 	"path"
 	"path/filepath"
@@ -1020,38 +1021,93 @@ func handleModifications(isDry bool, logcfg loggingConfig, symlinkPath string, s
 		}
 	}
 
-	writeLines := func(list []string, file string) error {
-		if len(list) != 0 {
-			if _, err := os.Stat(filepath.Dir(file)); err != nil {
-				if os.IsNotExist(err) {
-					return nil
-				}
+	// Decide how to propagate restart/reload requests.
+	//
+	// When we run as a systemd service (useSystemdActivation = true), the
+	// unit is ordered Before=sysinit-reactivation.target, which
+	// switch-to-configuration restarts *after* it has already consumed
+	// /run/nixos/activation-{restart,reload}-list. Writing to those files
+	// from here therefore does nothing on the current switch and leaks
+	// into the next one. On top of that, NixOS 26.05 deprecates the
+	// activation-list mechanism entirely.
+	//
+	// The NixOS module sets SOPS_RESTART_UNITS_VIA_SYSTEMCTL=1 on the
+	// systemd unit so we know to call systemctl directly. We cannot rely
+	// on INVOCATION_ID for this: switch-to-configuration is almost always
+	// invoked from a process tree rooted in some unit (sshd, getty,
+	// systemd-run, ...), so the activation script inherits it too. For
+	// the legacy activation-script path, keep writing the list files so
+	// that switch-to-configuration picks them up as before.
+	if os.Getenv("SOPS_RESTART_UNITS_VIA_SYSTEMCTL") == "1" {
+		systemctl := func(verb string, units []string) error {
+			if len(units) == 0 {
+				return nil
+			}
+			// --no-block: we are ordered before sysinit-reactivation.target
+			// with DefaultDependencies=no. Blocking on a normal service
+			// (which has After=sysinit.target) would deadlock the
+			// transaction.
+			args := append([]string{"--no-block", verb}, units...)
+			cmd := exec.Command("systemctl", args...)
+			cmd.Stdout = os.Stderr
+			cmd.Stderr = os.Stderr
+			if err := cmd.Run(); err != nil {
+				return fmt.Errorf("error running 'systemctl %s': %w", strings.Join(args, " "), err)
+			}
+			return nil
+		}
+		if isDry {
+			for _, u := range restart {
+				fmt.Fprintf(os.Stderr, "would restart %s\n", u)
+			}
+			for _, u := range reload {
+				fmt.Fprintf(os.Stderr, "would reload %s\n", u)
+			}
+		} else {
+			// try-restart: only act on units that are already running.
+			// On first activation the unit starts fresh with the new
+			// secret anyway, so a no-op is correct.
+			if err := systemctl("try-restart", restart); err != nil {
 				return err
 			}
-			f, err := os.OpenFile(file, os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0o600)
-			if err != nil {
+			if err := systemctl("try-reload-or-restart", reload); err != nil {
 				return err
-			}
-			defer func() { _ = f.Close() }()
-			for _, unit := range list {
-				if _, err = f.WriteString(unit + "\n"); err != nil {
-					return err
-				}
 			}
 		}
-		return nil
-	}
-	var dryPrefix string
-	if isDry {
-		dryPrefix = "/run/nixos/dry-activation"
 	} else {
-		dryPrefix = "/run/nixos/activation"
-	}
-	if err := writeLines(restart, dryPrefix+"-restart-list"); err != nil {
-		return err
-	}
-	if err := writeLines(reload, dryPrefix+"-reload-list"); err != nil {
-		return err
+		writeLines := func(list []string, file string) error {
+			if len(list) != 0 {
+				if _, err := os.Stat(filepath.Dir(file)); err != nil {
+					if os.IsNotExist(err) {
+						return nil
+					}
+					return err
+				}
+				f, err := os.OpenFile(file, os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0o600)
+				if err != nil {
+					return err
+				}
+				defer func() { _ = f.Close() }()
+				for _, unit := range list {
+					if _, err = f.WriteString(unit + "\n"); err != nil {
+						return err
+					}
+				}
+			}
+			return nil
+		}
+		var dryPrefix string
+		if isDry {
+			dryPrefix = "/run/nixos/dry-activation"
+		} else {
+			dryPrefix = "/run/nixos/activation"
+		}
+		if err := writeLines(restart, dryPrefix+"-restart-list"); err != nil {
+			return err
+		}
+		if err := writeLines(reload, dryPrefix+"-reload-list"); err != nil {
+			return err
+		}
 	}
 
 	// Do not output changes if not requested
