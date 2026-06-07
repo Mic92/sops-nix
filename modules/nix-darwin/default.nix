@@ -403,7 +403,12 @@ in
       sops.environment.SOPS_GPG_EXEC = lib.mkIf (cfg.gnupg.home != null || cfg.gnupg.sshKeyPaths != [ ]) (
         lib.mkDefault "${cfg.gnupg.package}/bin/gpg"
       );
-      sops.environment.PATH = lib.mkIf (cfg.age.plugins != [ ]) (lib.makeBinPath cfg.age.plugins);
+      sops.environment.PATH =
+        let
+          pluginPaths = lib.makeBinPath cfg.age.plugins;
+          systemPaths = lib.optionalString pkgs.stdenv.isDarwin "/usr/bin:/bin:/usr/sbin:/sbin";
+        in
+        lib.concatStringsSep ":" (lib.filter (p: p != "") [ pluginPaths systemPaths ]);
     }
   ];
 }
