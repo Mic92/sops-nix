@@ -198,6 +198,30 @@ in
     '';
   };
 
+  # This test should be altered or removed if `age-keygen` switches its default to match the post-quantum `-pq` behavior.
+  age-extra-generate-key-args = testers.runNixOSTest {
+    name = "age-generate-key-args";
+    nodes.machine =
+      { ... }:
+      {
+        imports = [ ../modules/sops ];
+        sops = {
+          age = {
+            keyFile = "/run/age-keys-args.txt";
+            generateKey = true;
+            extraGenerateKeyArgs = [ "-pq" ];
+          };
+          defaultSopsFile = testAssets + "/secrets.yaml";
+          secrets.test_key = { };
+        };
+      };
+
+    testScript = ''
+      start_all()
+      machine.succeed("cat /run/age-keys-args.txt | grep -q AGE-SECRET-KEY-PQ-")
+    '';
+  };
+
   age-ssh-keys = testers.runNixOSTest {
     name = "sops-age-ssh-keys";
     nodes.machine = {

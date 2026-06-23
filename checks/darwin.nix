@@ -27,5 +27,6 @@
   };
   sops.defaultSopsFile = ../pkgs/sops-install-secrets/test-assets/secrets.yaml;
   sops.age.generateKey = true;
+  sops.age.extraGenerateKeyArgs = [ "-pq" ];
   system.stateVersion = 5;
 }
