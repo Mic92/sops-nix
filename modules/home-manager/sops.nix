@@ -412,7 +412,7 @@ in
           let
             domain-target = "gui/$(id -u ${config.home.username})";
           in
-          ''
+          lib.hm.dag.entryAfter [ "setupLaunchAgents" ] ''
             /bin/launchctl bootout ${domain-target}/org.nix-community.home.sops-nix && true
             /bin/launchctl bootstrap ${domain-target} ${config.home.homeDirectory}/Library/LaunchAgents/org.nix-community.home.sops-nix.plist
           '';
