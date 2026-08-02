@@ -59,6 +59,13 @@ let
           # the race is timing dependent, so also assert on the ordering itself
           machine.succeed("systemctl show -p After sysinit.target | grep -q sops-install-secrets.service")
 
+          if machine.succeed("systemctl show -p LoadState --value sops-install-secrets.service").strip() == "loaded":
+              before = machine.succeed("systemctl show -p Before --value sops-install-secrets.service").split()
+              conflicts = machine.succeed("systemctl show -p Conflicts --value sops-install-secrets.service").split()
+              assert "sysinit.target" in before, f"sops-install-secrets.service is not ordered before sysinit.target: {before}"
+              assert "shutdown.target" in before, f"sops-install-secrets.service is not ordered before shutdown.target: {before}"
+              assert "shutdown.target" in conflicts, f"sops-install-secrets.service does not conflict with shutdown.target: {conflicts}"
+
           # BUG in nixos's overlayfs... systemd crashes on switch-to-configuration test
         ''
         + lib.optionalString (!nodes.machine.system.etc.overlay.enable) ''

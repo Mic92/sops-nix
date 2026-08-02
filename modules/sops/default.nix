@@ -479,7 +479,9 @@ in
             before = [
               "sysinit.target"
               "sysinit-reactivation.target"
+              "shutdown.target"
             ];
+            conflicts = [ "shutdown.target" ];
             environment = cfg.environment // {
               SOPS_RESTART_UNITS_VIA_SYSTEMCTL = "1";
             };
