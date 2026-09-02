@@ -306,6 +306,10 @@ func recurseSecretKey(keys map[string]interface{}, wantedKey string) (string, er
 				}
 				return "", fmt.Errorf("the key '%s%s' cannot be found", keyUntilNow, currentKey)
 			}
+			if keyUntilNow != "" {
+				keyUntilNow += "/"
+			}
+			keyUntilNow += currentKey
 			break
 		}
 		thisKey := currentKey[:slashIndex]
