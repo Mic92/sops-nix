@@ -361,3 +361,16 @@ func TestIsValidFormat(t *testing.T) {
 		generateCase(strings.ToUpper(format), false)
 	}
 }
+
+func TestRecurseSecretKeyErrorNamesTopLevelKey(t *testing.T) {
+	keys := map[string]interface{}{
+		"userPassword": 1234,
+	}
+	_, err := recurseSecretKey(keys, "userPassword")
+	if err == nil {
+		t.Fatal("expected an error for a non-string top-level value, got nil")
+	}
+	if !strings.Contains(err.Error(), "userPassword") {
+		t.Errorf("error message %q does not name the offending key 'userPassword'", err.Error())
+	}
+}
