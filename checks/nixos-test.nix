@@ -45,6 +45,13 @@ let
           assert user == "example-user", f"Expected 'example-user', got '{user}'"
           machine.succeed("cat /run/secrets-for-users/test_key | grep -q 'test_value'")  # the user password still exists
 
+          if machine.succeed("systemctl show -p LoadState --value sops-install-secrets.service").strip() == "loaded":
+              before = machine.succeed("systemctl show -p Before --value sops-install-secrets.service").split()
+              conflicts = machine.succeed("systemctl show -p Conflicts --value sops-install-secrets.service").split()
+              assert "sysinit.target" in before, f"sops-install-secrets.service is not ordered before sysinit.target: {before}"
+              assert "shutdown.target" in before, f"sops-install-secrets.service is not ordered before shutdown.target: {before}"
+              assert "shutdown.target" in conflicts, f"sops-install-secrets.service does not conflict with shutdown.target: {conflicts}"
+
           # BUG in nixos's overlayfs... systemd crashes on switch-to-configuration test
         ''
         + lib.optionalString (!(extraConfig ? system.etc.overlay.enable)) ''
