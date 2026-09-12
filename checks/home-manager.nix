@@ -9,6 +9,7 @@
   home.enableNixpkgsReleaseCheck = false;
 
   sops.age.generateKey = true;
+  sops.age.extraGenerateKeyArgs = [ "-pq" ];
   sops.age.keyFile = "${config.home.homeDirectory}/.age-key.txt";
   sops.secrets.test_key = { };
   sops.templates."template.toml".content = ''

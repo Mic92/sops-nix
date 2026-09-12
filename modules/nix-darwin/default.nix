@@ -173,7 +173,7 @@ let
             echo generating machine-specific age key...
             mkdir -p "$(dirname ${escapedKeyFile})"
             # age-keygen sets 0600 by default, no need to chmod.
-            ${pkgs.age}/bin/age-keygen -o ${escapedKeyFile}
+            ${pkgs.age}/bin/age-keygen -o ${escapedKeyFile} ${lib.escapeShellArgs cfg.age.extraGenerateKeyArgs}
           fi
         ''
       else
@@ -300,6 +300,15 @@ in
         '';
       };
 
+      extraGenerateKeyArgs = lib.mkOption {
+        type = lib.types.listOf lib.types.str;
+        default = [ ];
+        example = [ "-pq" ];
+        description = ''
+          List of arguments to use when generating the age key.
+        '';
+      };
+
       sshKeyPaths = lib.mkOption {
         type = lib.types.listOf lib.types.path;
         default = defaultImportKeys "ed25519";
@@ -368,6 +377,14 @@ in
           {
             assertion = !(cfg.gnupg.home != null && cfg.gnupg.sshKeyPaths != [ ]);
             message = "Exactly one of sops.gnupg.home and sops.gnupg.sshKeyPaths must be set";
+          }
+          {
+            assertion =
+              !(
+                builtins.elem "-o" cfg.age.extraGenerateKeyArgs
+                || builtins.elem "--output" cfg.age.extraGenerateKeyArgs
+              );
+            message = "Cannot use '-o' or '--output' in sops.age.extraGenerateKeyArgs. The output path is managed by sops.age.keyFile.";
           }
         ]
         ++ lib.optionals cfg.validateSopsFiles (
