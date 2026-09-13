@@ -93,10 +93,11 @@ in
         };
 
         # must run before sops sets up keys
-        boot.initrd.postDeviceCommands = ''
+        system.activationScripts.earlySecrets.text = ''
           cp -r ${testAssets + "/age-keys.txt"} /run/age-keys.txt
           chmod -R 700 /run/age-keys.txt
         '';
+        system.activationScripts.setupSecrets.deps = [ "earlySecrets" ];
 
         specialisation.pruning.configuration.sops.keepGenerations = 10;
       };
@@ -167,13 +168,14 @@ in
         };
 
         # must run before sops sets up keys
-        boot.initrd.postDeviceCommands = ''
+        system.activationScripts.earlySecrets.text = ''
           cp -r ${testAssets + "/age-keys.txt"} /run/age-keys.txt
           chmod -R 700 /run/age-keys.txt
 
           # if the directory exists, sops-nix should replace it with a symlink
           mkdir /run/secrets
         '';
+        system.activationScripts.setupSecrets.deps = [ "earlySecrets" ];
       };
 
     testScript = ''
@@ -299,10 +301,11 @@ in
         };
 
         # must run before sops sets up keys
-        boot.initrd.postDeviceCommands = ''
+        system.activationScripts.earlySecrets.text = ''
           cp -r ${testAssets + "/age-keys.txt"} /run/age-keys.txt
           chmod -R 700 /run/age-keys.txt
         '';
+        system.activationScripts.setupSecrets.deps = [ "earlySecrets" ];
 
         sops.templates.test_template = {
           content = ''
@@ -404,10 +407,11 @@ in
         system.switch.enable = true;
 
         # must run before sops sets up keys
-        boot.initrd.postDeviceCommands = ''
+        system.activationScripts.earlySecrets.text = ''
           cp -r ${testAssets + "/age-keys.txt"} /run/age-keys.txt
           chmod -R 700 /run/age-keys.txt
         '';
+        system.activationScripts.setupSecrets.deps = [ "earlySecrets" ];
 
         systemd.services."restart-unit" = {
           description = "Restart unit";
@@ -565,10 +569,11 @@ in
 
   user-passwords = userPasswordTest "sops-user-passwords" {
     # must run before sops sets up keys
-    boot.initrd.postDeviceCommands = ''
+    system.activationScripts.earlySecrets.text = ''
       cp -r ${testAssets + "/age-keys.txt"} /run/age-keys.txt
       chmod -R 700 /run/age-keys.txt
     '';
+    system.activationScripts.setupSecrets.deps = [ "earlySecrets" ];
   };
 
   user-passwords-sysusers = userPasswordTest "sops-user-passwords-sysusers" (

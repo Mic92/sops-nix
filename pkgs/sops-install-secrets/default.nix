@@ -20,13 +20,13 @@ buildGo125Module {
   # requires root privileges for tests
   doCheck = false;
 
-  outputs = [ "out" ] ++ lib.optional stdenv.isLinux "unittest";
+  outputs = [ "out" ] ++ lib.optional stdenv.hostPlatform.isLinux "unittest";
 
   postInstall =
     ''
       go test -c ./pkgs/sops-install-secrets
     ''
-    + lib.optionalString stdenv.isLinux ''
+    + lib.optionalString stdenv.hostPlatform.isLinux ''
       # *.test is only tested on linux. $unittest does not exist on darwin.
       install -D ./sops-install-secrets.test $unittest/bin/sops-install-secrets.test
       # newer versions of nixpkgs no longer require this step

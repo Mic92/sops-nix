@@ -103,9 +103,9 @@
             home-manager = self.legacyPackages.${system}.homeConfigurations.sops.activation-script;
           }
           // (suffix-stable packages-stable)
-          // nixpkgs.lib.optionalAttrs pkgs.stdenv.isLinux tests
-          // nixpkgs.lib.optionalAttrs pkgs.stdenv.isLinux (suffix-stable tests-stable)
-          // nixpkgs.lib.optionalAttrs pkgs.stdenv.isDarwin {
+          // nixpkgs.lib.optionalAttrs pkgs.stdenv.hostPlatform.isLinux tests
+          // nixpkgs.lib.optionalAttrs pkgs.stdenv.hostPlatform.isLinux (suffix-stable tests-stable)
+          // nixpkgs.lib.optionalAttrs pkgs.stdenv.hostPlatform.isDarwin {
             darwin-sops =
               self.darwinConfigurations."sops-${pkgs.stdenv.hostPlatform.darwinArch}".config.system.build.toplevel;
           }

@@ -368,7 +368,7 @@ in
       PATH =
         let
           pluginPaths = lib.makeBinPath cfg.age.plugins;
-          systemPaths = lib.optionalString pkgs.stdenv.isDarwin "/usr/bin:/bin:/usr/sbin:/sbin";
+          systemPaths = lib.optionalString pkgs.stdenv.hostPlatform.isDarwin "/usr/bin:/bin:/usr/sbin:/sbin";
         in
         lib.concatStringsSep ":" (lib.filter (p: p != "") [ pluginPaths systemPaths ]);
 
@@ -437,7 +437,7 @@ in
 
       in
       {
-        sops-nix = if pkgs.stdenv.isLinux then linux else darwin;
+        sops-nix = if pkgs.stdenv.hostPlatform.isLinux then linux else darwin;
       };
   };
 }

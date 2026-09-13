@@ -1,6 +1,6 @@
 {
   pkgs ? import <nixpkgs> { },
-  vendorHash ? "sha256-ANh5X1ZWtkHaQ0AVBoHTHETUSyb0DVhRvfqdKwYLYbs=",
+  vendorHash ? "sha256-SXOd+0yh0DQr3uLVQBdw07J9j5HNuFJSOajDul1B1qo=",
 }:
 let
   sops-install-secrets = pkgs.callPackage ./pkgs/sops-install-secrets {
@@ -28,7 +28,7 @@ rec {
     inherit sops-install-secrets;
   };
 }
-// pkgs.lib.optionalAttrs pkgs.stdenv.isLinux {
+// pkgs.lib.optionalAttrs pkgs.stdenv.hostPlatform.isLinux {
   cross-build = pkgs.callPackage ./pkgs/cross-build.nix {
     inherit sops-install-secrets;
   };
