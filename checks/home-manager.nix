@@ -3,7 +3,7 @@
   imports = [
     ../modules/home-manager/sops.nix
   ];
-  home.stateVersion = "25.11";
+  home.stateVersion = "26.05";
   home.username = "sops-user";
   home.homeDirectory = "/home/sops-user";
   home.enableNixpkgsReleaseCheck = false;

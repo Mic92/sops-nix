@@ -26,7 +26,6 @@
 
       systems = [
         "x86_64-linux"
-        "x86_64-darwin"
         "aarch64-darwin"
         "aarch64-linux"
       ];
@@ -97,7 +96,7 @@
             suffix-version =
               version: attrs:
               nixpkgs.lib.mapAttrs' (name: value: nixpkgs.lib.nameValuePair (name + version) value) attrs;
-            suffix-stable = suffix-version "-25_11";
+            suffix-stable = suffix-version "-26_05";
           in
           {
             home-manager = self.legacyPackages.${system}.homeConfigurations.sops.activation-script;
@@ -115,13 +114,6 @@
           modules = [
             ./checks/darwin.nix
             { nixpkgs.hostPlatform = "aarch64-darwin"; }
-          ];
-        };
-
-        darwinConfigurations.sops-x86_64 = privateInputs.nix-darwin.lib.darwinSystem {
-          modules = [
-            ./checks/darwin.nix
-            { nixpkgs.hostPlatform = "x86_64-darwin"; }
           ];
         };
 
