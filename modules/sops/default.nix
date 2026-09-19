@@ -474,7 +474,12 @@ in
               "userborn.service"
             ];
             requiredBy = [ "sysinit-reactivation.target" ];
-            before = [ "sysinit-reactivation.target" ];
+            # WantedBy only pulls the unit in; without Before= normal services
+            # (ordered after sysinit.target via DefaultDependencies) race with us.
+            before = [
+              "sysinit.target"
+              "sysinit-reactivation.target"
+            ];
             environment = cfg.environment // {
               SOPS_RESTART_UNITS_VIA_SYSTEMCTL = "1";
             };

@@ -13,6 +13,14 @@ let
             ../modules/sops
             extraConfig
           ];
+
+          # Regular units (DefaultDependencies=yes) must see secrets at start.
+          systemd.services.secret-consumer = lib.mkIf config.sops.useSystemdActivation {
+            wantedBy = [ "multi-user.target" ];
+            serviceConfig.Type = "oneshot";
+            serviceConfig.RemainAfterExit = true;
+            script = "test -e /run/secrets/nested/test/file";
+          };
           sops = {
             age.keyFile = "/run/age-keys.txt";
             defaultSopsFile = testAssets + "/secrets.yaml";
@@ -35,6 +43,7 @@ let
         };
 
       testScript =
+        { nodes, ... }:
         ''
           start_all()
           machine.wait_for_unit("multi-user.target")
@@ -44,10 +53,15 @@ let
           user = machine.succeed("stat -c%U /run/secrets/nested/test/file").strip()  # ...and are owned...
           assert user == "example-user", f"Expected 'example-user', got '{user}'"
           machine.succeed("cat /run/secrets-for-users/test_key | grep -q 'test_value'")  # the user password still exists
+        ''
+        + lib.optionalString nodes.machine.sops.useSystemdActivation ''
+          machine.succeed("systemctl is-active secret-consumer.service")
+          # the race is timing dependent, so also assert on the ordering itself
+          machine.succeed("systemctl show -p After sysinit.target | grep -q sops-install-secrets.service")
 
           # BUG in nixos's overlayfs... systemd crashes on switch-to-configuration test
         ''
-        + lib.optionalString (!(extraConfig ? system.etc.overlay.enable)) ''
+        + lib.optionalString (!nodes.machine.system.etc.overlay.enable) ''
           machine.succeed("/run/current-system/bin/switch-to-configuration test")
           machine.succeed("cat /run/secrets/nested/test/file | grep -q 'another value'")  # the regular secrets still work after a switch
           machine.succeed("cat /run/secrets-for-users/test_key | grep -q 'test_value'")  # the user password is still present after a switch
