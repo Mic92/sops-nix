@@ -181,7 +181,7 @@ let
   # Skip ssh keys deployed with sops to avoid a catch 22
   defaultImportKeys =
     algo:
-    if config.services.openssh.enable then
+    if config.services.openssh.enable || config.services.openssh.generateHostKeys then
       map (e: e.path) (
         lib.filter (
           e: e.type == algo && !(lib.hasPrefix "/run/secrets" e.path)
@@ -437,7 +437,7 @@ in
             || cfg.gnupg.sshKeyPaths != [ ]
             || cfg.age.keyFile != null
             || cfg.age.sshKeyPaths != [ ];
-          message = "No key source configured for sops. Either set services.openssh.enable or set sops.age.keyFile or sops.gnupg.home";
+          message = "No key source configured for sops. Either set services.openssh.enable or services.openssh.generateHostKeys or set sops.age.keyFile or sops.gnupg.home";
         }
         {
           assertion = !(cfg.gnupg.home != null && cfg.gnupg.sshKeyPaths != [ ]);
