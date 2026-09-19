@@ -328,7 +328,7 @@ in
           || cfg.gnupg.qubes-split-gpg.enable == true
           || cfg.age.keyFile != null
           || cfg.age.sshKeyPaths != [ ];
-        message = "No key source configured for sops. Either set services.openssh.enable or set sops.age.keyFile or sops.gnupg.home or sops.gnupg.qubes-split-gpg.enable";
+        message = "No key source configured for sops. Either set services.openssh.enable or services.openssh.generateHostKeys or set sops.age.keyFile or sops.gnupg.home or sops.gnupg.qubes-split-gpg.enable";
       }
       {
         assertion =
