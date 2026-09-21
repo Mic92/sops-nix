@@ -395,11 +395,13 @@ in
     # Darwin: load secrets once on login
     launchd.agents.sops-nix = {
       enable = true;
+      domain = "user";
       config = {
         Program = script;
         EnvironmentVariables = cfg.environment;
         KeepAlive = false;
         RunAtLoad = true;
+        LimitLoadToSessionType = "Background";
         StandardOutPath = "${config.home.homeDirectory}/Library/Logs/SopsNix/stdout";
         StandardErrorPath = "${config.home.homeDirectory}/Library/Logs/SopsNix/stderr";
       };
@@ -410,7 +412,7 @@ in
       let
         darwin =
           let
-            domain-target = "gui/$(id -u ${config.home.username})";
+            domain-target = "user/$(id -u ${config.home.username})";
           in
           ''
             /bin/launchctl bootout ${domain-target}/org.nix-community.home.sops-nix && true
