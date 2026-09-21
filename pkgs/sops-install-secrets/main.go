@@ -156,6 +156,16 @@ type appContext struct {
 	secretByPlaceholder map[string]*secret
 	checkMode           CheckMode
 	ignorePasswd        bool
+	// Secrets dropped by validation, reported after the healthy ones are in.
+	skipped []error
+}
+
+func (app *appContext) skippedError() error {
+	if len(app.skipped) == 0 {
+		return nil
+	}
+	return fmt.Errorf("%d of %d secrets were skipped: %w",
+		len(app.skipped), len(app.skipped)+len(app.manifest.Secrets), errors.Join(app.skipped...))
 }
 
 // Keep this in sync with `modules/sops/templates/default.nix`
@@ -729,15 +739,26 @@ func (app *appContext) validateManifest() error {
 		}
 	}
 
+	// A broken secret only disables itself; the rest are still installed and
+	// the collected errors are reported once everything else is done.
+	kept := 0
 	for i := range m.Secrets {
 		secret := &m.Secrets[i]
 		if err := app.validateSecret(secret); err != nil {
-			return err
+			fmt.Fprintf(os.Stderr, "skipping secret '%s': %s\n", secret.Name, err)
+			app.skipped = append(app.skipped, err)
+			continue
 		}
+		m.Secrets[kept] = *secret
+		kept++
+	}
+	m.Secrets = m.Secrets[:kept]
 
-		// The Nix module only defines placeholders for secrets if there are
-		// templates.
-		if len(m.Templates) > 0 {
+	// The Nix module only defines placeholders for secrets if there are
+	// templates.
+	if len(m.Templates) > 0 {
+		for i := range m.Secrets {
+			secret := &m.Secrets[i]
 			placeholder, present := m.PlaceholderBySecretName[secret.Name]
 			if !present {
 				return fmt.Errorf("placeholder for %s not found in manifest", secret.Name)
@@ -1361,8 +1382,14 @@ func installSecrets(args []string) error {
 	if err = app.validateManifest(); err != nil {
 		return fmt.Errorf("manifest is not valid: %w", err)
 	}
+	// validateManifest drops the secrets it rejected.
+	manifest.Secrets = app.manifest.Secrets
 
+	// Checks are build-time gates, so nothing is tolerated there.
 	if app.checkMode != Off {
+		if err := app.skippedError(); err != nil {
+			return fmt.Errorf("manifest is not valid: %w", err)
+		}
 		return nil
 	}
 
@@ -1464,7 +1491,7 @@ func installSecrets(args []string) error {
 	}
 	// No need to perform the actual symlinking
 	if isDry {
-		return nil
+		return app.skippedError()
 	}
 	if err := atomicSymlink(*secretDir, manifest.SymlinkPath); err != nil {
 		return fmt.Errorf("cannot update secrets symlink: %w", err)
@@ -1476,7 +1503,7 @@ func installSecrets(args []string) error {
 		return fmt.Errorf("cannot prune old secrets generations: %w", err)
 	}
 
-	return nil
+	return app.skippedError()
 }
 
 func main() {
