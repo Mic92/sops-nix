@@ -373,4 +373,15 @@ func TestRecurseSecretKeyErrorNamesTopLevelKey(t *testing.T) {
 	if !strings.Contains(err.Error(), "userPassword") {
 		t.Errorf("error message %q does not name the offending key 'userPassword'", err.Error())
 	}
+
+	nested := map[string]interface{}{
+		"a": map[interface{}]interface{}{"b": 1234},
+	}
+	_, err = recurseSecretKey(nested, "a/b")
+	if err == nil {
+		t.Fatal("expected an error for a non-string nested value, got nil")
+	}
+	if !strings.Contains(err.Error(), "'a/b'") {
+		t.Errorf("error message %q does not name the full key 'a/b'", err.Error())
+	}
 }
