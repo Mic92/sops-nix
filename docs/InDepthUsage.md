@@ -1,182 +1,87 @@
-# sops-nix
+# `sops-nix` In-Depth Usage
 
-![sops-nix logo](https://github.com/Mic92/sops-nix/releases/download/assets/logo.gif "Logo of sops-nix")
+This is a collection of useful walkthroughs in no particular order. Reference the table of contents as you need.
 
-Atomic, declarative, and reproducible secret provisioning for NixOS based on [sops](https://github.com/mozilla/sops).
+- [Get a public key from a target machine](#get-a-public-key-from-a-target-machine)
 
-## How it works
+- [Set secret permission/owner and allow services to access it](#Set-secret-permission-/-owner-and-allow-services-to-access-it)
 
-Secrets are decrypted from [`sops` files](https://github.com/mozilla/sops#2usage) during
-activation time. The secrets are stored as one secret per file and access-controlled by full declarative configuration of their users, permissions, and groups.
-GPG keys or `age` keys can be used for decryption, and compatibility shims are supported to enable the use of SSH RSA or SSH Ed25519 keys.
-Sops also supports cloud key management APIs such as AWS
-KMS, GCP KMS, Azure Key Vault and Hashicorp Vault. While not
-officially supported by sops-nix yet, these can be controlled using
-environment variables that can be passed to sops.
+- [Restarting/reloading systemd units on secret change](#Restarting-/-reloading-systemd-units-on-secret-change)
 
-## Features
+- [Symlinks to other directories](#symlinks-to-other-directories)
 
-- Compatible with all NixOS deployment frameworks: [NixOps](https://github.com/NixOS/nixops), nixos-rebuild, [krops](https://github.com/krebs/krops/), [morph](https://github.com/DBCDK/morph), [nixus](https://github.com/Infinisil/nixus), etc.
-- Version-control friendly: Since all files are encrypted they can be directly committed to version control without worry. Diffs of the secrets are readable, and [can be shown in cleartext](https://github.com/mozilla/sops#showing-diffs-in-cleartext-in-git).
-- CI friendly: Since sops files can be added to the Nix store without leaking secrets, a machine definition can be built as a whole from a repository, without needing to rely on external secrets or services.
-- Home-manager friendly: Provides a home-manager module
-- Works well in teams: sops-nix comes with `nix-shell` hooks that allows multiple people to quickly import all GPG keys.
-  The cryptography used in sops is designed to be scalable: Secrets are only encrypted once with a master key
-  instead of encrypted per machine/developer key.
-- Atomic upgrades: New secrets are written to a new directory which replaces the old directory atomically.
-- Rollback support: If sops files are added to the Nix store, old secrets can be rolled back. This is optional.
-- Fast time-to-deploy: Unlike solutions implemented by NixOps, krops and morph, no extra steps are required to upload secrets.
-- A variety of storage formats: Secrets can be stored in YAML, dotenv, INI, JSON or binary.
-- Minimizes configuration errors: sops files are checked against the configuration at evaluation time.
+- [Setting a user's password](#setting-a-users-password)
 
-## Demo
+- [Different file formats](#different-file-formats)
 
-There is a `configuration.nix` example in the [deployment step](#deploy-example) of our usage example.
+-[Emit plain file for yaml and json formats](#emit-plain-file-for-yaml-and-json-formats)
 
-## Installation
+- [Use with home manager](#use-with-home-manager)
 
-Choose one of the following methods. When using it non-globally with home-manager, refer to [Use with home-manager](./docs/InDepthUsage.md#use-with-home-manager).
+- [Use with GPG instead of SSH keys](#use-with-gpg-instead-of-ssh-keys)
 
-### Flakes (current recommendation)
+- [Share secrets between different users](#share-secrets-between-different-users)
 
-If you use experimental nix flakes support:
+- [Migrate from pass/krops](#migrate-from-passkrops)
 
-``` nix
-{
-  inputs.sops-nix.url = "github:Mic92/sops-nix";
-  inputs.sops-nix.inputs.nixpkgs.follows = "nixpkgs";
+- [Real-world examples](#real-world-examples)
 
-  outputs = { self, nixpkgs, sops-nix }: {
-    # change `yourhostname` to your actual hostname
-    nixosConfigurations.yourhostname = nixpkgs.lib.nixosSystem {
-      # customize to your system
-      system = "x86_64-linux";
-      modules = [
-        ./configuration.nix
-        sops-nix.nixosModules.sops
-      ];
-    };
-  };
-}
-```
+- [Known limitations](#known-limitations)
 
-### Alternative Installs
+- [Templates](#templates)
 
-<details>
-<summary><b>Nix Darwin (MacOS Users)</b></summary>
+## Get a public key from a target machine
 
-See [`nix-darwin`](https://github.com/nix-darwin/nix-darwin) for background info.
+The easiest way to add new machines is by using SSH host keys (this requires OpenSSH to be enabled).  
 
-A module for `nix-darwin` is available for global install with flakes:
-
-```nix
-{
-  inputs.nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
-  inputs.nix-darwin.url = "github:nix-darwin/nix-darwin/master";
-  inputs.nix-darwin.inputs.nixpkgs.follows = "nixpkgs";
-  inputs.sops-nix.url = "github:Mic92/sops-nix";
-  #inputs.sops-nix.inputs.nixpkgs.follows = "nixpkgs";
-
-  outputs = { self, nix-darwin, nixpkgs, sops-nix }: {
-    darwinConfigurations.yourhostname = nix-darwin.lib.darwinSystem {
-      modules = [
-        ./configuration.nix
-        sops-nix.darwinModules.sops
-      ];
-    };
-  };
-}
-```
-</details>
-<details>
-<summary><b>Niv (recommended if not using flakes)</b></summary>
-
-See [`niv`](https://github.com/nmattia/niv) (recommended if not using flakes)
-
-First add it to niv:
-  
+If you are using `age`, the `ssh-to-age` tool can be used to convert any SSH Ed25519 public key to the `age` format:
 ```console
-$ niv add Mic92/sops-nix
+$ nix-shell -p ssh-to-age --run 'ssh-keyscan example.com | ssh-to-age'
+age1rgffpespcyjn0d8jglk7km9kfrfhdyev6camd3rck6pn8y47ze4sug23v3
+$ nix-shell -p ssh-to-age --run 'cat /etc/ssh/ssh_host_ed25519_key.pub | ssh-to-age'
+age1rgffpespcyjn0d8jglk7km9kfrfhdyev6camd3rck6pn8y47ze4sug23v3
 ```
 
-  Then add the following to your `configuration.nix` in the `imports` list:
-  
-```nix
-{
-  imports = [ "${(import ./nix/sources.nix).sops-nix}/modules/sops" ];
-}
+For GPG, since sops does not natively support SSH keys yet, sops-nix supports a conversion tool (`ssh-to-pgp`) to store them as GPG keys:
+
+```console
+$ ssh root@server01 "cat /etc/ssh/ssh_host_rsa_key" | nix-shell -p ssh-to-pgp --run "ssh-to-pgp -o server01.asc"
+# or with sudo
+$ ssh youruser@server01 "sudo cat /etc/ssh/ssh_host_rsa_key" | nix-shell -p ssh-to-pgp --run "ssh-to-pgp -o server01.asc"
+0fd60c8c3b664aceb1796ce02b318df330331003
+# or just read them locally/over ssh
+$ nix-shell -p ssh-to-pgp --run "ssh-to-pgp -i /etc/ssh/ssh_host_rsa_key -o server01.asc"
+0fd60c8c3b664aceb1796ce02b318df330331003
 ```
-</details>
-<details>
-<summary><b>fetchTarball (None of the above)</b></summary>
 
-Add the following to your `configuration.nix`:
+The output of these commands is the identifier for the server's key, which can be added to your `.sops.yaml`:
 
-```nix
-{
-  imports = let
-    # replace this with an actual commit id or tag
-    commit = "298b235f664f925b433614dc33380f0662adfc3f";
-  in [ 
-    "${builtins.fetchTarball {
-      url = "https://github.com/Mic92/sops-nix/archive/${commit}.tar.gz";
-      # replace this with an actual hash
-      sha256 = "0000000000000000000000000000000000000000000000000000";
-    }}/modules/sops"
-  ];
-}
+```yaml
+keys:
+  - &admin_alice 2504791468b153b8a3963cc97ba53d1919c5dfd4
+  - &admin_bob age12zlz6lvcdk6eqaewfylg35w0syh58sm7gh53q5vvn7hd7c6nngyseftjxl
+  - &server_azmidi 0fd60c8c3b664aceb1796ce02b318df330331003
+  - &server_nosaxa age1rgffpespcyjn0d8jglk7km9kfrfhdyev6camd3rck6pn8y47ze4sug23v3
+creation_rules:
+  - path_regex: secrets/[^/]+\.(yaml|json|env|ini)$
+    key_groups:
+    - pgp:
+      - *admin_alice
+      - *server_azmidi
+      age:
+      - *admin_bob
+      - *server_nosaxa
+  - path_regex: secrets/azmidi/[^/]+\.(yaml|json|env|ini)$
+    key_groups:
+    - pgp:
+      - *admin_alice
+      - *server_azmidi
+      age:
+      - *admin_bob
 ```
-</details>
 
-## Usage
+If you prefer having a separate GPG key, see [Use with GPG instead of SSH keys](#use-with-GPG-instead-of-SSH-keys).
 
-`sops-nix` supports two basic ways of encryption, GPG and `age`.
-
-First, pick your track. If you have time, there are some excellent resources on each key type that we won't cover here.
-
-1. [`age`](https://github.com/FiloSottile/age)
-2. [GnuPG](https://gnupg.org/)
-3. SSH
-    - [`ssh-to-age`](https://github.com/Mic92/ssh-to-age) (automatic conversion)
-    - [`ssh-to-pgp`](https://github.com/Mic92/ssh-to-pgp) (manual conversion)
-
-```mermaid
----
-config:
-  look: classic
-  theme: dark
-  layout: dagre
----
-graph TD;
-Start[Start]
-
-ageLink[Age How-To]
-click ageLink href "./docs/HowTo_age.md"
-
-sshLink[SSH How-To]
-click ageLink href "./docs/HowTo_ssh.md"
-
-gpgLink[GPG How-To]
-click ageLink href "./docs/HowTo_gpg.md"
-
-Decision1{I have opinions 
-on key types}
-Start --> Decision1
-
-Decision1 -->|No| Decision2{I already 
-use SSH}
-
-Decision1 -->|Yes| Know{Click 
-a tutorial}
-
-Know -->|Age| ageLink
-Know -->|SSH| sshLink
-Know -->|GPG| gpgLink
-
-Decision2 -->|Yes| sshLink
-Decision2 -->|No| ageLink
-
-```
 
 ## Set secret permission/owner and allow services to access it
 
@@ -779,21 +684,3 @@ Here's how to use it:
      };
    }
    ```
-
-## Related projects
-
-- [agenix](https://github.com/ryantm/agenix): Similar features as sops-nix but
-  uses age.
-- [scalpel](https://github.com/polygon/scalpel): Provides a simple template
-  mechanism to inject secrets into configuration files in the nixos activation
-  phase
-
-
-# Need more commercial support?
-
-
-We are building sops-nix very much as contributors to the community and are committed to keeping it open source.
-
-That said, many of us that are contributing to sops-nix also work for consultancies. If you want to contact one of those for paid-for support setting up sops-nix in your infrastructure you can do so here:
-* [Numtide](https://numtide.com/contact)
-* [Helsinki Systems](https://helsinki-systems.de/)
