@@ -361,3 +361,24 @@ func TestIsValidFormat(t *testing.T) {
 		generateCase(strings.ToUpper(format), false)
 	}
 }
+
+func TestRecurseSecretKeyNested(t *testing.T) {
+	var fromJSON map[string]interface{}
+	if err := json.Unmarshal([]byte(`{"outer": {"inner": "json"}}`), &fromJSON); err != nil {
+		t.Fatal(err)
+	}
+	fromYAML := map[string]interface{}{
+		"outer": map[interface{}]interface{}{"inner": "yaml"},
+	}
+
+	for want, keys := range map[string]map[string]interface{}{"json": fromJSON, "yaml": fromYAML} {
+		got, err := recurseSecretKey(keys, "outer/inner")
+		ok(t, err)
+		equals(t, want, got)
+	}
+
+	_, err := recurseSecretKey(map[string]interface{}{"outer": "flat"}, "outer/inner")
+	if err == nil || !strings.Contains(err.Error(), "does not refer to a dictionary") {
+		t.Fatalf("expected a dictionary error, got %v", err)
+	}
+}

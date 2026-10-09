@@ -319,14 +319,16 @@ func recurseSecretKey(keys map[string]interface{}, wantedKey string) (string, er
 		if !ok {
 			return "", fmt.Errorf("the key '%s' cannot be found", keyUntilNow)
 		}
-		var valWithWrongType map[interface{}]interface{}
-		valWithWrongType, ok = val.(map[interface{}]interface{})
-		if !ok {
+		switch dict := val.(type) {
+		case map[string]interface{}:
+			currentData = dict
+		case map[interface{}]interface{}:
+			currentData = make(map[string]interface{}, len(dict))
+			for key, value := range dict {
+				currentData[fmt.Sprintf("%v", key)] = value
+			}
+		default:
 			return "", fmt.Errorf("key '%s' does not refer to a dictionary", keyUntilNow)
-		}
-		currentData = make(map[string]interface{})
-		for key, value := range valWithWrongType {
-			currentData[key.(string)] = value
 		}
 	}
 
