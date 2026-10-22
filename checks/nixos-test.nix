@@ -630,4 +630,65 @@ in
       '';
     }
   );
+
+  # https://github.com/Mic92/sops-nix/issues/962
+  user-passwords-userborn-key-mount = testers.runNixOSTest {
+    name = "sops-user-passwords-userborn-key-mount";
+    nodes.machine =
+      { config, pkgs, ... }:
+      let
+        keyDir = pkgs.runCommand "sops-key-dir" { } ''
+          install -D -m 444 ${testAssets + "/age-keys.txt"} $out/key.txt
+        '';
+      in
+      {
+        imports = [ ../modules/sops ];
+
+        boot.initrd.systemd.enable = true;
+        services.userborn.enable = true;
+        users.mutableUsers = false;
+
+        # The key lives on a mount that the initrd makes and that is
+        # unmounted at shutdown.
+        virtualisation.fileSystems."/var/lib/sops-nix" = {
+          device = "${keyDir}";
+          fsType = "none";
+          options = [ "bind" ];
+          neededForBoot = true;
+        };
+
+        sops = {
+          age.keyFile = "/var/lib/sops-nix/key.txt";
+          defaultSopsFile = testAssets + "/secrets.yaml";
+          secrets.test_key.neededForUsers = true;
+        };
+
+        users.users.example-user = {
+          isNormalUser = true;
+          hashedPasswordFile = config.sops.secrets.test_key.path;
+        };
+      };
+
+    testScript =
+      # python
+      ''
+        def password_set():
+            machine.wait_for_unit("multi-user.target")
+            machine.succeed("getent shadow example-user | grep -q :test_value:")
+
+        start_all()
+        password_set()
+        after = machine.succeed("systemctl show -p After --value sops-install-secrets-for-users.service")
+        assert "var-lib-sops" in after, f"not ordered after the key mount: {after}"
+
+        machine.shutdown()
+        machine.start()
+        password_set()
+
+        journal = machine.succeed("journalctl -b -1 --no-pager -o cat _PID=1")
+        assert "Reached target System Shutdown" in journal, "no clean shutdown in the previous boot"
+        cycles = [line for line in journal.splitlines() if "ordering cycle" in line]
+        assert not cycles, "\n".join(cycles)
+      '';
+  };
 }
