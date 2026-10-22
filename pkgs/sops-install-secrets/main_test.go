@@ -275,6 +275,55 @@ func TestAge(t *testing.T) {
 	testInstallSecret(t, testdir, &m)
 }
 
+// A secret whose owner does not exist must not hold back the other secrets.
+func TestSkipsSecretWithUnknownOwner(t *testing.T) {
+	assets := testAssetPath()
+
+	testdir := newTestDir(t)
+	defer testdir.Remove()
+
+	nobody := "nobody"
+	nogroup := "nogroup"
+	good := secret{
+		Name:         "good",
+		Key:          "test_key",
+		Owner:        &nobody,
+		Group:        &nogroup,
+		SopsFile:     path.Join(assets, "secrets.yaml"),
+		Path:         path.Join(testdir.path, "good-target"),
+		Mode:         "0400",
+		RestartUnits: []string{},
+		ReloadUnits:  []string{},
+	}
+
+	unknown := "no-such-user-for-test"
+	bad := good
+	bad.Name = "bad"
+	bad.Owner = &unknown
+	bad.Path = path.Join(testdir.path, "bad-target")
+
+	// Deliberately first: it used to abort the whole run.
+	m := manifest{
+		Secrets:           []secret{bad, good},
+		SecretsMountPoint: testdir.secretsPath,
+		SymlinkPath:       testdir.symlinkPath,
+		AgeKeyFile:        path.Join(assets, "age-keys.txt"),
+	}
+
+	manifestPath := writeManifest(t, testdir.path, &m)
+	if err := installSecrets([]string{"sops-install-secrets", manifestPath}); err == nil {
+		t.Fatal("expected a non-nil error reporting the skipped secret")
+	}
+
+	content, err := os.ReadFile(good.Path)
+	ok(t, err)
+	equals(t, "test_value", string(content))
+
+	if _, err := os.Lstat(bad.Path); !os.IsNotExist(err) {
+		t.Fatalf("skipped secret was installed at %s", bad.Path)
+	}
+}
+
 func TestAgeWithSSH(t *testing.T) {
 	assets := testAssetPath()
 
