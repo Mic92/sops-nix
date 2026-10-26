@@ -8,6 +8,12 @@
 
 let
   cfg = config.sops;
+  hasSystemd = options ? systemd;
+  isNonSystemd = !hasSystemd;
+  hasActivationScripts = options ? system && options.system ? activationScripts;
+  hasNonSystemdActivation = isNonSystemd && options ? system && options.system ? activation;
+  hasUserborn = options ? services && options.services ? userborn;
+  hasSysusers = hasSystemd && options.systemd ? sysusers;
   users = config.users.users;
   sops-install-secrets = cfg.package;
   manifestFor = pkgs.callPackage ./manifest-for.nix {
@@ -28,6 +34,21 @@ let
 
   # Currently, all templates are "regular" (there's no support for `neededForUsers` for templates.)
   regularTemplates = cfg.templates;
+
+  generateAgeKey =
+    let
+      escapedKeyFile = lib.escapeShellArg cfg.age.keyFile;
+    in
+    lib.mkIf cfg.age.generateKey (
+      lib.stringAfter [ ] ''
+        if [[ ! -f ${escapedKeyFile} ]]; then
+          echo generating machine-specific age key...
+          mkdir -p $(dirname ${escapedKeyFile})
+          # age-keygen sets 0600 by default, no need to chmod.
+          ${pkgs.age}/bin/age-keygen -o ${escapedKeyFile}
+        fi
+      ''
+    );
 
   withEnvironment = import ./with-environment.nix {
     # sops >=3.10.0 now unconditionally searches
@@ -181,7 +202,14 @@ let
   # Skip ssh keys deployed with sops to avoid a catch 22
   defaultImportKeys =
     algo:
-    if config.services.openssh.enable || config.services.openssh.generateHostKeys then
+    if
+      options ? services
+      && options.services ? openssh
+      && (
+        config.services.openssh.enable
+        || (options.services.openssh ? generateHostKeys && config.services.openssh.generateHostKeys)
+      )
+    then
       map (e: e.path) (
         lib.filter (
           e: e.type == algo && !(lib.hasPrefix "/run/secrets" e.path)
@@ -319,8 +347,7 @@ in
     useSystemdActivation = lib.mkOption {
       type = lib.types.bool;
       default =
-        (options.systemd ? sysusers && config.systemd.sysusers.enable)
-        || (options.services ? userborn && config.services.userborn.enable);
+        (hasSysusers && config.systemd.sysusers.enable) || (hasUserborn && config.services.userborn.enable);
       defaultText = lib.literalExpression (
         "(options.systemd ? sysusers && config.systemd.sysusers.enable) "
         + "|| (options.services ? userborn && config.services.userborn.enable)"
@@ -432,6 +459,14 @@ in
     (lib.mkIf (cfg.secrets != { }) {
       assertions = [
         {
+          assertion = !cfg.useSystemdActivation || hasSystemd;
+          message = "sops.useSystemdActivation requires systemd support";
+        }
+        {
+          assertion = hasSystemd || hasActivationScripts || hasNonSystemdActivation;
+          message = "sops requires systemd or an activation-script backend";
+        }
+        {
           assertion =
             cfg.gnupg.home != null
             || cfg.gnupg.sshKeyPaths != [ ]
@@ -462,7 +497,8 @@ in
       sops.environment.SOPS_GPG_EXEC = lib.mkIf (cfg.gnupg.home != null || cfg.gnupg.sshKeyPaths != [ ]) (
         lib.mkDefault "${cfg.gnupg.package}/bin/gpg"
       );
-
+    })
+    (lib.optionalAttrs hasSystemd {
       # When using sysusers we no longer are started as an activation script because those are started in initrd while sysusers is started later.
       systemd.services.sops-install-secrets =
         lib.mkIf (regularSecrets != { } && cfg.useSystemdActivation)
@@ -500,7 +536,8 @@ in
               cfg.age.sshKeyPaths
             ];
           };
-
+    })
+    (lib.optionalAttrs hasActivationScripts {
       system.activationScripts = {
         setupSecrets = lib.mkIf (regularSecrets != { } && !cfg.useSystemdActivation) (
           lib.stringAfter
@@ -521,20 +558,19 @@ in
           }
         );
 
-        generate-age-key =
-          let
-            escapedKeyFile = lib.escapeShellArg cfg.age.keyFile;
-          in
-          lib.mkIf cfg.age.generateKey (
-            lib.stringAfter [ ] ''
-              if [[ ! -f ${escapedKeyFile} ]]; then
-                echo generating machine-specific age key...
-                mkdir -p $(dirname ${escapedKeyFile})
-                # age-keygen sets 0600 by default, no need to chmod.
-                ${pkgs.age}/bin/age-keygen -o ${escapedKeyFile}
-              fi
-            ''
-          );
+        generate-age-key = generateAgeKey;
+      };
+    })
+    (lib.optionalAttrs hasNonSystemdActivation {
+      system.activation.scripts = {
+        setupSecrets = lib.mkIf (regularSecrets != { }) (
+          lib.stringAfter ([ "users" ] ++ lib.optional cfg.age.generateKey "generate-age-key") ''
+            [ -e /run/current-system ] || echo setting up secrets...
+            ${withEnvironment "${sops-install-secrets}/bin/sops-install-secrets ${manifest}"}
+          ''
+        );
+
+        generate-age-key = generateAgeKey;
       };
     })
     {
