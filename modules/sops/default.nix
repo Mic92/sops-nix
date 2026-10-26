@@ -9,11 +9,8 @@
 let
   cfg = config.sops;
   hasSystemd = options ? systemd;
-  isNonSystemd = !hasSystemd;
   hasActivationScripts = options ? system && options.system ? activationScripts;
-  hasNonSystemdActivation = isNonSystemd && options ? system && options.system ? activation;
-  hasUserborn = options ? services && options.services ? userborn;
-  hasSysusers = hasSystemd && options.systemd ? sysusers;
+  hasNonSystemdActivation = !hasSystemd && options ? system && options.system ? activation;
   users = config.users.users;
   sops-install-secrets = cfg.package;
   manifestFor = pkgs.callPackage ./manifest-for.nix {
@@ -347,7 +344,8 @@ in
     useSystemdActivation = lib.mkOption {
       type = lib.types.bool;
       default =
-        (hasSysusers && config.systemd.sysusers.enable) || (hasUserborn && config.services.userborn.enable);
+        (hasSystemd && options.systemd ? sysusers && config.systemd.sysusers.enable)
+        || (options ? services && options.services ? userborn && config.services.userborn.enable);
       defaultText = lib.literalExpression (
         "(options.systemd ? sysusers && config.systemd.sysusers.enable) "
         + "|| (options.services ? userborn && config.services.userborn.enable)"

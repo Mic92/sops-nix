@@ -26,14 +26,13 @@ let
     symlinkPath = "/run/secrets-for-users";
   };
   hasSystemd = options ? systemd;
-  isNonSystemd = !hasSystemd;
   hasActivationScripts = options ? system && options.system ? activationScripts;
-  hasNonSystemdActivation = isNonSystemd && options ? system && options.system ? activation;
-  hasUserborn = options ? services && options.services ? userborn;
-  hasSysusers = hasSystemd && options.systemd ? sysusers;
-  sysusersEnabled = hasSysusers && config.systemd.sysusers.enable;
+  hasNonSystemdActivation = !hasSystemd && options ? system && options.system ? activation;
+  sysusersEnabled = hasSystemd && options.systemd ? sysusers && config.systemd.sysusers.enable;
   useSystemdActivation =
-    cfg.useSystemdActivation || sysusersEnabled || (hasUserborn && config.services.userborn.enable);
+    cfg.useSystemdActivation
+    || sysusersEnabled
+    || (options ? services && options.services ? userborn && config.services.userborn.enable);
 in
 {
   config = {
