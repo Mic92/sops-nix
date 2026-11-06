@@ -77,6 +77,23 @@ If you use experimental nix flakes support:
 }
 ```
 
+##### Systems without systemd
+
+The system module can also be used by Nix-compatible systems that provide the `system.activation.scripts` option. 
+On these systems sops-nix installs secrets as part of system activation. Import the module in the same way as on NixOS:
+
+```nix
+{
+  imports = [ inputs.sops-nix.nixosModules.sops ];
+
+  sops = {
+    age.keyFile = "/etc/sops/age/keys.txt";
+    defaultSopsFile = ./secrets.yaml;
+    secrets.example = { };
+  };
+}
+```
+
 ##### [`nix-darwin`](https://github.com/nix-darwin/nix-darwin)
 
 A module for `nix-darwin` is also available for global install with flakes:
