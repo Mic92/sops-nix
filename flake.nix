@@ -64,6 +64,10 @@
         sops = ./modules/sops;
         default = self.nixosModules.sops;
       };
+      finixModules = {
+        sops = ./modules/sops/finix.nix;
+        default = self.finixModules.sops;
+      };
       homeManagerModules = {
         sops = ./modules/home-manager/sops.nix;
         default = self.homeManagerModules.sops;
@@ -107,6 +111,12 @@
           // nixpkgs.lib.optionalAttrs pkgs.stdenv.hostPlatform.isDarwin {
             darwin-sops =
               self.darwinConfigurations."sops-${pkgs.stdenv.hostPlatform.darwinArch}".config.system.build.toplevel;
+          }
+          // nixpkgs.lib.optionalAttrs pkgs.stdenv.hostPlatform.isLinux {
+            finix = import ./checks/finix.nix {
+              inherit pkgs;
+              finix = privateInputs.finix;
+            };
           }
         );
 
