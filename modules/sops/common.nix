@@ -1,6 +1,5 @@
 {
   config,
-  options,
   lib,
   pkgs,
   ...
@@ -15,6 +14,10 @@ let
     inherit (pkgs) writeTextFile;
   };
   manifest = manifestFor "" regularSecrets regularTemplates { };
+  manifestForUsers = manifestFor "-for-users" secretsForUsers templatesForUsers {
+    secretsMountPoint = "/run/secrets-for-users.d";
+    symlinkPath = "/run/secrets-for-users";
+  };
 
   pathNotInStore = lib.mkOptionType {
     name = "pathNotInStore";
@@ -25,24 +28,12 @@ let
   };
 
   regularSecrets = lib.filterAttrs (_: v: !v.neededForUsers) cfg.secrets;
+  secretsForUsers = lib.filterAttrs (_: v: v.neededForUsers) cfg.secrets;
 
   # Currently, all templates are "regular" (there's no support for `neededForUsers` for templates.)
   regularTemplates = cfg.templates;
+  templatesForUsers = { };
 
-  withEnvironment = import ./with-environment.nix {
-    # sops >=3.10.0 now unconditionally searches
-    # for an SSH key in $HOME/.ssh/, introduced in #1692 [0]. Since in the
-    # activation script $HOME is never set, it just spits out a slew a
-    # warnings [1].
-    #
-    # [0] https://github.com/Mic92/sops-nix/issues/764
-    # [1] https://github.com/getsops/sops/pull/1692
-    cfg = lib.recursiveUpdate cfg {
-      environment.HOME = "/var/empty";
-      environment.PATH = lib.makeBinPath cfg.age.plugins;
-    };
-    inherit lib;
-  };
   secretType = lib.types.submodule (
     { config, ... }:
     {
@@ -178,17 +169,6 @@ let
     }
   );
 
-  # Skip ssh keys deployed with sops to avoid a catch 22
-  defaultImportKeys =
-    algo:
-    if config.services.openssh.enable || config.services.openssh.generateHostKeys then
-      map (e: e.path) (
-        lib.filter (
-          e: e.type == algo && !(lib.hasPrefix "/run/secrets" e.path)
-        ) config.services.openssh.hostKeys
-      )
-    else
-      [ ];
 in
 {
   options.sops = {
@@ -316,23 +296,6 @@ in
       '';
     };
 
-    useSystemdActivation = lib.mkOption {
-      type = lib.types.bool;
-      default =
-        (options.systemd ? sysusers && config.systemd.sysusers.enable)
-        || (options.services ? userborn && config.services.userborn.enable);
-      defaultText = lib.literalExpression (
-        "(options.systemd ? sysusers && config.systemd.sysusers.enable) "
-        + "|| (options.services ? userborn && config.services.userborn.enable)"
-      );
-      description = ''
-        Use a systemd unit to install secrets, instead of deploying them using an activation script.
-
-        This option is automatically enabled when systemd-sysusers or userborn are used to manage users and groups.
-        It can also be useful to specify additional dependencies to be satisfied before secrets are installed, such as required mountpoints for SOPS key files.
-      '';
-    };
-
     age = {
       keyFile = lib.mkOption {
         type = lib.types.nullOr pathNotInStore;
@@ -385,8 +348,8 @@ in
 
       sshKeyPaths = lib.mkOption {
         type = lib.types.listOf lib.types.path;
-        default = defaultImportKeys "ed25519";
-        defaultText = lib.literalMD "The ed25519 keys from {option}`config.services.openssh.hostKeys`";
+        default = [ ];
+        defaultText = lib.literalMD "On NixOS, the ed25519 keys from {option}`config.services.openssh.hostKeys`";
         description = ''
           Paths to ssh keys added as age keys during sops description.
           
@@ -408,8 +371,8 @@ in
 
       sshKeyPaths = lib.mkOption {
         type = lib.types.listOf lib.types.path;
-        default = defaultImportKeys "rsa";
-        defaultText = lib.literalMD "The rsa keys from {option}`config.services.openssh.hostKeys`";
+        default = [ ];
+        defaultText = lib.literalMD "On NixOS, the rsa keys from {option}`config.services.openssh.hostKeys`";
         description = ''
           Path to ssh keys added as GPG keys during sops description.
           This option must be explicitly unset if <literal>config.sops.gnupg.home</literal> is set.
@@ -429,7 +392,6 @@ in
   };
   imports = [
     ./templates
-    ./secrets-for-users
     (lib.mkRenamedOptionModule
       [
         "sops"
@@ -489,83 +451,20 @@ in
       sops.environment.SOPS_GPG_EXEC = lib.mkIf (cfg.gnupg.home != null || cfg.gnupg.sshKeyPaths != [ ]) (
         lib.mkDefault "${cfg.gnupg.package}/bin/gpg"
       );
-
-      # When using sysusers we no longer are started as an activation script because those are started in initrd while sysusers is started later.
-      systemd.services.sops-install-secrets =
-        lib.mkIf (regularSecrets != { } && cfg.useSystemdActivation)
-          {
-            wantedBy = [ "sysinit.target" ];
-            after = [
-              "local-fs.target"
-              "systemd-sysusers.service"
-              "userborn.service"
-            ];
-            requiredBy = [ "sysinit-reactivation.target" ];
-            # WantedBy only pulls the unit in; without Before= normal services
-            # (ordered after sysinit.target via DefaultDependencies) race with us.
-            before = [
-              "sysinit.target"
-              "sysinit-reactivation.target"
-              "shutdown.target"
-            ];
-            conflicts = [ "shutdown.target" ];
-            environment = cfg.environment // {
-              SOPS_RESTART_UNITS_VIA_SYSTEMCTL = "1";
-            };
-            unitConfig.DefaultDependencies = "no";
-            path = cfg.age.plugins;
-
-            serviceConfig = {
-              Type = "oneshot";
-              ExecStart = [ "${cfg.package}/bin/sops-install-secrets ${manifest}" ];
-              RemainAfterExit = true;
-            };
-            unitConfig.RequiresMountsFor = lib.concatLists [
-              (lib.lists.optional (cfg.gnupg.home != null) cfg.gnupg.home)
-              cfg.gnupg.sshKeyPaths
-              (lib.lists.optional (cfg.age.keyFile != null) cfg.age.keyFile)
-              cfg.age.sshKeyPaths
-            ];
-          };
-
-      system.activationScripts = {
-        setupSecrets = lib.mkIf (regularSecrets != { } && !cfg.useSystemdActivation) (
-          lib.stringAfter
-            (
-              [
-                "specialfs"
-                "users"
-                "groups"
-              ]
-              ++ lib.optional cfg.age.generateKey "generate-age-key"
-            )
-            ''
-              [ -e /run/current-system ] || echo setting up secrets...
-              ${withEnvironment "${sops-install-secrets}/bin/sops-install-secrets ${manifest}"}
-            ''
-          // lib.optionalAttrs (config.system ? dryActivationScript) {
-            supportsDryActivation = true;
-          }
-        );
-
-        generate-age-key =
-          let
-            escapedKeyFile = lib.escapeShellArg cfg.age.keyFile;
-          in
-          lib.mkIf cfg.age.generateKey (
-            lib.stringAfter [ ] ''
-              if [[ ! -f ${escapedKeyFile} ]]; then
-                echo generating machine-specific age key...
-                mkdir -p $(dirname ${escapedKeyFile})
-                # age-keygen sets 0600 by default, no need to chmod.
-                ${pkgs.age}/bin/age-keygen -o ${escapedKeyFile}
-              fi
-            ''
-          );
-      };
     })
     {
+      assertions = [
+        {
+          assertion =
+            (lib.filterAttrs (
+              _: v: (v.uid != 0 && v.owner != "root") || (v.gid != 0 && v.group != "root")
+            ) secretsForUsers) == { };
+          message = "neededForUsers cannot be used for secrets that are not root-owned";
+        }
+      ];
+
       system.build.sops-nix-manifest = manifest;
+      system.build.sops-nix-users-manifest = manifestForUsers;
     }
   ];
 }
