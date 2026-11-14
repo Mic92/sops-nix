@@ -11,6 +11,8 @@
   inputs.nix-darwin.url = "github:LnL7/nix-darwin";
   inputs.nix-darwin.inputs.nixpkgs.follows = "nixpkgs-unstable";
 
+  inputs.finix.url = "github:finix-community/finix";
+
   inputs.home-manager.url = "github:nix-community/home-manager";
   inputs.home-manager.inputs.nixpkgs.follows = "nixpkgs-unstable";
 

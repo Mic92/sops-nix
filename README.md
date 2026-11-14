@@ -77,6 +77,32 @@ If you use experimental nix flakes support:
 }
 ```
 
+##### [Finix](https://github.com/finix-community/finix)
+
+Finix has its own module, because it has no systemd: secrets are installed by a system activation script instead of a systemd unit.
+
+```nix
+{
+  inputs.nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
+  inputs.finix.url = "github:finix-community/finix";
+  inputs.finix.inputs.nixpkgs.follows = "nixpkgs";
+  inputs.sops-nix.url = "github:Mic92/sops-nix";
+
+  outputs = { self, nixpkgs, finix, sops-nix }: {
+    nixosConfigurations.yourhostname = finix.lib.finixSystem {
+      lib = nixpkgs.lib;
+      modules = [
+        ./configuration.nix
+        sops-nix.finixModules.sops
+      ];
+    };
+  };
+}
+```
+
+Then configure `sops` in `configuration.nix` as usual (see below).
+Options that rely on systemd, such as `sops.useSystemdActivation`, do not exist in this module.
+
 ##### [`nix-darwin`](https://github.com/nix-darwin/nix-darwin)
 
 A module for `nix-darwin` is also available for global install with flakes:
