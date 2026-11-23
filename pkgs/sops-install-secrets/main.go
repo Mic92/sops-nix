@@ -948,7 +948,39 @@ func symlinkWalk(filename string, linkDirname string, walkFn filepath.WalkFunc) 
 	return filepath.Walk(filename, symWalkFunc)
 }
 
-func handleModifications(isDry bool, logcfg loggingConfig, symlinkPath string, secretDir string, secrets []secret, templates []template) error {
+type unitRequests struct {
+	restart []string
+	reload  []string
+}
+
+func (r unitRequests) send() error {
+	systemctl := func(verb string, units []string) error {
+		if len(units) == 0 {
+			return nil
+		}
+		// --no-block: we are ordered before sysinit-reactivation.target
+		// with DefaultDependencies=no. Blocking on a normal service
+		// (which has After=sysinit.target) would deadlock the
+		// transaction.
+		args := append([]string{"--no-block", verb}, units...)
+		cmd := exec.Command("systemctl", args...)
+		cmd.Stdout = os.Stderr
+		cmd.Stderr = os.Stderr
+		if err := cmd.Run(); err != nil {
+			return fmt.Errorf("error running 'systemctl %s': %w", strings.Join(args, " "), err)
+		}
+		return nil
+	}
+	// try-restart: only act on units that are already running.
+	// On first activation the unit starts fresh with the new
+	// secret anyway, so a no-op is correct.
+	if err := systemctl("try-restart", r.restart); err != nil {
+		return err
+	}
+	return systemctl("try-reload-or-restart", r.reload)
+}
+
+func handleModifications(isDry bool, logcfg loggingConfig, symlinkPath string, secretDir string, secrets []secret, templates []template) (unitRequests, error) {
 	var restart []string
 	var reload []string
 
@@ -964,7 +996,7 @@ func handleModifications(isDry bool, logcfg loggingConfig, symlinkPath string, s
 	// where switch-to-configuration is not run so the services would only be restarted
 	// the next time switch-to-configuration is run.
 	if _, err := os.Stat(symlinkPath); os.IsNotExist(err) {
-		return nil
+		return unitRequests{}, nil
 	}
 
 	// Find modified/new secrets
@@ -982,13 +1014,13 @@ func handleModifications(isDry bool, logcfg loggingConfig, symlinkPath string, s
 				newSecrets[secret.Name] = true
 				continue
 			}
-			return err
+			return unitRequests{}, err
 		}
 
 		// Read the new file
 		newData, err := os.ReadFile(newPath)
 		if err != nil {
-			return err
+			return unitRequests{}, err
 		}
 
 		if !bytes.Equal(oldData, newData) {
@@ -1013,13 +1045,13 @@ func handleModifications(isDry bool, logcfg loggingConfig, symlinkPath string, s
 				newTemplates[template.Name] = true
 				continue
 			}
-			return err
+			return unitRequests{}, err
 		}
 
 		// Read the new file
 		newData, err := os.ReadFile(newPath)
 		if err != nil {
-			return err
+			return unitRequests{}, err
 		}
 
 		if !bytes.Equal(oldData, newData) {
@@ -1046,24 +1078,8 @@ func handleModifications(isDry bool, logcfg loggingConfig, symlinkPath string, s
 	// systemd-run, ...), so the activation script inherits it too. For
 	// the legacy activation-script path, keep writing the list files so
 	// that switch-to-configuration picks them up as before.
+	var requests unitRequests
 	if os.Getenv("SOPS_RESTART_UNITS_VIA_SYSTEMCTL") == "1" {
-		systemctl := func(verb string, units []string) error {
-			if len(units) == 0 {
-				return nil
-			}
-			// --no-block: we are ordered before sysinit-reactivation.target
-			// with DefaultDependencies=no. Blocking on a normal service
-			// (which has After=sysinit.target) would deadlock the
-			// transaction.
-			args := append([]string{"--no-block", verb}, units...)
-			cmd := exec.Command("systemctl", args...)
-			cmd.Stdout = os.Stderr
-			cmd.Stderr = os.Stderr
-			if err := cmd.Run(); err != nil {
-				return fmt.Errorf("error running 'systemctl %s': %w", strings.Join(args, " "), err)
-			}
-			return nil
-		}
 		if isDry {
 			for _, u := range restart {
 				fmt.Fprintf(os.Stderr, "would restart %s\n", u)
@@ -1072,15 +1088,7 @@ func handleModifications(isDry bool, logcfg loggingConfig, symlinkPath string, s
 				fmt.Fprintf(os.Stderr, "would reload %s\n", u)
 			}
 		} else {
-			// try-restart: only act on units that are already running.
-			// On first activation the unit starts fresh with the new
-			// secret anyway, so a no-op is correct.
-			if err := systemctl("try-restart", restart); err != nil {
-				return err
-			}
-			if err := systemctl("try-reload-or-restart", reload); err != nil {
-				return err
-			}
+			requests = unitRequests{restart: restart, reload: reload}
 		}
 	} else {
 		writeLines := func(list []string, file string) error {
@@ -1111,16 +1119,16 @@ func handleModifications(isDry bool, logcfg loggingConfig, symlinkPath string, s
 			dryPrefix = "/run/nixos/activation"
 		}
 		if err := writeLines(restart, dryPrefix+"-restart-list"); err != nil {
-			return err
+			return unitRequests{}, err
 		}
 		if err := writeLines(reload, dryPrefix+"-reload-list"); err != nil {
-			return err
+			return unitRequests{}, err
 		}
 	}
 
 	// Do not output changes if not requested
 	if !logcfg.SecretChanges {
-		return nil
+		return requests, nil
 	}
 
 	// Find removed secrets/templates.
@@ -1161,7 +1169,7 @@ func handleModifications(isDry bool, logcfg loggingConfig, symlinkPath string, s
 		return nil
 	})
 	if err != nil {
-		return err
+		return unitRequests{}, err
 	}
 
 	// Output new/modified/removed secrets/templates
@@ -1194,7 +1202,7 @@ func handleModifications(isDry bool, logcfg loggingConfig, symlinkPath string, s
 	outputChanged("rendered secret", modifiedTemplates, "modifying", "would modify")
 	outputChanged("rendered secret", removedTemplates, "removing", "would remove")
 
-	return nil
+	return requests, nil
 }
 
 type keyring struct {
@@ -1479,8 +1487,10 @@ func installSecrets(args []string) error {
 		return fmt.Errorf("cannot render templates: %w", err)
 	}
 
+	var requests unitRequests
 	if !manifest.UserMode {
-		if err := handleModifications(isDry, manifest.Logging, manifest.SymlinkPath, *secretDir, manifest.Secrets, manifest.Templates); err != nil {
+		requests, err = handleModifications(isDry, manifest.Logging, manifest.SymlinkPath, *secretDir, manifest.Secrets, manifest.Templates)
+		if err != nil {
 			return fmt.Errorf("cannot request units to restart: %w", err)
 		}
 	}
@@ -1493,6 +1503,10 @@ func installSecrets(args []string) error {
 	}
 	if err := symlinkSecretsAndTemplates(manifest.SymlinkPath, manifest.Secrets, manifest.Templates, manifest.UserMode); err != nil {
 		return fmt.Errorf("failed to prepare symlinks to secret store: %w", err)
+	}
+	// Units may only be restarted once they can see the new secrets
+	if err := requests.send(); err != nil {
+		return fmt.Errorf("cannot request units to restart: %w", err)
 	}
 	if err := pruneGenerations(manifest.SecretsMountPoint, *secretDir, manifest.KeepGenerations); err != nil {
 		return fmt.Errorf("cannot prune old secrets generations: %w", err)

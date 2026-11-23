@@ -631,6 +631,64 @@ in
     '';
   };
 
+  restart-systemd-activation = testers.runNixOSTest {
+    name = "sops-restart-systemd-activation";
+    nodes.machine =
+      { config, ... }:
+      {
+        imports = [ ../modules/sops ];
+
+        services.userborn.enable = true;
+        users.mutableUsers = false;
+
+        sops = {
+          age.keyFile = "/run/age-keys.txt";
+          defaultSopsFile = testAssets + "/secrets.yaml";
+          secrets.test_key = { };
+          templates."consumer.env" = {
+            content = ''SECRET="${config.sops.placeholder.test_key}"'';
+            restartUnits = [ "secret-consumer.service" ];
+          };
+        };
+        system.switch.enable = true;
+
+        # must run before sops sets up keys
+        systemd.services.sops-install-secrets.preStart = ''
+          printf '${builtins.readFile (testAssets + "/age-keys.txt")}' > /run/age-keys.txt
+          chmod -R 700 /run/age-keys.txt
+        '';
+
+        # EnvironmentFile is read right when the unit starts, a later read would hide the race
+        systemd.services.secret-consumer = {
+          wantedBy = [ "multi-user.target" ];
+          serviceConfig = {
+            Type = "oneshot";
+            RemainAfterExit = true;
+            EnvironmentFile = config.sops.templates."consumer.env".path;
+            ExecStart = ''/bin/sh -c 'printf %%s "$SECRET" > /consumer-saw' '';
+          };
+        };
+
+        specialisation.changed.configuration.sops.secrets.test_key.key = "nested/test/file";
+      };
+    testScript = ''
+      machine.wait_for_unit("multi-user.target")
+
+      def consumer_saw():
+        machine.wait_until_succeeds("! systemctl list-jobs --no-legend | grep -q secret-consumer")
+        return machine.succeed("cat /consumer-saw")
+
+      assert consumer_saw() == "test_value"
+
+      # the race is timing dependent, so change the secret a few times
+      for _ in range(5):
+        machine.succeed("/run/booted-system/specialisation/changed/bin/switch-to-configuration test")
+        assert consumer_saw() == "another value"
+        machine.succeed("/run/booted-system/bin/switch-to-configuration test")
+        assert consumer_saw() == "test_value"
+    '';
+  };
+
   user-passwords = userPasswordTest "sops-user-passwords" {
     # must run before sops sets up keys
     system.activationScripts.earlySecrets.text = ''
