@@ -286,8 +286,9 @@ func symlinkSecretsAndTemplates(targetDir string, secrets []secret, templates []
 }
 
 type plainData struct {
-	data   map[string]interface{}
-	binary []byte
+	decrypted bool
+	plain     []byte
+	data      map[string]interface{}
 }
 
 func recurseSecretKey(keys map[string]interface{}, wantedKey string) (string, error) {
@@ -347,48 +348,41 @@ func recurseSecretKey(keys map[string]interface{}, wantedKey string) (string, er
 
 func decryptSecret(s *secret, sourceFiles map[string]plainData) error {
 	sourceFile := sourceFiles[s.SopsFile]
-	if sourceFile.data == nil || sourceFile.binary == nil {
+	if !sourceFile.decrypted {
 		plain, err := decrypt.File(s.SopsFile, string(s.Format))
 		if err != nil {
 			return fmt.Errorf("failed to decrypt '%s': %w", s.SopsFile, err)
 		}
+		sourceFile.plain = plain
+		sourceFile.decrypted = true
+	}
 
-		switch s.Format {
-		case Binary, Dotenv, Ini:
-			sourceFile.binary = plain
-		case Yaml:
-			if s.Key == "" {
-				sourceFile.binary = plain
-			} else {
-				if err := yaml.Unmarshal(plain, &sourceFile.data); err != nil {
+	switch s.Format {
+	case Binary, Dotenv, Ini:
+		s.value = sourceFile.plain
+	case Yaml, JSON:
+		if s.Key == "" {
+			s.value = sourceFile.plain
+			break
+		}
+		if sourceFile.data == nil {
+			if s.Format == Yaml {
+				if err := yaml.Unmarshal(sourceFile.plain, &sourceFile.data); err != nil {
 					return fmt.Errorf("cannot parse yaml of '%s': %w", s.SopsFile, err)
 				}
-			}
-		case JSON:
-			if s.Key == "" {
-				sourceFile.binary = plain
 			} else {
-				if err := json.Unmarshal(plain, &sourceFile.data); err != nil {
+				if err := json.Unmarshal(sourceFile.plain, &sourceFile.data); err != nil {
 					return fmt.Errorf("cannot parse json of '%s': %w", s.SopsFile, err)
 				}
 			}
-		default:
-			return fmt.Errorf("secret of type %s in %s is not supported", s.Format, s.SopsFile)
 		}
-	}
-	switch s.Format {
-	case Binary, Dotenv, Ini:
-		s.value = sourceFile.binary
-	case Yaml, JSON:
-		if s.Key == "" {
-			s.value = sourceFile.binary
-		} else {
-			strVal, err := recurseSecretKey(sourceFile.data, s.Key)
-			if err != nil {
-				return fmt.Errorf("secret %s in %s is not valid: %w", s.Name, s.SopsFile, err)
-			}
-			s.value = []byte(strVal)
+		strVal, err := recurseSecretKey(sourceFile.data, s.Key)
+		if err != nil {
+			return fmt.Errorf("secret %s in %s is not valid: %w", s.Name, s.SopsFile, err)
 		}
+		s.value = []byte(strVal)
+	default:
+		return fmt.Errorf("secret of type %s in %s is not supported", s.Format, s.SopsFile)
 	}
 	sourceFiles[s.SopsFile] = sourceFile
 	return nil
