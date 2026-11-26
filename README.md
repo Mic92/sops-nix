@@ -953,6 +953,41 @@ GnuPG daemon. [GnuPG is in general not great software](https://latacora.micro.bl
 hilarious ways. If you experience problems, you are on your own. If you want a
 more stable and predictable solution go with SSH keys or one of the KMS services.
 
+## Using SSH recipients directly with Age
+
+By default, SSH keys will be derived into Age keys. However, Age and Sops both
+support SSH recipients. Simply add the SSH public key in your sops file:
+
+```yaml
+keys:
+  - &ssh_recipient ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIHl4I3OOAKg8BAWnnXCYaIuQz0Zjoq/B1NtSPwBLabGF
+creation_rules:
+  - path_regex: secrets/[^/]+\.(yaml|json|env|ini)$
+    key_groups:
+      - age:
+        - *ssh_recipient
+```
+
+Then in your configuration, you **need** to use `sops.age.sshKeyFile`
+(`sops.age.sshKeyPaths` will derive the SSH keys into Age keys, making the
+recipients never match!):
+
+```nix
+{
+  sops.defaultSopsFile = ./secrets/example.yaml;
+  sops.age.sshKeyFile = "/etc/ssh/ssh_host_ed25519_key";
+}
+```
+
+There is also `sops.age.sshKeyCmd` which can be used to run a command that
+will return the SSH private file contents:
+
+```nix
+{
+  sops.defaultSopsFile = ./secrets/example.yaml;
+  sops.age.sshKeyCmd = "${pkgs.coreutils}/bin/cat /etc/ssh/ssh_host_ed25519_key";
+}
+```
 
 ## Share secrets between different users
 
@@ -985,6 +1020,44 @@ $ for i in *.gpg; do echo "$(basename $i .gpg): |\n$(pass $(dirname $i)/$(basena
 ```
 
 Copy the output to the editor you have opened with sops.
+
+## Post-quantum cryptography support
+
+If you are concerned about
+["Harvest now, decrypt later"](https://en.wikipedia.org/wiki/Harvest_now,_decrypt_later)
+attacks, Age offers post-quantum keys. GPG and SSH keys are currently
+**not post-quantum safe**. First, explicit PQ Age keys must be generated:
+
+```sh
+$ age-keygen -pq my_pq_age_key
+```
+
+To tell if your existing Age keys use post-quantum cryptography, look at the
+prefixes. Public keys should start with `age1pq1`; private keys should start
+with `AGE-SECRET-KEY-PQ-1`.
+
+> [!WARNING]
+> If a secret accepts both a post-quantum Age recipient and a classical
+> encryption recipient, the secret is **not post-quantum safe**. Any attacker
+> that breaks the classical encryption recipient could decrypt the secret, and
+> ignore the post-quantum Age recipient.
+
+```yaml
+keys:
+  - &pq_key age1pq1mvme3zd4zeepyne9y88wq447w6t5aukhgh8kqd7l0qd48xzymk44rz92fgrvez76z7d2awsh5acmur7t2lc3y746sawuh5ggmmp28rkffk5cgykrwhyt0x3480p4kw5qvuc32d7zq5zhcn9ryuccwz0y3q9rnda2tzrdhyc9dhrvdth6nu7exwyt72xnzsqgpsvvnch83tkh98rrwd452snvugjxdk0qtaredrd6as47z3fmzfqfkhgy3suuxgfzarrwz4yfky6cecltr2528xg3ffrfuc9f03jxa2m9zlapz4ud03znxuxdntqj4llxykkfhjdfsa43vmzyqutuxyfqdssmvuskerrhg6mn5kcffvhrww5frgsmq4wt2e6f8t35tl3kd304czuw4prhapug02y292xuekmhvtca2ahm3kzy0lajc30vjlcek90uz9k9lgfff592mzuvw7z45y7kf08fwxdteqpqhtgzs3khzvl2l3rn2fdwywm8ep035n0yxawszcucdy4u9le92hvzxlpwdnvjkkekj26566uqjwx9rxd2v6ncfpl8k0xpegqp9d85pvtr4fwlk6mxzsfw8kav6y4z0f4uykjc3wrph5fxelt2y8nyz636f03zz3udgjrgk5rfxp5jd8nqe8nw0s39xef05tsk2vvpxw0n5jsh2utnhj42ksgcpyvm50ayvnwujxzavutlcxgh52t3wdl493jcjpqryx24r4vstf88g62w83tk5wwjjnrfh35y3d0znhcns22jfpawk4u263z62njqwaavjysev40w4df2fnehhz3kewpeppe2eg3jmj5uncvcvk78ftcnf9ur7fgg09uv8k2mg5z8nd5evdmz6anmxjf3a0f2fasurwl8g2rrmfqh3wq0sdvtjrvmhqpftqpvq5sjanx0mnjnqxhc53nvcuwc2kftj32k5u6g2hjhfck2cldplfphspgy9ay6zgezxucsg4lqgzneqd67tjfshtce94hhr0sgdwkcvur2a94zw6jcd3qk3j93d28tfxff8faq676r2upd4z9g98rgewvrttrchashzz2yqk9c3txpr9sjvurmgzwk2vznpdg7ur8crkdwud6crvs2x5r62e5hxpfxmfqrklr9jzt49543z4j3v7jgst9tfwmvae8g4277rp73vfrgljscv2tzawzgev9gzy074xznl9nyp4vz3uk9e4re9nq0ss8rhzsmwc640l3sc7d4gvcue2lmq9rpaddcaqdndes6je7h9dh89nptpytf5764nfdxdpwrgfk5cergz0fgkwxx8mleygrmqmratu37rac9yugfqjjv5zg00j3kzvuaqw4n265204q2nfzpsgnnfw3263y2k6u8x4y3scqs8y3kggwvayehchlgdad5rvp5q3v9rqza3ja6u3mj8cpxz0eyvs6slgn0harz5pqr9jhjcnjy0pk70g34y2js9xc59zcx2pyf39t0ghq4fzum7yh6egt4czvkysz2snzjw8e6amkvfjd2qhllvg95v4nzca2qjtsq5hzrx4gzwexylpt9az9cc8mnfsajt8k7w3yerkaz2ppftmeynee4q76cpqptukte2unpacmk8qvkjva7nf0xuxclappnscrs3pmdcmzsqu6rvep2zlgzjcg3grems23xj3jmxcu00m7pqnh3chsvz7es62qr4r9ey65cyw6hdasvvy7efpwdpx9tetcg8mc3ynpf3t9tmzpyywma073rqs42c2sljw6f7dee70p7wvn4fexteq4whdhrweqk65nrdqmh0mzgq606gnv26y0nc54qzu0z0n0j6vyctc8mnpu686cflsat5maje8anuma0l0gaakg9u79ddu4ugm023pspf7c3udh2847rp3ajkcrvzj7a45tgkejszqcnt359
+creation_rules:
+  - path_regex: secrets/[^/]+\.(yaml|json|env|ini)$
+    key_groups:
+      - age:
+        - *pq_key
+```
+
+```nix
+{
+  sops.defaultSopsFile = ./secrets/example.yaml;
+  sops.age.keyFile = "/var/lib/sops-nix/pq-key.txt";
+}
+```
 
 ## Real-world examples
 
