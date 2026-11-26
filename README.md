@@ -953,6 +953,41 @@ GnuPG daemon. [GnuPG is in general not great software](https://latacora.micro.bl
 hilarious ways. If you experience problems, you are on your own. If you want a
 more stable and predictable solution go with SSH keys or one of the KMS services.
 
+## Using SSH recipients directly with Age
+
+By default, SSH keys will be derived into Age keys. However, Age and Sops both
+support SSH recipients. Simply add the SSH public key in your sops file:
+
+```yaml
+keys:
+  - &ssh_recipient ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIHl4I3OOAKg8BAWnnXCYaIuQz0Zjoq/B1NtSPwBLabGF
+creation_rules:
+  - path_regex: secrets/[^/]+\.(yaml|json|env|ini)$
+    key_groups:
+      - age:
+        - *ssh_recipient
+```
+
+Then in your configuration, you **need** to use `sops.age.sshKeyFile`
+(`sops.age.sshKeyPaths` will derive the SSH keys into Age keys, making the
+recipients never match!):
+
+```nix
+{
+  sops.defaultSopsFile = ./secrets/example.yaml;
+  sops.age.sshKeyFile = "/etc/ssh/ssh_host_ed25519_key";
+}
+```
+
+There is also `sops.age.sshKeyCmd` which can be used to run a command that
+will return the SSH private file contents:
+
+```nix
+{
+  sops.defaultSopsFile = ./secrets/example.yaml;
+  sops.age.sshKeyCmd = "${pkgs.coreutils}/bin/cat /etc/ssh/ssh_host_ed25519_key";
+}
+```
 
 ## Share secrets between different users
 
